@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Esprit & Vie",
+    "slug": "eev-financial-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "eevfinancial",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#091338"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.espritvie.financial"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#091338"
+      },
+      "package": "org.espritvie.financial"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build artifacts
+dist
+build
+.output
+.turbo
+.expo
+.next
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# PocketBase local database and storage (keep migrations & seeds in git)
+pocketbase/pb_data/
+pocketbase/pb_public/
+bin/pocketbase
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/

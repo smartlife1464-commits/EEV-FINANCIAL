@@ -1,0 +1,19 @@
+{
+  "name": "@eev/business-rules",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Core domain logic and financial calculation engine for EEV-FINANCIAL",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@eev/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}

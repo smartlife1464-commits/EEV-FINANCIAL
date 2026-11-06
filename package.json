@@ -1,0 +1,19 @@
+{
+  "name": "eev-financial-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plateforme de gestion administrative, statistique et financière du Ministère Esprit & Vie",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "dev:api": "pnpm --filter @eev/api dev",
+    "dev:web": "pnpm --filter @eev/web dev",
+    "dev:pb": "./bin/pocketbase serve --dir=./pocketbase/pb_data --http=127.0.0.1:8090"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  },
+  "packageManager": "pnpm@10.18.1"
+}
