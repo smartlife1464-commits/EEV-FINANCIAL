@@ -110,5 +110,27 @@ export const api = {
   // Reports & Audit
   getReportsSummary: (period: string = 'monthly') => request<any>(`/reports/summary?period=${period}`),
   getAuditLogs: () => request<any[]>('/audit-logs'),
+
+  // Analytics & Statistics Module
+  getAnalyticsOverview: (period: string = 'this_month', startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams({ period });
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return request<any>(`/analytics/overview?${params.toString()}`);
+  },
+  getAttendanceAnalytics: (period: string = 'this_month', startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams({ period });
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return request<any>(`/analytics/attendance?${params.toString()}`);
+  },
+  getAttendanceTrends: (granularity: string = 'week') =>
+    request<any[]>(`/analytics/attendance/trends?granularity=${granularity}`),
+  getFinancialAnalytics: (period: string = 'this_month', startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams({ period });
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return request<any>(`/analytics/finance?${params.toString()}`);
+  },
 };
 

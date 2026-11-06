@@ -8,6 +8,7 @@ import { serviceRoutes } from './routes/services.routes.js';
 import { financeRoutes } from './routes/finance.routes.js';
 import { dashboardRoutes } from './routes/dashboard.routes.js';
 import { reportRoutes } from './routes/reports.routes.js';
+import { analyticsRoutes } from './routes/analytics.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
@@ -71,6 +72,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(financeRoutes);
   await app.register(dashboardRoutes);
   await app.register(reportRoutes);
+  await app.register(analyticsRoutes);
 
   return app;
 }

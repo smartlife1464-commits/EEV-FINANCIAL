@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   CalendarDays,
+  BarChart3,
   Wallet,
   ArrowDownCircle,
   ArrowUpCircle,
@@ -30,6 +31,12 @@ export const Sidebar: React.FC = () => {
       icon: LayoutDashboard,
       show: true,
       exact: true,
+    },
+    {
+      to: '/analytics',
+      label: 'Statistiques & Analyses',
+      icon: BarChart3,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.PROTOCOL_LEAD, UserRole.AUDITOR].includes(role),
     },
     {
       to: '/attendance',

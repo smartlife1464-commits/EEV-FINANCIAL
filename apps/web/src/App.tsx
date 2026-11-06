@@ -24,6 +24,9 @@ import { UsersManagement } from './pages/UsersManagement';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotificationsPage } from './pages/NotificationsPage';
+import { AnalyticsOverview } from './pages/analytics/AnalyticsOverview';
+import { AttendanceAnalytics } from './pages/analytics/AttendanceAnalytics';
+import { FinancialAnalytics } from './pages/analytics/FinancialAnalytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +60,9 @@ export const App: React.FC = () => {
                 <Route path="finance/treasury" element={<TreasuryDetail />} />
                 <Route path="finance/transfers" element={<InternalTransfers />} />
                 <Route path="finance/transactions" element={<GeneralLedger />} />
+                <Route path="analytics" element={<AnalyticsOverview />} />
+                <Route path="analytics/attendance" element={<AttendanceAnalytics />} />
+                <Route path="analytics/finance" element={<FinancialAnalytics />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="admin/users" element={<UsersManagement />} />
                 <Route path="admin/audit" element={<AuditLogsPage />} />
