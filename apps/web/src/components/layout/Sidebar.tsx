@@ -3,225 +3,187 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   CalendarDays,
-  Users,
   Wallet,
   ArrowDownCircle,
   ArrowUpCircle,
-  CheckCircle2,
-  PieChart,
-  ArrowLeftRight,
-  BookOpen,
+  PiggyBank,
   FileText,
-  ShieldCheck,
+  Users,
+  Settings,
   History,
-  Crown,
-  ClipboardList,
+  Bell,
+  LogOut,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '@eev/shared-types';
 
 export const Sidebar: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const role = user?.role || UserRole.PROTOCOL_AGENT;
 
-  // Configuration des sections de navigation adaptées au rôle
-  const navSections = [
+  // Configuration des éléments du menu inspirée du design de référence
+  const navItems = [
     {
-      title: 'PILOTAGE & TABLEAUX DE BORD',
-      items: [
-        {
-          to: '/',
-          label: 'Vue Globale Leader',
-          icon: Crown,
-          show: role === UserRole.LEAD_PASTOR || role === UserRole.ADMIN,
-        },
-        {
-          to: '/finance',
-          label: 'Dashboard Finances',
-          icon: Wallet,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
-        },
-        {
-          to: '/protocol',
-          label: 'Dashboard Protocole',
-          icon: Users,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT, UserRole.AUDITOR].includes(role),
-        },
-      ],
+      to: '/',
+      label: "Vue d'ensemble",
+      icon: LayoutDashboard,
+      show: true,
+      exact: true,
     },
     {
-      title: 'PROTOCOLE & FRÉQUENTATION',
-      items: [
-        {
-          to: '/services',
-          label: 'Cultes & Programmes',
-          icon: CalendarDays,
-          show: true,
-        },
-        {
-          to: '/attendance',
-          label: 'Fiches de Présence',
-          icon: ClipboardList,
-          show: true,
-        },
-        {
-          to: '/attendance/new',
-          label: 'Saisir les Présences',
-          icon: Users,
-          show: [UserRole.PROTOCOL_AGENT, UserRole.PROTOCOL_LEAD, UserRole.ADMIN, UserRole.LEAD_PASTOR].includes(role),
-        },
-      ],
+      to: '/attendance',
+      label: 'Cultes & Fréquentation',
+      icon: CalendarDays,
+      show: true,
     },
     {
-      title: 'FINANCES & TRÉSORERIE',
-      items: [
-        {
-          to: '/finance/treasury',
-          label: 'Trésorerie Consolidée',
-          icon: PieChart,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.AUDITOR].includes(role),
-        },
-        {
-          to: '/finance/entries',
-          label: 'Recettes Encaissées',
-          icon: ArrowDownCircle,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
-        },
-        {
-          to: '/finance/entries/new',
-          label: 'Enregistrer une Recette',
-          icon: ArrowDownCircle,
-          show: [UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.ADMIN].includes(role),
-        },
-        {
-          to: '/finance/expenses',
-          label: 'Dépenses & Décaissements',
-          icon: ArrowUpCircle,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
-        },
-        {
-          to: '/finance/approvals',
-          label: 'Autorisation des Dépenses',
-          icon: CheckCircle2,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN].includes(role),
-          badge: 'Validation',
-        },
-        {
-          to: '/finance/transfers',
-          label: 'Transferts Analytiques',
-          icon: ArrowLeftRight,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD].includes(role),
-        },
-        {
-          to: '/finance/transactions',
-          label: 'Grand Livre Comptable',
-          icon: BookOpen,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.AUDITOR].includes(role),
-        },
-      ],
+      to: '/finance',
+      label: 'Finances',
+      icon: Wallet,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
     },
     {
-      title: 'RAPPORTS & AUDIT',
-      items: [
-        {
-          to: '/reports',
-          label: 'Rapports & Exports',
-          icon: FileText,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.PROTOCOL_LEAD, UserRole.AUDITOR].includes(role),
-        },
-        {
-          to: '/admin/audit',
-          label: 'Journal d’Audit Immuable',
-          icon: History,
-          show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.AUDITOR].includes(role),
-        },
-        {
-          to: '/admin/users',
-          label: 'Gestion des Utilisateurs',
-          icon: ShieldCheck,
-          show: [UserRole.ADMIN, UserRole.LEAD_PASTOR].includes(role),
-        },
-      ],
+      to: '/finance/entries',
+      label: 'Recettes',
+      icon: ArrowDownCircle,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
+    },
+    {
+      to: '/finance/expenses',
+      label: 'Dépenses',
+      icon: ArrowUpCircle,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
+    },
+    {
+      to: '/finance/treasury',
+      label: 'Trésorerie',
+      icon: PiggyBank,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.AUDITOR].includes(role),
+    },
+    {
+      to: '/reports',
+      label: 'Rapports',
+      icon: FileText,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.PROTOCOL_LEAD, UserRole.AUDITOR].includes(role),
+    },
+    {
+      to: '/admin/users',
+      label: 'Utilisateurs',
+      icon: Users,
+      show: [UserRole.ADMIN, UserRole.LEAD_PASTOR].includes(role),
+    },
+    {
+      to: '/admin/audit',
+      label: 'Journal d’audit',
+      icon: History,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.AUDITOR].includes(role),
+    },
+    {
+      to: '/finance/approvals',
+      label: 'Notifications',
+      icon: Bell,
+      show: true,
+      badge: '3',
     },
   ];
 
   return (
-    <aside className="w-72 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col h-full select-none">
-      {/* Brand Header */}
-      <div className="p-5 border-b border-slate-800/80 flex items-center gap-3">
-        <img
-          src="/logo-eev.png"
-          alt="Esprit & Vie"
-          className="w-10 h-10 object-contain rounded-lg p-1 bg-white/5 border border-amber-400/20"
-        />
-        <div className="flex-1 min-w-0">
-          <h1 className="font-extrabold text-sm text-white tracking-wider truncate">
+    <aside className="w-64 bg-[#091338] text-slate-300 flex flex-col h-full border-r border-[#16214A] select-none shrink-0 transition-colors">
+      {/* Brand Header — Exact Logo & Typography */}
+      <div className="p-6 flex items-center gap-3.5 border-b border-[#16214A]/60">
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/30 p-1.5 flex items-center justify-center shrink-0 shadow-lg shadow-amber-400/10">
+          <img
+            src="/logo-eev.png"
+            alt="Logo Esprit & Vie"
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <div className="min-w-0">
+          <h1 className="font-extrabold text-sm tracking-wider text-white uppercase">
             ESPRIT & VIE
           </h1>
-          <p className="text-[11px] text-amber-400 font-semibold uppercase tracking-wider">
-            Gestion & Trésorerie
+          <p className="text-[10px] text-amber-400 font-bold uppercase tracking-widest mt-0.5">
+            Tableau de Bord
           </p>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
-        {navSections.map((section, idx) => {
-          const visibleItems = section.items.filter((item) => item.show);
-          if (visibleItems.length === 0) return null;
-
-          return (
-            <div key={idx} className="space-y-1.5">
-              <h2 className="px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-                {section.title}
-              </h2>
-              <div className="space-y-0.5">
-                {visibleItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.to === '/'}
-                      className={({ isActive }) =>
-                        `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+      {/* Navigation List */}
+      <nav className="flex-1 overflow-y-auto px-3.5 py-4 space-y-1">
+        {navItems
+          .filter((item) => item.show)
+          .map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.exact}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-extrabold shadow-md shadow-amber-500/20'
+                      : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${
+                          isActive ? 'text-slate-950' : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {item.badge && (
+                      <span
+                        className={`text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center ${
                           isActive
-                            ? 'bg-amber-400 text-slate-950 font-bold shadow-sm'
-                            : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                        }`
-                      }
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Icon className="w-4 h-4 shrink-0" />
-                        <span className="truncate">{item.label}</span>
-                      </div>
-                      {item.badge && (
-                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          {item.badge}
-                        </span>
-                      )}
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+                            ? 'bg-slate-950 text-amber-400'
+                            : 'bg-amber-400 text-slate-950'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
       </nav>
 
-      {/* User info at bottom */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/40">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-amber-400 text-slate-950 font-bold flex items-center justify-center text-xs">
-            {user?.name ? user.name[0].toUpperCase() : 'U'}
+      {/* Verset du Jour — Box authentique du screenshot */}
+      <div className="px-3.5 py-2">
+        <div className="p-4 rounded-2xl bg-[#0D183E] border border-amber-400/25 space-y-1.5 shadow-inner">
+          <div className="flex items-center gap-1.5 text-amber-400">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">
+              Verset du jour
+            </span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white truncate">{user?.name || 'Utilisateur'}</p>
-            <p className="text-[11px] text-amber-400 capitalize truncate">{user?.role?.replace('_', ' ')}</p>
-          </div>
+          <p className="text-[11px] text-slate-300 leading-relaxed italic">
+            « Tout ce que vous faites, faites-le de bon cœur, comme pour le Seigneur. »
+          </p>
+          <p className="text-[10px] text-amber-400/90 font-bold text-right pt-0.5">
+            Colossiens 3:23
+          </p>
         </div>
+      </div>
+
+      {/* Déconnexion au bas */}
+      <div className="p-3.5 pt-1 border-t border-[#16214A]/60">
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Déconnexion</span>
+        </button>
       </div>
     </aside>
   );
 };
-

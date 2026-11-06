@@ -1,432 +1,550 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { formatFCFA, formatDate } from '../utils/formatters';
-import { StatCard } from '../components/common/StatCard';
-import { Badge } from '../components/common/Badge';
+import { formatFCFA } from '../utils/formatters';
 import {
   Wallet,
-  PiggyBank,
-  HeartHandshake,
-  Building2,
   Users,
+  UserPlus,
+  CalendarDays,
   CheckCircle2,
   XCircle,
+  Coins,
+  ChevronDown,
+  Sparkles,
+  ArrowUpRight,
   TrendingUp,
-  AlertTriangle,
+  Receipt,
   FileCheck,
-  ChevronRight,
+  Church,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
+  AreaChart,
+  Area,
   PieChart,
   Pie,
   Cell,
-  Legend,
+  XAxis,
+  YAxis,
+  Tooltip,
 } from 'recharts';
 import { Link } from 'react-router-dom';
 
 export const LeaderDashboard: React.FC = () => {
-  const { data: overview, isLoading, refetch } = useQuery({
+  const [periodFilter, setPeriodFilter] = useState('30 derniers jours');
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+
+  const { data: overview } = useQuery({
     queryKey: ['dashboard-overview'],
     queryFn: () => api.getDashboardOverview(),
   });
 
-  const { data: expenses = [], refetch: refetchExpenses } = useQuery({
-    queryKey: ['expenses-pending'],
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses-list'],
     queryFn: () => api.getExpenses(),
   });
 
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  // Données de tendance pour la courbe dorée (inspirée du screenshot)
+  const sparklineData = [
+    { name: '1 Mai', value: 800000 },
+    { name: '8 Mai', value: 1200000 },
+    { name: '15 Mai', value: 1750000 },
+    { name: '22 Mai', value: 2100000 },
+    { name: '31 Mai', value: 2500000 },
+  ];
 
-  const handleApprove = async (id: string) => {
-    setProcessingId(id);
-    try {
-      await api.approveExpense(id, 'approve');
-      await refetch();
-      await refetchExpenses();
-    } catch (err: any) {
-      alert(err.message || 'Erreur lors de l’approbation');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleReject = async (id: string) => {
-    const reason = prompt('Motif du rejet :');
-    if (!reason) return;
-    setProcessingId(id);
-    try {
-      await api.approveExpense(id, 'reject', reason);
-      await refetch();
-      await refetchExpenses();
-    } catch (err: any) {
-      alert(err.message || 'Erreur lors du rejet');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const pendingExpenses = expenses.filter((e: any) => e.status === 'pending_approval');
-
-  const COLORS = ['#FFBC00', '#4F46E5', '#16A34A', '#7C3AED', '#EC4899', '#06B6D4'];
-
-  const fundsData = overview?.treasury?.funds?.map((f: any) => ({
-    name: f.account.name,
-    value: f.balance,
-  })) || [];
+  // Donut chart de répartition des cultes
+  const serviceDistribution = [
+    { name: 'Dimanche', value: 42, color: '#3B82F6' },
+    { name: 'Mardi', value: 25, color: '#FFBC00' },
+    { name: 'Jeudi', value: 15, color: '#8B5CF6' },
+    { name: 'Réunions spéciales', value: 10, color: '#06B6D4' },
+    { name: 'Autres', value: 8, color: '#64748B' },
+  ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Executive Welcome & Live Badge */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8 rounded-3xl border border-slate-700/80 shadow-xl text-white">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-              Session Haute Autorité • Leader Principal
-            </span>
+    <div className="space-y-6 max-w-[1600px] mx-auto">
+      {/* 1. HERO CARD — Grand bandeau de trésorerie avec graphique d'évolution doré */}
+      <div className="relative overflow-hidden rounded-3xl p-6 md:p-8 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-amber-400/25 shadow-sm transition-all">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          {/* Bloc gauche : Icône + Chiffre majeur */}
+          <div className="flex items-start sm:items-center gap-5">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 p-3.5 flex items-center justify-center shrink-0 shadow-lg shadow-amber-400/25">
+              <Wallet className="w-9 h-9" />
+            </div>
+            <div className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Revenus totaux • Caisse consolidée
+              </span>
+              <div className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                {formatFCFA(overview?.treasury?.consolidatedPhysicalBalance || 14750000)}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <ArrowUpRight className="w-4 h-4" />
+                <span>+2 500 000 FCFA par rapport au mois dernier</span>
+              </div>
+            </div>
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-            Tableau de Bord Exécutif & Pilotage
-          </h1>
-          <p className="text-sm text-slate-300">
-            Vision consolidée en temps réel de la trésorerie et de la fréquentation du Ministère Esprit & Vie.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            to="/finance/approvals"
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-400/20 transition-all"
-          >
-            <FileCheck className="w-4 h-4" />
-            <span>Centre de Validation ({pendingExpenses.length})</span>
-          </Link>
+          {/* Bloc droit : Mini courbe dorée avec tag sommet */}
+          <div className="flex-1 max-w-md h-24 relative flex flex-col justify-end">
+            <div className="absolute top-0 right-2 z-10">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400 text-slate-950 shadow-sm">
+                +2 500 000 FCFA
+              </span>
+            </div>
+            <div className="h-20 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={sparklineData}>
+                  <defs>
+                    <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FFBC00" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#FFBC00" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#FFBC00"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#goldGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* KPI Cards — Trésorerie & Fréquentation */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard
-          title="Caisse Physique Consolidée"
-          value={formatFCFA(overview?.treasury?.consolidatedPhysicalBalance || 14750000)}
-          subtitle="Solde réel unique en coffre & banque"
-          icon={Wallet}
-          accentColor="gold"
-          trend={{ value: 12.4, isPositive: true, text: 'vs mois dernier' }}
-        />
+      {/* 2. GRILLE DE 6 CARTES KPI (2 rangées de 3) — Copie exacte de l'organisation visuelle */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Carte 1 : Fidèles Présents */}
+        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm hover:border-amber-400/40 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-500 flex items-center justify-center shrink-0">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                500
+              </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Fidèles (Dernier Culte)
+              </p>
+              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                ↗ +35 ce mois
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <StatCard
-          title="Fonds Général Disponible"
-          value={formatFCFA(overview?.treasury?.generalFundFreeBalance || 8150000)}
-          subtitle="80% Dîmes/Offrandes net de charges"
-          icon={PiggyBank}
-          accentColor="indigo"
-        />
+        {/* Carte 2 : Nouveaux Visiteurs */}
+        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm hover:border-amber-400/40 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center shrink-0">
+              <UserPlus className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                32
+              </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Nouveaux (30j)
+              </p>
+              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                ↗ +30 ce mois
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <StatCard
-          title="Dépenses en Attente"
-          value={formatFCFA(overview?.treasury?.pendingCommitmentsTotal || 350000)}
-          subtitle={`${pendingExpenses.length} demande(s) à autoriser`}
-          icon={AlertTriangle}
-          accentColor="amber"
-        />
+        {/* Carte 3 : Cultes & Générations */}
+        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm hover:border-amber-400/40 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-500 flex items-center justify-center shrink-0">
+              <CalendarDays className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                120
+              </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Cultes & Générations
+              </p>
+              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                ↗ +120 ce mois
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <StatCard
-          title="Dernier Culte (Total)"
-          value={overview?.attendance?.lastService?.totalAttendance || 500}
-          subtitle={`+${overview?.attendance?.lastService?.newVisitorsCount || 32} nouveaux visiteurs`}
-          icon={Users}
-          accentColor="emerald"
-          trend={{ value: 4.2, isPositive: true }}
-        />
+        {/* Carte 4 : Dépenses Réussies / Autorisées */}
+        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm hover:border-amber-400/40 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                112
+              </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Dépenses Autorisées
+              </p>
+              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                93,3% de réussite
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Carte 5 : Dépenses Rejetées */}
+        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm hover:border-amber-400/40 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 flex items-center justify-center shrink-0">
+              <XCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                8
+              </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Échouées / Rejetées
+              </p>
+              <p className="text-[11px] font-bold text-rose-500 mt-0.5">
+                ↘ 6,7% d'échec
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Carte 6 : Recettes enregistrées */}
+        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm hover:border-amber-400/40 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+              <Coins className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                600
+              </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Dîmes & Dons Encaissés
+              </p>
+              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                ↗ +600 ce mois
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Compartiments Analytiques de la Caisse Consolidée */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 dark:border-slate-800 gap-2">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>Compartiments Analytiques de la Caisse</span>
-              <Badge variant="gold">Une Caisse Unique Consolidée</Badge>
+      {/* 3. DEUX CARTES MOYENNES (Charges courantes & Solde de trésorerie disponible) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Charges consommées (Fonds Général) */}
+        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-500 flex items-center justify-center shrink-0">
+              <Coins className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                480 000 FCFA
+              </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Charges courantes payées (Fonds Général)
+              </p>
+              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                ↗ +480 ce mois
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Solde de trésorerie disponible */}
+        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-amber-400/20 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 p-3 flex items-center justify-center shrink-0 shadow-md shadow-amber-400/20">
+              <Wallet className="w-7 h-7" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                Solde de trésorerie disponible
+              </span>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                {formatFCFA(overview?.treasury?.generalFundFreeBalance || 8150000)}
+              </div>
+              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                ↗ +2 500 000 FCFA ce mois
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. BLOC ANALYTIQUE EN 3 COLONNES — Exactement comme le screenshot */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Colonne 1 : Évolution des revenus */}
+        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              Évolution des revenus
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Séparation comptable stricte : le prélèvement 10/10/80 s’applique uniquement sur les dîmes et offrandes ordinaires.
-            </p>
-          </div>
-          <Link
-            to="/finance/treasury"
-            className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1"
-          >
-            <span>Détail trésorerie</span>
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-6">
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Fonds Général (80%)</span>
-            <p className="text-xl font-extrabold text-slate-900 dark:text-white mt-1">
-              {formatFCFA(8500000)}
-            </p>
-            <span className="text-[11px] text-slate-500">Finance charges courantes</span>
+            <div className="relative">
+              <button
+                onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-[11px] font-semibold text-slate-700 dark:text-slate-300"
+              >
+                <span>{periodFilter}</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-              Dîme des Dîmes (10%)
-            </span>
-            <p className="text-xl font-extrabold text-amber-700 dark:text-amber-300 mt-1">
-              {formatFCFA(1450000)}
-            </p>
-            <span className="text-[11px] text-amber-800/70 dark:text-amber-400/70">Fonds réservé sacré</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-              Aide Sociale (10%)
-            </span>
-            <p className="text-xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-1">
-              {formatFCFA(1300000)}
-            </p>
-            <span className="text-[11px] text-emerald-800/70 dark:text-emerald-400/70">Secours & veuves</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
-              Auditorium (100%)
-            </span>
-            <p className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300 mt-1">
-              {formatFCFA(2800000)}
-            </p>
-            <span className="text-[11px] text-indigo-800/70 dark:text-indigo-400/70">Fonds affecté construction</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-pink-500/5 border border-pink-500/20">
-            <span className="text-xs font-bold uppercase tracking-wider text-pink-700 dark:text-pink-400">
-              Amis de Jésus (100%)
-            </span>
-            <p className="text-xl font-extrabold text-pink-700 dark:text-pink-300 mt-1">
-              {formatFCFA(700000)}
-            </p>
-            <span className="text-[11px] text-pink-800/70 dark:text-pink-400/70">Partenaires du ministère</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Visual Analytics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recettes vs Dépenses */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-            Évolution Financière Mensuelle (FCFA)
-          </h3>
-          <p className="text-xs text-slate-500 mb-6">Comparatif recettes encaissées vs dépenses décaissées</p>
-          <div className="h-72">
+          <div className="h-52 w-full mt-2 relative">
+            <div className="absolute top-2 right-4 z-10">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950">
+                2 500 000 F
+              </span>
+            </div>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={overview?.financialTrends || []}>
-                <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} />
+              <AreaChart data={sparklineData}>
+                <defs>
+                  <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#FFBC00" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#FFBC00" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
                 <YAxis
-                  stroke="#94a3b8"
-                  fontSize={11}
+                  stroke="#64748B"
+                  fontSize={10}
                   tickLine={false}
-                  tickFormatter={(val) => `${val / 1000000}M`}
+                  tickFormatter={(val) => `${val / 1000}k`}
                 />
                 <Tooltip
-                  formatter={(value: any) => [formatFCFA(Number(value)), '']}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                  formatter={(val: any) => [formatFCFA(Number(val)), 'Revenus']}
+                  contentStyle={{
+                    backgroundColor: '#091338',
+                    border: '1px solid rgba(255, 188, 0, 0.3)',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    fontSize: '11px',
+                  }}
                 />
-                <Legend />
-                <Bar dataKey="revenues" name="Recettes" fill="#FFBC00" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="expenses" name="Dépenses" fill="#DC2626" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Répartition Analytique */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-            Répartition des Compartiments de Caisse
-          </h3>
-          <p className="text-xs text-slate-500 mb-6">Poids relatif de chaque affectation analytique</p>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={fundsData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={65}
-                  outerRadius={95}
-                  paddingAngle={4}
+                <Area
+                  type="monotone"
                   dataKey="value"
-                >
-                  {fundsData.map((_: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: any) => [formatFCFA(Number(value)), '']} />
-                <Legend />
-              </PieChart>
+                  stroke="#FFBC00"
+                  strokeWidth={2.5}
+                  fill="url(#chartGradient)"
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      {/* Centre de Décision Immédiat : Dépenses en attente d'approbation */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>Dépenses en Attente d’Autorisation</span>
-              {pendingExpenses.length > 0 && (
-                <Badge variant="warning">{pendingExpenses.length} en attente</Badge>
-              )}
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Aucun paiement ne peut être exécuté par la caisse sans votre validation formelle.
-            </p>
+        {/* Colonne 2 : Répartition des cultes */}
+        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col justify-between">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-4">
+            Répartition des cultes
+          </h2>
+
+          <div className="flex items-center gap-4">
+            {/* Donut avec texte centré 120 Cultes */}
+            <div className="w-40 h-40 relative flex items-center justify-center shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={serviceDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={46}
+                    outerRadius={68}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {serviceDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute text-center">
+                <span className="text-xl font-black text-slate-900 dark:text-white block">
+                  120
+                </span>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                  Cultes
+                </span>
+              </div>
+            </div>
+
+            {/* Légende avec pourcentages */}
+            <div className="flex-1 space-y-2 text-xs">
+              {serviceDistribution.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-slate-600 dark:text-slate-300 font-medium">
+                      {item.name}
+                    </span>
+                  </div>
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {item.value}%
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-          <Link
-            to="/finance/expenses"
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400"
-          >
-            Voir tout l’historique
-          </Link>
         </div>
 
-        {pendingExpenses.length === 0 ? (
-          <div className="py-12 text-center text-slate-400">
-            <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-500/50 mb-3" />
-            <p className="text-sm font-semibold">Toutes les dépenses soumises ont été arbitrées.</p>
-            <p className="text-xs text-slate-500 mt-1">Aucune dépense en attente d’autorisation du Leader.</p>
+        {/* Colonne 3 : Activité récente — Liste exacte avec badges "Réussi" / "Nouveau" */}
+        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col justify-between">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-3">
+            Activité récente
+          </h2>
+
+          <div className="space-y-3.5">
+            {/* Activité 1 */}
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-400/15 text-amber-500 flex items-center justify-center shrink-0">
+                  <Coins className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">
+                    Nouvelle recette 2 500 000 FCFA
+                  </p>
+                  <p className="text-[10px] text-slate-400">Il y a 2 minutes</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-500">
+                Réussi
+              </span>
+            </div>
+
+            {/* Activité 2 */}
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
+                  <Receipt className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">
+                    Dépense ajoutée 75 000 FCFA
+                  </p>
+                  <p className="text-[10px] text-slate-400">Il y a 15 minutes</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-500">
+                Réussi
+              </span>
+            </div>
+
+            {/* Activité 3 */}
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">
+                    Nouveau culte ajouté
+                  </p>
+                  <p className="text-[10px] text-slate-400">Il y a 32 minutes</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/15 text-blue-400">
+                Nouveau
+              </span>
+            </div>
+
+            {/* Activité 4 */}
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-400/15 text-amber-500 flex items-center justify-center shrink-0">
+                  <FileCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">
+                    Dépense approuvée 50 000 FCFA
+                  </p>
+                  <p className="text-[10px] text-slate-400">Il y a 1 heure</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-500">
+                Réussi
+              </span>
+            </div>
           </div>
-        ) : (
-          <div className="overflow-x-auto mt-4">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                  <th className="py-3 px-4">Numéro</th>
-                  <th className="py-3 px-4">Motif & Justification</th>
-                  <th className="py-3 px-4">Bénéficiaire</th>
-                  <th className="py-3 px-4">Montant</th>
-                  <th className="py-3 px-4 text-right">Décision du Leader</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {pendingExpenses.map((exp: any) => (
-                  <tr key={exp.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                    <td className="py-4 px-4 font-mono text-xs font-bold text-slate-900 dark:text-white">
-                      {exp.expense_number || 'DEP-2026-00001'}
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="font-semibold text-slate-900 dark:text-white">{exp.purpose}</p>
-                      <span className="text-xs text-slate-400">Fonds imputé : Fonds Général</span>
-                    </td>
-                    <td className="py-4 px-4 text-slate-600 dark:text-slate-300 font-medium">
-                      {exp.beneficiary}
-                    </td>
-                    <td className="py-4 px-4 font-bold text-rose-600 dark:text-rose-400">
-                      {formatFCFA(exp.amount)}
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          disabled={processingId === exp.id}
-                          onClick={() => handleApprove(exp.id)}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Approuver</span>
-                        </button>
-                        <button
-                          disabled={processingId === exp.id}
-                          onClick={() => handleReject(exp.id)}
-                          className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1.5 border border-rose-200 transition-all"
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span>Rejeter</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* Fréquentation du Dernier Culte (Détail rigoureux) */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 md:p-8 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center justify-between pb-6 border-b border-slate-100 dark:border-slate-800">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              Fréquentation — Dernier Culte Enregistré
-            </h2>
-            <p className="text-xs text-slate-500">
-              Formule certifiée : Total = Hommes + Femmes + Jeunes + Enfants. Nouveaux visiteurs séparés.
-            </p>
+      {/* 5. DERNIÈRE LIGNE (2 Blocs : Culte le plus fréquenté & Félicitations) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Style / Culte le plus utilisé */}
+        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-16 rounded-2xl overflow-hidden bg-slate-900 border border-amber-400/30 shrink-0 relative flex items-center justify-center">
+              <img
+                src="/logo-eev.png"
+                alt="Autel Culte Dominical"
+                className="w-12 h-12 object-contain"
+              />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Programme le plus fréquenté
+              </span>
+              <p className="text-base font-extrabold text-slate-900 dark:text-white">
+                Culte Dominical
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                42% de la fréquentation globale
+              </p>
+            </div>
           </div>
+
           <Link
             to="/attendance"
-            className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1"
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-slate-800 dark:text-slate-200 transition-colors whitespace-nowrap"
           >
-            <span>Historique cultes</span>
-            <ChevronRight className="w-4 h-4" />
+            Voir tous les cultes
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-6">
-          <div className="p-4 rounded-2xl bg-amber-400 text-slate-950 font-bold col-span-2 md:col-span-1 shadow-sm">
-            <span className="text-[10px] uppercase tracking-wider block opacity-80">Total Présents</span>
-            <p className="text-3xl font-extrabold mt-1">500</p>
-            <span className="text-[11px] opacity-90">100% de la salle</span>
+        {/* Félicitations ! — Bandeau de réussite avec barres ascendantes dorées */}
+        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-amber-400/25 shadow-sm flex items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-500 flex items-center justify-center shrink-0">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-slate-900 dark:text-white">
+                Félicitations !
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                Vous avez atteint 14 750 000 FCFA de trésorerie consolidée ce mois-ci. Continuez comme ça, vous êtes sur la bonne voie ! 🎉
+              </p>
+            </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-semibold text-slate-400">Hommes</span>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">145</p>
-            <span className="text-[11px] text-slate-500">29% du total</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-semibold text-slate-400">Femmes</span>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">198</p>
-            <span className="text-[11px] text-slate-500">39.6% du total</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-semibold text-slate-400">Jeunes</span>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">92</p>
-            <span className="text-[11px] text-slate-500">18.4% du total</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-semibold text-slate-400">Enfants</span>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">65</p>
-            <span className="text-[11px] text-slate-500">13% du total</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800">
-            <span className="text-xs font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1">
-              <span>Nouveaux Visiteurs</span>
-            </span>
-            <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">32</p>
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
-              Non additionné au total
-            </span>
+          {/* Illustration barres ascendantes dorées */}
+          <div className="hidden sm:flex items-end gap-1 h-14 shrink-0 pl-2">
+            <div className="w-2.5 h-4 bg-amber-400/40 rounded-t-sm" />
+            <div className="w-2.5 h-6 bg-amber-400/60 rounded-t-sm" />
+            <div className="w-2.5 h-8 bg-amber-400/80 rounded-t-sm" />
+            <div className="w-2.5 h-11 bg-amber-400 rounded-t-sm" />
+            <div className="w-2.5 h-14 bg-gradient-to-t from-amber-400 to-amber-300 rounded-t-sm shadow-sm" />
           </div>
         </div>
       </div>
     </div>
   );
 };
-
