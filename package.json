@@ -12,9 +12,9 @@
     "dev:pb": "./bin/pocketbase serve --dir=./pocketbase/pb_data --http=127.0.0.1:8090"
   },
   "devDependencies": {
+    "pocketbase": "^0.25.2",
     "typescript": "^5.7.3",
     "vitest": "^3.0.7"
   },
   "packageManager": "pnpm@10.18.1"
 }
-

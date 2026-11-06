@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   ArrowLeft,
   Info,
+  ShieldCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -86,25 +87,27 @@ export const FinancialEntryForm: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+      {/* Header Banner */}
+      <div className="flex items-center gap-4 p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
         <Link
           to="/finance/entries"
-          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:text-slate-900 shadow-sm"
+          className="p-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-            Enregistrement d’une Recette Brute
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <ArrowDownCircle className="w-6 h-6 text-emerald-500" />
+            <span>Enregistrement d’une Recette Brute</span>
           </h1>
-          <p className="text-xs text-slate-500">
-            Comptabilisation immédiate avec ventilation analytique automatique.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Comptabilisation immédiate avec ventilation analytique automatique (80/10/10 ou 100% affecté).
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
+        <div className="bg-white dark:bg-[#0C1530] p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-[#16214A] shadow-sm space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Montant Brut Encaissé */}
             <div className="space-y-2 md:col-span-2">
@@ -120,9 +123,9 @@ export const FinancialEntryForm: React.FC = () => {
                   value={amount || ''}
                   onChange={(e) => setAmount(Math.max(0, parseInt(e.target.value) || 0))}
                   placeholder="Ex: 100000"
-                  className="w-full text-3xl font-extrabold py-3 px-4 bg-slate-50 dark:bg-slate-800 border-2 border-amber-400 rounded-2xl text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-400/20"
+                  className="w-full text-3xl font-black py-4 px-5 bg-slate-50 dark:bg-[#070D22] border-2 border-amber-400/80 rounded-2xl text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-400/20"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-extrabold text-lg text-slate-400">
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 font-extrabold text-base text-amber-500">
                   FCFA
                 </span>
               </div>
@@ -130,14 +133,14 @@ export const FinancialEntryForm: React.FC = () => {
 
             {/* Catégorie financière */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Catégorie de Recette *
               </label>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 required
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
               >
                 <option value="cat-tithe">Dîmes (Répartition 80/10/10)</option>
                 <option value="cat-offering">Offrandes Ordinaires (Répartition 80/10/10)</option>
@@ -149,13 +152,13 @@ export const FinancialEntryForm: React.FC = () => {
 
             {/* Mode de paiement */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Mode de Règlement *
               </label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-medium text-sm outline-none focus:ring-2 focus:ring-amber-400"
               >
                 <option value={PaymentMethod.CASH}>💵 Espèces (Caisse Centrale)</option>
                 <option value={PaymentMethod.MOBILE_MONEY}>📱 Mobile Money (OM / MoMo)</option>
@@ -166,13 +169,13 @@ export const FinancialEntryForm: React.FC = () => {
 
             {/* Service rattaché (optionnel) */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Rattachement au Culte (Optionnel)
               </label>
               <select
                 value={serviceId}
                 onChange={(e) => setServiceId(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-medium text-sm outline-none focus:ring-2 focus:ring-amber-400"
               >
                 <option value="">Recette hors culte (Don direct)...</option>
                 {services.map((s: any) => (
@@ -185,7 +188,7 @@ export const FinancialEntryForm: React.FC = () => {
 
             {/* Date d'encaissement */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Date de Collecte *
               </label>
               <input
@@ -193,13 +196,13 @@ export const FinancialEntryForm: React.FC = () => {
                 required
                 value={collectedAt}
                 onChange={(e) => setCollectedAt(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-medium text-sm outline-none focus:ring-2 focus:ring-amber-400"
               />
             </div>
 
             {/* Donateur */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Nom du Donateur (Facultatif / Anonyme)
               </label>
               <input
@@ -207,13 +210,13 @@ export const FinancialEntryForm: React.FC = () => {
                 placeholder="Ex: Frère / Sœur Anonyme"
                 value={donorName}
                 onChange={(e) => setDonorName(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
               />
             </div>
 
             {/* Référence */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Référence / Reçu externe
               </label>
               <input
@@ -221,53 +224,58 @@ export const FinancialEntryForm: React.FC = () => {
                 placeholder="Ex: TRX-OM-982342"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
               />
             </div>
           </div>
         </div>
 
         {/* Prévisualisation dynamique certifiée de la ventilation */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8 rounded-3xl border border-slate-700/80 shadow-xl text-white space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-700 pb-4">
+        <div className="bg-[#091338] p-6 md:p-8 rounded-3xl border border-[#16214A] shadow-xl text-white space-y-6">
+          <div className="flex items-center justify-between border-b border-[#16214A] pb-4">
             <div>
               <h2 className="text-base font-bold flex items-center gap-2">
                 <Info className="w-5 h-5 text-amber-400" />
                 <span>Simulation de Répartition Analytique en Temps Réel</span>
               </h2>
-              <p className="text-xs text-slate-300 mt-0.5">
+              <p className="text-xs text-slate-400 mt-0.5">
                 {isStandardSplit
                   ? 'Application stricte des règles ministérielles : 10% Dîme des dîmes + 10% Aide + 80% Fonds Général.'
-                  : 'Fonds affecté : 100% alloué sans prélèvement de 10% ou 20%.'}
+                  : 'Fonds affecté : 100% alloué directement sans prélèvement.'}
               </p>
             </div>
-            <Badge variant={isStandardSplit ? 'gold' : 'info'}>
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-400 border border-amber-400/30">
               {isStandardSplit ? 'Ventilation 80 / 10 / 10' : '100% Affecté'}
-            </Badge>
+            </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {splitResult.allocations.map((alloc, idx) => (
               <div
                 key={idx}
-                className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1 relative overflow-hidden"
+                className="p-5 rounded-2xl bg-[#0C1738] border border-[#16214A] space-y-1 relative overflow-hidden"
               >
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                  {alloc.percentage}% {alloc.description}
-                </span>
-                <p className="text-2xl font-extrabold text-white mt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                    {alloc.percentage}% {alloc.description}
+                  </span>
+                </div>
+                <p className="text-2xl font-black text-white mt-1">
                   {formatFCFA(alloc.amount)}
                 </p>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-400 block mt-1">
                   Crédit automatique au compartiment
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="p-4 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-between text-xs text-amber-200">
-            <span>Somme exacte vérifiée : {formatFCFA(splitResult.totalAllocated)}</span>
-            <span className="font-bold">Écart : 0 FCFA (Précision arithmétique garantie)</span>
+          <div className="p-4 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-between text-xs text-amber-300">
+            <span>Somme exacte vérifiée : <strong>{formatFCFA(splitResult.totalAllocated)}</strong></span>
+            <span className="font-bold flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Écart : 0 FCFA (Précision arithmétique garantie)</span>
+            </span>
           </div>
         </div>
 
@@ -275,16 +283,16 @@ export const FinancialEntryForm: React.FC = () => {
         <div className="flex justify-end gap-4">
           <Link
             to="/finance/entries"
-            className="px-6 py-3 rounded-xl font-bold text-sm text-slate-600 hover:text-slate-900 bg-slate-100 dark:bg-slate-800"
+            className="px-6 py-3 rounded-2xl font-bold text-xs text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 dark:bg-[#16214A] transition-all"
           >
             Annuler
           </Link>
           <button
             type="submit"
             disabled={submitting}
-            className="px-8 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-400/20 flex items-center gap-2"
+            className="px-8 py-3.5 rounded-2xl font-black text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-400/20 flex items-center gap-2 transition-all cursor-pointer"
           >
-            <CheckCircle2 className="w-5 h-5" />
+            <CheckCircle2 className="w-4 h-4" />
             <span>{submitting ? 'Validation...' : 'Comptabiliser la Recette'}</span>
           </button>
         </div>
@@ -292,4 +300,3 @@ export const FinancialEntryForm: React.FC = () => {
     </div>
   );
 };
-

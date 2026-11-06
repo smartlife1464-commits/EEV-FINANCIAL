@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { UserRole } from '@eev/shared-types';
@@ -96,15 +97,16 @@ export const Header: React.FC = () => {
       {/* Barre d'outils et Profil */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Bouton Notifications avec Badge Gold 3 */}
-        <button
-          className="relative p-2.5 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-slate-600 dark:text-slate-300 hover:scale-105 transition-all shadow-sm"
+        <Link
+          to="/notifications"
+          className="relative p-2.5 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-slate-600 dark:text-slate-300 hover:scale-105 transition-all shadow-sm cursor-pointer"
           title="3 notifications en attente"
         >
           <Bell className="w-4 h-4" />
           <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] flex items-center justify-center shadow-sm">
             3
           </span>
-        </button>
+        </Link>
 
         {/* Sélecteur de date (Période) */}
         <div className="relative">

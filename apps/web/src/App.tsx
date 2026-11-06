@@ -22,6 +22,8 @@ import { GeneralLedger } from './pages/GeneralLedger';
 import { ReportsPage } from './pages/ReportsPage';
 import { UsersManagement } from './pages/UsersManagement';
 import { AuditLogsPage } from './pages/AuditLogsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +60,8 @@ export const App: React.FC = () => {
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="admin/users" element={<UsersManagement />} />
                 <Route path="admin/audit" element={<AuditLogsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>

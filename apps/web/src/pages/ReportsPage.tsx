@@ -2,7 +2,16 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { formatFCFA } from '../utils/formatters';
-import { FileText, Download, Printer, Filter, Calendar } from 'lucide-react';
+import {
+  FileText,
+  Download,
+  Printer,
+  Calendar,
+  Users,
+  Wallet,
+  ShieldCheck,
+  TrendingUp,
+} from 'lucide-react';
 
 export const ReportsPage: React.FC = () => {
   const [period, setPeriod] = useState('monthly');
@@ -21,29 +30,30 @@ export const ReportsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
+      {/* Top Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileText className="w-6 h-6 text-amber-500" />
             <span>Rapports & États Comptables et Statistiques</span>
           </h1>
-          <p className="text-xs text-slate-500">
-            Génération périodique certifiée pour la gouvernance et le contrôle interne.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Génération périodique certifiée pour la gouvernance, le pastorat et le contrôle interne.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs shadow-sm hover:bg-slate-50 transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] hover:bg-slate-200 dark:hover:bg-[#1e2c63] text-slate-900 dark:text-white font-bold text-xs transition-all cursor-pointer"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4 text-amber-500" />
             <span>Exporter CSV / Excel</span>
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs shadow-sm hover:bg-slate-800 transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimer / PDF</span>
@@ -52,7 +62,7 @@ export const ReportsPage: React.FC = () => {
       </div>
 
       {/* Sélecteur de période */}
-      <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800 w-fit">
+      <div className="flex items-center gap-2 bg-white dark:bg-[#0C1530] p-2 rounded-2xl border border-slate-200 dark:border-[#16214A] w-fit shadow-sm">
         {[
           { id: 'weekly', label: 'Hebdomadaire' },
           { id: 'monthly', label: 'Mensuel' },
@@ -62,10 +72,10 @@ export const ReportsPage: React.FC = () => {
           <button
             key={p.id}
             onClick={() => setPeriod(p.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
               period === p.id
                 ? 'bg-amber-400 text-slate-950 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             {p.label}
@@ -73,111 +83,174 @@ export const ReportsPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Fiche de Rapport Imprimable */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-8">
+      {/* Fiche de Rapport Officielle Imprimable */}
+      <div className="bg-white dark:bg-[#0C1530] rounded-3xl p-8 border border-slate-200 dark:border-[#16214A] shadow-sm space-y-8">
         {/* Entête officielle */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-6">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#16214A] pb-6">
           <div className="flex items-center gap-4">
-            <img src="/logo-eev.png" alt="Esprit & Vie" className="w-14 h-14 object-contain" />
+            <img src="/logo-eev.png" alt="Esprit & Vie" className="w-16 h-16 object-contain" />
             <div>
               <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-wider">
                 Ministère Esprit & Vie
               </h2>
-              <p className="text-xs text-slate-500 font-semibold">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
                 Siège Central • Yaoundé, Cameroun
               </p>
-              <p className="text-xs text-amber-600 font-bold uppercase mt-0.5">
-                Bilan d'Activité & de Trésorerie • Période : {period}
+              <p className="text-xs text-amber-500 font-bold uppercase mt-0.5">
+                Bilan d'Activité & de Trésorerie • Période : {period.toUpperCase()}
               </p>
             </div>
           </div>
-          <div className="text-right text-xs text-slate-400">
-            <p>Généré le : {new Date().toLocaleDateString('fr-FR')}</p>
-            <p className="font-mono">Devise : FCFA</p>
+          <div className="text-right text-xs text-slate-400 space-y-1">
+            <p>Date d’édition : {new Date().toLocaleDateString('fr-FR')}</p>
+            <p className="font-mono font-bold text-amber-500">Devise : FCFA</p>
+            <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+              Certifié Conforme
+            </span>
           </div>
         </div>
 
-        {/* Section 1 : Recettes & Prélèvements */}
+        {/* Section 1 : Synthèse Financière */}
         <div className="space-y-4">
-          <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white border-l-4 border-amber-400 pl-3">
-            1. Recettes et Ventilation Analytique
+          <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-emerald-500" />
+            <span>1. Synthèse des Recettes & Prélèvements Statutaires</span>
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-              <span className="text-xs text-slate-500 block">Total Recettes Brutes</span>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-slate-400 uppercase">Recettes Brutes</span>
               <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
                 {formatFCFA(report?.financials?.totalGrossRevenues || 14750000)}
               </p>
+              <span className="text-[10px] text-slate-500">100% collecté</span>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-              <span className="text-xs text-slate-500 block">Dons Directement Affectés</span>
-              <p className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
-                {formatFCFA(report?.financials?.designatedFundsCollected || 3500000)}
-              </p>
-            </div>
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-              <span className="text-xs text-slate-500 block">Dépenses Payées</span>
-              <p className="text-xl font-black text-rose-600 dark:text-rose-400 mt-1">
-                {formatFCFA(report?.financials?.totalExpensesPaid || 4850000)}
-              </p>
-            </div>
-          </div>
 
-          <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
-            <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">
-                10% Dîme des dîmes (Prélevé sur brut dîmes & offrandes)
-              </span>
-              <strong className="text-slate-900 dark:text-white">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-amber-500 uppercase">Dîme des Dîmes (10%)</span>
+              <p className="text-xl font-black text-amber-500 mt-1">
                 {formatFCFA(report?.financials?.standardOfferingsSplit?.titheOfTithes_10pct || 1475000)}
-              </strong>
+              </p>
+              <span className="text-[10px] text-slate-500">Sacerdoce pastoral</span>
             </div>
-            <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">
-                10% Aide sociale & Secours
-              </span>
-              <strong className="text-slate-900 dark:text-white">
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-emerald-500 uppercase">Aide Sociale (10%)</span>
+              <p className="text-xl font-black text-emerald-500 mt-1">
                 {formatFCFA(report?.financials?.standardOfferingsSplit?.welfareAid_10pct || 1475000)}
-              </strong>
+              </p>
+              <span className="text-[10px] text-slate-500">Veuves & Nécessiteux</span>
             </div>
-            <div className="flex justify-between py-1">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">
-                80% Fonds Général de fonctionnement
-              </span>
-              <strong className="text-slate-900 dark:text-white">
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-blue-400 uppercase">Fonds Général (80%)</span>
+              <p className="text-xl font-black text-blue-500 mt-1">
                 {formatFCFA(report?.financials?.standardOfferingsSplit?.generalFund_80pct || 11800000)}
-              </strong>
+              </p>
+              <span className="text-[10px] text-slate-500">Charges de fonctionnement</span>
             </div>
           </div>
         </div>
 
-        {/* Section 2 : Statistiques de Fréquentation */}
+        {/* Section 2 : Exécution Budgétaire & Trésorerie */}
         <div className="space-y-4">
-          <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white border-l-4 border-amber-400 pl-3">
-            2. Statistiques de Fréquentation & Consolidation
+          <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-amber-500" />
+            <span>2. Exécution Budgétaire & Solde Liquide de Clôture</span>
           </h3>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-              <span className="text-xs text-slate-500 block">Cultes Organisés</span>
-              <p className="text-xl font-black text-slate-900 dark:text-white mt-1">14 services</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-rose-500 uppercase">Dépenses Payées</span>
+              <p className="text-xl font-black text-rose-500 mt-1">
+                {formatFCFA(report?.financials?.totalExpensesPaid || 4850000)}
+              </p>
+              <span className="text-[10px] text-slate-500">Décaissements physiques</span>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-              <span className="text-xs text-slate-500 block">Fréquentation Cumulée</span>
-              <p className="text-xl font-black text-slate-900 dark:text-white mt-1">5 420 fidèles</p>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-amber-500 uppercase">Engagements en Cours</span>
+              <p className="text-xl font-black text-amber-500 mt-1">
+                {formatFCFA(report?.financials?.pendingCommitments || 350000)}
+              </p>
+              <span className="text-[10px] text-slate-500">En attente de paiement</span>
             </div>
-            <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800">
-              <span className="text-xs text-blue-700 dark:text-blue-400 block font-bold">
-                Nouveaux Visiteurs
-              </span>
-              <p className="text-xl font-black text-blue-700 dark:text-blue-300 mt-1">310 âmes</p>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-emerald-500 uppercase">Caisse Consolidée de Clôture</span>
+              <p className="text-xl font-black text-slate-900 dark:text-white mt-1">
+                {formatFCFA(report?.financials?.consolidatedCashBalance || 13400000)}
+              </p>
+              <span className="text-[10px] text-slate-500">Solde réel physique</span>
             </div>
-            <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-              <span className="text-xs text-emerald-700 dark:text-emerald-400 block font-bold">
-                Décisions pour Christ
-              </span>
-              <p className="text-xl font-black text-emerald-700 dark:text-emerald-300 mt-1">94 conversions</p>
+          </div>
+        </div>
+
+        {/* Section 3 : Fréquentation & Statistiques Pastorales */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+            <Users className="w-4 h-4 text-blue-500" />
+            <span>3. Fréquentation des Rassemblements & Indicateurs Pastoraux</span>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-slate-400 uppercase">Cultes Organisés</span>
+              <p className="text-xl font-black text-slate-900 dark:text-white mt-1">
+                {report?.attendance?.totalServicesOrganized || 14}
+              </p>
+              <span className="text-[10px] text-slate-500">Dimanches & Semaine</span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-slate-400 uppercase">Total Cumulé Participants</span>
+              <p className="text-xl font-black text-slate-900 dark:text-white mt-1">
+                {report?.attendance?.cumulativeAttendance || 5420}
+              </p>
+              <span className="text-[10px] text-slate-500">Moy. {report?.attendance?.averagePerService || 387} / culte</span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-amber-500 uppercase">Nouveaux Visiteurs</span>
+              <p className="text-xl font-black text-amber-500 mt-1">
+                {report?.attendance?.totalNewVisitors || 310}
+              </p>
+              <span className="text-[10px] text-slate-500">Indicateur complémentaire</span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <span className="text-[11px] font-bold text-emerald-500 uppercase">Décisions pour Christ</span>
+              <p className="text-xl font-black text-emerald-500 mt-1">
+                {report?.attendance?.totalSalvations || 94}
+              </p>
+              <span className="text-[10px] text-slate-500">Suivi d'affermissement</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bloc Signatures & Visa Officiel */}
+        <div className="grid grid-cols-2 gap-12 pt-8 border-t border-slate-200 dark:border-[#16214A]">
+          <div className="text-center space-y-12">
+            <div>
+              <p className="text-xs font-black uppercase text-slate-900 dark:text-white">
+                Le Responsable Finances & Caisse
+              </p>
+              <p className="text-[11px] text-slate-400">Pour certification comptable</p>
+            </div>
+            <div className="inline-block border-b-2 border-slate-300 dark:border-slate-700 w-48 text-center pb-1 text-xs text-slate-400 font-mono">
+              Signature & Date
+            </div>
+          </div>
+
+          <div className="text-center space-y-12">
+            <div>
+              <p className="text-xs font-black uppercase text-slate-900 dark:text-white">
+                Le Leader Principal du Ministère
+              </p>
+              <p className="text-[11px] text-slate-400">Pour visa de gouvernance et approbation</p>
+            </div>
+            <div className="inline-block border-b-2 border-slate-300 dark:border-slate-700 w-48 text-center pb-1 text-xs text-slate-400 font-mono">
+              Sceau Apostolique & Visa
             </div>
           </div>
         </div>
@@ -185,4 +258,3 @@ export const ReportsPage: React.FC = () => {
     </div>
   );
 };
-

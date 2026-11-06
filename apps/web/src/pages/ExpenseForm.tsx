@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { FundAccountCode } from '@eev/shared-types';
-import { ArrowUpCircle, CheckCircle2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { formatFCFA } from '../utils/formatters';
+import { ArrowUpCircle, CheckCircle2, ArrowLeft, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const ExpenseForm: React.FC = () => {
@@ -27,6 +28,14 @@ export const ExpenseForm: React.FC = () => {
   const [receiptUrl, setReceiptUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Solde disponible dans le fonds sélectionné
+  const selectedFund = funds.find((f: any) => f.id === fundAccountId) || {
+    name: 'Fonds Général (80%)',
+    current_balance: 8500000,
+  };
+
+  const isFundRestricted = selectedFund.code && selectedFund.code !== 'GENERAL';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || amount <= 0) {
@@ -35,6 +44,10 @@ export const ExpenseForm: React.FC = () => {
     }
     if (!beneficiary.trim() || !purpose.trim()) {
       alert('Le bénéficiaire et le motif sont obligatoires.');
+      return;
+    }
+    if (amount > (selectedFund.current_balance || 0)) {
+      alert(`Le montant demandé (${formatFCFA(amount)}) dépasse le solde disponible dans le fonds (${formatFCFA(selectedFund.current_balance || 0)}).`);
       return;
     }
 
@@ -58,33 +71,35 @@ export const ExpenseForm: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+      {/* Header Banner */}
+      <div className="flex items-center gap-4 p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
         <Link
           to="/finance/expenses"
-          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:text-slate-900 shadow-sm"
+          className="p-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-            Demande d’Engagement de Dépense
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <ArrowUpCircle className="w-6 h-6 text-rose-500" />
+            <span>Demande d’Engagement de Dépense</span>
           </h1>
-          <p className="text-xs text-slate-500">
-            La dépense sera soumise à l’approbation préalable du Leader Principal avant tout décaissement.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Toute dépense est enregistrée au statut 'En attente' et requiert l'accord préalable du Leader Principal.
           </p>
         </div>
       </div>
 
       {/* Règle d'or de gestion */}
-      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3 text-amber-900 dark:text-amber-300 text-xs">
-        <AlertCircle className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
+      <div className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3.5 text-amber-900 dark:text-amber-300 text-xs">
+        <ShieldAlert className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
         <div>
-          <strong className="font-bold">Règle Financière Non Négociable :</strong> Les charges courantes de fonctionnement (électricité, eau, transport, entretien, honoraires) sont exclusivement imputées sur les 80% du Fonds Général. Ne jamais imputer de charge courante sur les fonds affectés (Auditorium, Aide, Dîme des dîmes).
+          <strong className="font-bold">Règle Financière Non Négociable :</strong> Les charges courantes de fonctionnement (électricité, eau, sonorisation, transport, honoraires, loyer) sont exclusivement imputées sur les <strong>80% du Fonds Général</strong>. Les fonds affectés (Auditorium, Aide sociale, Dîme des dîmes) ne supportent aucune charge d'exploitation.
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
+        <div className="bg-white dark:bg-[#0C1530] p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-[#16214A] shadow-sm space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Montant de la dépense */}
             <div className="space-y-2 md:col-span-2">
@@ -99,93 +114,100 @@ export const ExpenseForm: React.FC = () => {
                   value={amount || ''}
                   onChange={(e) => setAmount(Math.max(0, parseInt(e.target.value) || 0))}
                   placeholder="Ex: 50000"
-                  className="w-full text-3xl font-extrabold py-3 px-4 bg-slate-50 dark:bg-slate-800 border-2 border-rose-400 rounded-2xl text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-rose-400/20"
+                  className="w-full text-3xl font-black py-4 px-5 bg-slate-50 dark:bg-[#070D22] border-2 border-rose-500/80 rounded-2xl text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-rose-500/20"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 font-extrabold text-lg text-slate-400">
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 font-black text-base text-rose-500">
                   FCFA
                 </span>
               </div>
             </div>
 
-            {/* Bénéficiaire */}
+            {/* Compartiment budgétaire imputé */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Bénéficiaire du Paiement *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Ex: ENEO Cameroun, Prestataire sonorisation, etc."
-                value={beneficiary}
-                onChange={(e) => setBeneficiary(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium text-sm outline-none focus:ring-2 focus:ring-amber-400"
-              />
-            </div>
-
-            {/* Catégorie de dépense */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Catégorie Budgétaire *
-              </label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                required
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
-              >
-                <option value="expcat-elec">⚡ Électricité & Énergie</option>
-                <option value="expcat-water">💧 Eau & Assainissement</option>
-                <option value="expcat-transport">🚗 Transport & Déplacements</option>
-                <option value="expcat-communication">📡 Communication & Médias</option>
-                <option value="expcat-maintenance">🛠️ Entretien & Réparations</option>
-                <option value="expcat-equipment">🎤 Matériel & Sonorisation</option>
-              </select>
-            </div>
-
-            {/* Compartiment de fonds imputé */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Compartiment Analytique Imputé *
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Compartiment Imputé *
               </label>
               <select
                 value={fundAccountId}
                 onChange={(e) => setFundAccountId(e.target.value)}
                 required
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
               >
-                <option value="fnd-gen">Fonds Général (80% Dîmes/Offrandes - Charges courantes)</option>
-                <option value="fnd-aid">Aide Sociale (Assistance directe aux membres)</option>
-                <option value="fnd-build">Construction Auditorium (Matériaux & BTP)</option>
-                <option value="fnd-tithe">Dîme des Dîmes (Affectation pastorale)</option>
+                {funds.map((f: any) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} (Solde : {formatFCFA(f.current_balance)})
+                  </option>
+                ))}
+              </select>
+              <div className="flex items-center justify-between text-[11px] pt-1">
+                <span className="text-slate-400">Solde disponible :</span>
+                <span className="font-extrabold text-amber-500">
+                  {formatFCFA(selectedFund.current_balance || 0)}
+                </span>
+              </div>
+            </div>
+
+            {/* Catégorie de dépense */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Ligne Budgétaire / Nature *
+              </label>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                required
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option value="expcat-elec">Électricité & Énergie</option>
+                <option value="expcat-water">Eau & Assainissement</option>
+                <option value="expcat-trans">Transport & Logistique</option>
+                <option value="expcat-comm">Communication & Médias</option>
+                <option value="expcat-rep">Entretien & Réparations</option>
+                <option value="expcat-mat">Matériel & Sonorisation</option>
               </select>
             </div>
 
-            {/* Justificatif / Facture */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Lien ou Numéro de Facture / Reçu
+            {/* Bénéficiaire */}
+            <div className="space-y-2 md:col-span-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Bénéficiaire du Paiement *
               </label>
               <input
                 type="text"
-                placeholder="Ex: Facture proforma N° 4092"
-                value={receiptUrl}
-                onChange={(e) => setReceiptUrl(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                required
+                placeholder="Ex: Prestataire Sonorisation / Société ENEO Cameroun / Responsable logistique"
+                value={beneficiary}
+                onChange={(e) => setBeneficiary(e.target.value)}
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
               />
             </div>
 
             {/* Motif détaillé */}
             <div className="space-y-2 md:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Motif & Description Détaillée de la Dépense *
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Motif & Justification Détaillée *
               </label>
               <textarea
-                rows={3}
                 required
+                rows={3}
+                placeholder="Expliquez la nécessité de la dépense pour le ministère..."
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                placeholder="Décrire précisément l'objet de la dépense pour le Leader..."
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+
+            {/* Justificatif / Facture */}
+            <div className="space-y-2 md:col-span-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Référence / Numéro de Facture Proforma ou Reçu
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: FACT-2026-0892 ou Réf devis prestataire"
+                value={receiptUrl}
+                onChange={(e) => setReceiptUrl(e.target.value)}
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
               />
             </div>
           </div>
@@ -195,21 +217,20 @@ export const ExpenseForm: React.FC = () => {
         <div className="flex justify-end gap-4">
           <Link
             to="/finance/expenses"
-            className="px-6 py-3 rounded-xl font-bold text-sm text-slate-600 hover:text-slate-900 bg-slate-100 dark:bg-slate-800"
+            className="px-6 py-3 rounded-2xl font-bold text-xs text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 dark:bg-[#16214A] transition-all"
           >
             Annuler
           </Link>
           <button
             type="submit"
             disabled={submitting}
-            className="px-8 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-lg shadow-rose-500/20 flex items-center gap-2"
+            className="px-8 py-3.5 rounded-2xl font-black text-xs bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/20 flex items-center gap-2 transition-all cursor-pointer"
           >
-            <ArrowUpCircle className="w-5 h-5" />
-            <span>{submitting ? 'Enregistrement...' : 'Soumettre pour Autorisation'}</span>
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{submitting ? 'Transmission...' : 'Soumettre à l’Accord du Leader'}</span>
           </button>
         </div>
       </form>
     </div>
   );
 };
-

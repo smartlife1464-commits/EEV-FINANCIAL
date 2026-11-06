@@ -3,7 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { calculateAttendanceTotal } from '@eev/business-rules';
-import { Users, UserPlus, HeartHandshake, FileText, CheckCircle2, ArrowLeft } from 'lucide-react';
+import {
+  Users,
+  UserPlus,
+  HeartHandshake,
+  FileText,
+  CheckCircle2,
+  ArrowLeft,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const AttendanceForm: React.FC = () => {
@@ -34,6 +43,12 @@ export const AttendanceForm: React.FC = () => {
     salvationsCount,
   });
 
+  const total = stats.totalAttendance;
+  const menPercent = total > 0 ? Math.round((menCount / total) * 100) : 0;
+  const womenPercent = total > 0 ? Math.round((womenCount / total) * 100) : 0;
+  const youthPercent = total > 0 ? Math.round((youthCount / total) * 100) : 0;
+  const childrenPercent = total > 0 ? Math.round((childrenCount / total) * 100) : 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceId) {
@@ -63,34 +78,36 @@ export const AttendanceForm: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+      {/* Top Banner */}
+      <div className="flex items-center gap-4 p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
         <Link
           to="/attendance"
-          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:text-slate-900 shadow-sm"
+          className="p-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-            Fiche de Fréquentation du Culte
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Users className="w-6 h-6 text-amber-500" />
+            <span>Fiche de Fréquentation du Culte</span>
           </h1>
-          <p className="text-xs text-slate-500">
-            Saisie certifiée par le département Protocole.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Saisie certifiée par le département Protocole selon les 4 catégories exclusives + nouveaux visiteurs.
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Choix du service */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-            Culte / Programme concerné *
+        <div className="bg-white dark:bg-[#0C1530] p-6 rounded-3xl border border-slate-200 dark:border-[#16214A] shadow-sm space-y-3">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+            Culte / Programme Concerné *
           </label>
           <select
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
             required
-            className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium text-sm outline-none focus:ring-2 focus:ring-amber-400"
+            className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
           >
             <option value="">Sélectionner un service...</option>
             {services.map((s: any) => (
@@ -101,167 +118,169 @@ export const AttendanceForm: React.FC = () => {
           </select>
         </div>
 
-        {/* Comptage des participants exclusifs */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-amber-500" />
-              <span>Catégories Exclusives de Présence</span>
-            </h2>
-            <p className="text-xs text-slate-500">
-              Chaque personne dans la salle appartient à une et une seule de ces 4 catégories.
-            </p>
+        {/* 4 Catégories Exclusives */}
+        <div className="bg-white dark:bg-[#0C1530] p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-[#16214A] shadow-sm space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#16214A] pb-4">
+            <div>
+              <h2 className="text-base font-black text-slate-900 dark:text-white">
+                Catégories Exclusives de Fréquentation
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Chaque participant physique ne peut appartenir qu’à une seule catégorie.
+              </p>
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400/20 text-amber-500 border border-amber-400/30">
+              Total : {total} Participants
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                👨 Hommes
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Hommes */}
+            <div className="space-y-2 p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <label className="block text-xs font-bold uppercase tracking-wider text-blue-500">
+                Hommes
               </label>
               <input
                 type="number"
                 min="0"
                 value={menCount}
                 onChange={(e) => setMenCount(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full text-2xl font-extrabold p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full text-2xl font-black p-2 bg-transparent border-b-2 border-blue-500 text-slate-900 dark:text-white outline-none"
               />
+              <span className="text-[11px] text-slate-400 font-semibold block">{menPercent}% du total</span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                👩 Femmes
+            {/* Femmes */}
+            <div className="space-y-2 p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <label className="block text-xs font-bold uppercase tracking-wider text-pink-500">
+                Femmes
               </label>
               <input
                 type="number"
                 min="0"
                 value={womenCount}
                 onChange={(e) => setWomenCount(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full text-2xl font-extrabold p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full text-2xl font-black p-2 bg-transparent border-b-2 border-pink-500 text-slate-900 dark:text-white outline-none"
               />
+              <span className="text-[11px] text-slate-400 font-semibold block">{womenPercent}% du total</span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                🧑 Jeunes
+            {/* Jeunes */}
+            <div className="space-y-2 p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <label className="block text-xs font-bold uppercase tracking-wider text-amber-500">
+                Jeunes
               </label>
               <input
                 type="number"
                 min="0"
                 value={youthCount}
                 onChange={(e) => setYouthCount(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full text-2xl font-extrabold p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full text-2xl font-black p-2 bg-transparent border-b-2 border-amber-500 text-slate-900 dark:text-white outline-none"
               />
+              <span className="text-[11px] text-slate-400 font-semibold block">{youthPercent}% du total</span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                👶 Enfants
+            {/* Enfants */}
+            <div className="space-y-2 p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
+              <label className="block text-xs font-bold uppercase tracking-wider text-emerald-500">
+                Enfants
               </label>
               <input
                 type="number"
                 min="0"
                 value={childrenCount}
                 onChange={(e) => setChildrenCount(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full text-2xl font-extrabold p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full text-2xl font-black p-2 bg-transparent border-b-2 border-emerald-500 text-slate-900 dark:text-white outline-none"
               />
-            </div>
-          </div>
-
-          {/* Bannière Total Certifié */}
-          <div className="p-5 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-between shadow-lg shadow-amber-400/20">
-            <div>
-              <span className="text-xs font-extrabold uppercase tracking-widest opacity-80">
-                Total Participants Calculé Automatiquement
-              </span>
-              <p className="text-xs opacity-90 mt-0.5">
-                (Hommes {menCount} + Femmes {womenCount} + Jeunes {youthCount} + Enfants {childrenCount})
-              </p>
-            </div>
-            <div className="text-4xl font-extrabold tracking-tight">
-              {stats.totalAttendance}
+              <span className="text-[11px] text-slate-400 font-semibold block">{childrenPercent}% du total</span>
             </div>
           </div>
         </div>
 
-        {/* Indicateurs complémentaires */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-blue-500" />
-              <span>Indicateurs Complémentaires Analytiques</span>
+        {/* Indicateurs Complémentaires (Strictement Séparés) */}
+        <div className="bg-white dark:bg-[#0C1530] p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-[#16214A] shadow-sm space-y-6">
+          <div className="border-b border-slate-100 dark:border-[#16214A] pb-4">
+            <h2 className="text-base font-black text-slate-900 dark:text-white">
+              Indicateurs Complémentaires de Suivi Pastoral
             </h2>
-            <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-              ⚠️ Attention : Les nouveaux visiteurs constituent un indicateur complémentaire et NE SONT JAMAIS ajoutés au total.
+            <p className="text-xs text-amber-500 font-bold mt-0.5">
+              RÈGLE D’OR : Les nouveaux visiteurs constituent un indicateur séparé et ne sont JAMAIS ajoutés au total des participants.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 space-y-2">
-              <label className="block text-xs font-bold text-blue-900 dark:text-blue-300">
-                ⭐ Nouveaux Visiteurs (Premier Culte)
-              </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-amber-500" />
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                  Nouveaux Visiteurs (1ère Fois)
+                </label>
+              </div>
               <input
                 type="number"
                 min="0"
                 value={newVisitorsCount}
                 onChange={(e) => setNewVisitorsCount(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full text-2xl font-extrabold p-2 rounded-xl bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100 outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full text-3xl font-black p-2 bg-transparent border-b-2 border-amber-400 text-slate-900 dark:text-white outline-none"
               />
-              <span className="text-[11px] text-blue-700 dark:text-blue-400 font-medium">
-                Comptabilisés à des fins de suivi et d’intégration pastorale.
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                Fiches d'accueil à transmettre à la cellule d'intégration pastorale.
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-2">
-              <label className="block text-xs font-bold text-emerald-900 dark:text-emerald-300">
-                ✝️ Décisions pour Christ (Âmes Sauvées)
-              </label>
+            <div className="space-y-2 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+              <div className="flex items-center gap-2">
+                <HeartHandshake className="w-5 h-5 text-emerald-500" />
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                  Décisions pour Christ (Âmes Gagnées)
+                </label>
+              </div>
               <input
                 type="number"
                 min="0"
                 value={salvationsCount}
                 onChange={(e) => setSalvationsCount(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full text-2xl font-extrabold p-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100 outline-none focus:ring-2 focus:ring-emerald-400"
+                className="w-full text-3xl font-black p-2 bg-transparent border-b-2 border-emerald-500 text-slate-900 dark:text-white outline-none"
               />
-              <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-                Nombre d’engagements pris lors de l’appel du culte.
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                Pour orientation vers la classe de baptême et discipulat.
               </span>
             </div>
           </div>
 
+          {/* Observations */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-              Observations ou Notes du Protocole
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+              Observations & Remarques du Protocole
             </label>
             <textarea
               rows={3}
+              placeholder="Ex: Bonne fluidité à l'accueil, 4 bus de ramassage arrivés à l'heure, affluence importante au 2ème service..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ex: Forte affluence lors de la première partie, disposition de 50 chaises supplémentaires..."
-              className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-xs outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
         </div>
 
-        {/* Bouton de soumission */}
+        {/* Boutons d'action */}
         <div className="flex justify-end gap-4">
           <Link
             to="/attendance"
-            className="px-6 py-3 rounded-xl font-bold text-sm text-slate-600 hover:text-slate-900 bg-slate-100 dark:bg-slate-800"
+            className="px-6 py-3 rounded-2xl font-bold text-xs text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 dark:bg-[#16214A] transition-all"
           >
             Annuler
           </Link>
           <button
             type="submit"
             disabled={submitting}
-            className="px-8 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-400/20 flex items-center gap-2"
+            className="px-8 py-3.5 rounded-2xl font-black text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-400/20 flex items-center gap-2 transition-all cursor-pointer"
           >
-            <CheckCircle2 className="w-5 h-5" />
-            <span>{submitting ? 'Enregistrement...' : 'Valider la Fiche de Présence'}</span>
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{submitting ? 'Validation...' : 'Valider & Transmettre la Fiche'}</span>
           </button>
         </div>
       </form>
     </div>
   );
 };
-

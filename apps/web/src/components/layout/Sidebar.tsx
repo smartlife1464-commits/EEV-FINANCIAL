@@ -74,13 +74,19 @@ export const Sidebar: React.FC = () => {
       show: [UserRole.ADMIN, UserRole.LEAD_PASTOR].includes(role),
     },
     {
+      to: '/settings',
+      label: 'Paramètres',
+      icon: Settings,
+      show: [UserRole.ADMIN, UserRole.LEAD_PASTOR].includes(role),
+    },
+    {
       to: '/admin/audit',
       label: 'Journal d’audit',
       icon: History,
       show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.AUDITOR].includes(role),
     },
     {
-      to: '/finance/approvals',
+      to: '/notifications',
       label: 'Notifications',
       icon: Bell,
       show: true,

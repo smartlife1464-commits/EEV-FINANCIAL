@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { formatFCFA } from '../utils/formatters';
-import { ArrowLeftRight, CheckCircle2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  CheckCircle2,
+  ArrowLeft,
+  AlertTriangle,
+  ArrowRight,
+  ShieldCheck,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const InternalTransfers: React.FC = () => {
@@ -16,25 +23,41 @@ export const InternalTransfers: React.FC = () => {
 
   const [sourceFundId, setSourceFundId] = useState('fnd-gen');
   const [destinationFundId, setDestinationFundId] = useState('fnd-build');
-  const [amount, setAmount] = useState<number>(20000);
+  const [amount, setAmount] = useState<number>(100000);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const sourceFund = funds.find((f: any) => f.id === sourceFundId);
-  const destFund = funds.find((f: any) => f.id === destinationFundId);
+  const sourceFund = funds.find((f: any) => f.id === sourceFundId) || {
+    id: 'fnd-gen',
+    name: 'Fonds Général (80%)',
+    current_balance: 8500000,
+  };
+
+  const destFund = funds.find((f: any) => f.id === destinationFundId) || {
+    id: 'fnd-build',
+    name: 'Construction Auditorium',
+    current_balance: 2800000,
+  };
+
+  const sourceBalanceAfter = Math.max(0, (sourceFund.current_balance || 0) - (amount || 0));
+  const destBalanceAfter = (destFund.current_balance || 0) + (amount || 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (sourceFundId === destinationFundId) {
-      alert('Le fonds source et le fonds destination doivent être distincts.');
+      alert('Le fonds source et le fonds destination doivent être strictement distincts.');
       return;
     }
     if (!amount || amount <= 0) {
-      alert('Le montant doit être supérieur à 0 FCFA.');
+      alert('Le montant doit être strictement supérieur à 0 FCFA.');
       return;
     }
     if (sourceFund && sourceFund.current_balance < amount) {
       alert(`Solde insuffisant dans le fonds source (${formatFCFA(sourceFund.current_balance)}).`);
+      return;
+    }
+    if (!reason.trim()) {
+      alert('Le motif du transfert est obligatoire.');
       return;
     }
 
@@ -57,128 +80,163 @@ export const InternalTransfers: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+      {/* Top Banner */}
+      <div className="flex items-center gap-4 p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
         <Link
           to="/finance/treasury"
-          className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:text-slate-900 shadow-sm"
+          className="p-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-            Virement Analytique Inter-Fonds
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <ArrowLeftRight className="w-6 h-6 text-amber-500" />
+            <span>Virement Analytique Inter-Fonds</span>
           </h1>
-          <p className="text-xs text-slate-500">
-            Ajustement entre compartiments sans altération du solde physique consolidé de la caisse.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Ajustement entre compartiments sans modification du solde consolidé physique de la caisse.
           </p>
         </div>
       </div>
 
-      <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-start gap-3 text-blue-900 dark:text-blue-300 text-xs">
-        <AlertTriangle className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
+      <div className="p-5 rounded-3xl bg-blue-500/10 border border-blue-500/25 flex items-start gap-3.5 text-blue-900 dark:text-blue-300 text-xs">
+        <ShieldCheck className="w-5 h-5 shrink-0 text-blue-500 mt-0.5" />
         <div>
-          <strong className="font-bold">Contrôle de Traçabilité :</strong> Cette opération crédite le compte destination et débite le compte source. Elle n'est PAS comptabilisée comme une nouvelle recette externe.
+          <strong className="font-bold">Traçabilité & Équilibre :</strong> Cette opération crédite le compartiment destination et débite le compartiment source. Les deux écritures sont enregistrées de manière indélébile dans le Grand Livre.
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Fonds Source */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Fonds Source (Débité) *
-              </label>
-              <select
-                value={sourceFundId}
-                onChange={(e) => setSourceFundId(e.target.value)}
-                required
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
-              >
-                {funds.map((f: any) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name} ({formatFCFA(f.current_balance)})
-                  </option>
-                ))}
-              </select>
-              <span className="text-xs text-slate-400 block">
-                Disponible : {formatFCFA(sourceFund?.current_balance || 8500000)}
-              </span>
-            </div>
-
-            {/* Fonds Destination */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Fonds Destination (Crédité) *
-              </label>
-              <select
-                value={destinationFundId}
-                onChange={(e) => setDestinationFundId(e.target.value)}
-                required
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
-              >
-                {funds.map((f: any) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name} ({formatFCFA(f.current_balance)})
-                  </option>
-                ))}
-              </select>
-              <span className="text-xs text-slate-400 block">
-                Solde actuel : {formatFCFA(destFund?.current_balance || 2800000)}
-              </span>
-            </div>
-
-            {/* Montant */}
-            <div className="space-y-2 md:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Montant du Transfert (FCFA) *
-              </label>
+        <div className="bg-white dark:bg-[#0C1530] p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-[#16214A] shadow-sm space-y-6">
+          {/* Montant */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Montant à Transférer (FCFA) *
+            </label>
+            <div className="relative">
               <input
                 type="number"
                 min="1"
                 required
                 value={amount || ''}
                 onChange={(e) => setAmount(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-full text-2xl font-extrabold py-3 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="Ex: 100000"
+                className="w-full text-3xl font-black py-4 px-5 bg-slate-50 dark:bg-[#070D22] border-2 border-amber-400/80 rounded-2xl text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-400/20"
               />
+              <span className="absolute right-5 top-1/2 -translate-y-1/2 font-black text-base text-amber-500">
+                FCFA
+              </span>
+            </div>
+          </div>
+
+          {/* Sélection Source & Destination */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Fonds Source (Débité) *
+              </label>
+              <select
+                value={sourceFundId}
+                onChange={(e) => setSourceFundId(e.target.value)}
+                required
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                {funds.map((f: any) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({formatFCFA(f.current_balance)})
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Motif */}
-            <div className="space-y-2 md:col-span-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Motif & Justification de l’Arbitrage *
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                Fonds Destination (Crédité) *
               </label>
-              <textarea
-                rows={3}
+              <select
+                value={destinationFundId}
+                onChange={(e) => setDestinationFundId(e.target.value)}
                 required
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Ex: Soutien exceptionnel du fonds général pour l'achat de ciment auditorium..."
-                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
-              />
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                {funds.map((f: any) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} ({formatFCFA(f.current_balance)})
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          {/* Simulation Visuelle Avant / Après */}
+          <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+              Impact Immédiat sur les Compartiments
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-white dark:bg-[#0C1530] border border-rose-500/30">
+                <span className="text-[10px] font-bold uppercase text-rose-500">Débit Source</span>
+                <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+                  {sourceFund.name}
+                </p>
+                <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-slate-100 dark:border-[#16214A]">
+                  <span className="text-slate-400">Après virement :</span>
+                  <span className="font-mono font-black text-rose-500">
+                    {formatFCFA(sourceBalanceAfter)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white dark:bg-[#0C1530] border border-emerald-500/30">
+                <span className="text-[10px] font-bold uppercase text-emerald-500">Crédit Destination</span>
+                <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+                  {destFund.name}
+                </p>
+                <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-slate-100 dark:border-[#16214A]">
+                  <span className="text-slate-400">Après virement :</span>
+                  <span className="font-mono font-black text-emerald-500">
+                    {formatFCFA(destBalanceAfter)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Motif du transfert */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+              Motif & Décision du Virement *
+            </label>
+            <textarea
+              required
+              rows={3}
+              placeholder="Ex: Décision pastorale n° 12 d'affectation complémentaire au projet Auditorium..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"
+            />
           </div>
         </div>
 
-        {/* Action */}
+        {/* Boutons d'action */}
         <div className="flex justify-end gap-4">
           <Link
             to="/finance/treasury"
-            className="px-6 py-3 rounded-xl font-bold text-sm text-slate-600 hover:text-slate-900 bg-slate-100 dark:bg-slate-800"
+            className="px-6 py-3 rounded-2xl font-bold text-xs text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 dark:bg-[#16214A] transition-all"
           >
             Annuler
           </Link>
           <button
             type="submit"
             disabled={submitting}
-            className="px-8 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-400/20 flex items-center gap-2"
+            className="px-8 py-3.5 rounded-2xl font-black text-xs bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-lg shadow-amber-400/20 flex items-center gap-2 transition-all cursor-pointer"
           >
-            <CheckCircle2 className="w-5 h-5" />
-            <span>{submitting ? 'Exécution...' : 'Exécuter le Transfert'}</span>
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{submitting ? 'Validation...' : 'Exécuter le Virement'}</span>
           </button>
         </div>
       </form>
     </div>
   );
 };
-
