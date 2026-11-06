@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,14 @@ import {
 } from 'react-native';
 import { calculateEntryAllocations } from '@eev/business-rules';
 import { AllocationRule, FundAccountCode } from '@eev/shared-types';
+import { mobileApi } from '../../src/services/api';
+import { OfflineSyncService } from '../../src/services/offlineSync';
 
 export default function FinanceMobile() {
   const [amount, setAmount] = useState('100000');
   const [category, setCategory] = useState<'ordinary' | 'building'>('ordinary');
+  const [submitting, setSubmitting] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   const numAmount = parseInt(amount) || 0;
   const isOrdinary = category === 'ordinary';
@@ -24,10 +28,74 @@ export default function FinanceMobile() {
     FundAccountCode.BUILDING
   );
 
+  useEffect(() => {
+    checkPendingQueue();
+  }, []);
+
+  const checkPendingQueue = async () => {
+    const count = await OfflineSyncService.getPendingCount();
+    setPendingSyncCount(count);
+  };
+
+  const handleSyncNow = async () => {
+    try {
+      const res = await OfflineSyncService.syncAll();
+      Alert.alert(
+        'Synchronisation Réussie',
+        `${res.syncedEntries} recette(s) synchronisée(s).`
+      );
+      await checkPendingQueue();
+    } catch {
+      Alert.alert('Erreur', 'Impossible de contacter le serveur.');
+    }
+  };
+
+  const handleSaveEntry = async () => {
+    if (numAmount <= 0) {
+      Alert.alert('Erreur', 'Le montant doit être supérieur à 0 FCFA.');
+      return;
+    }
+
+    setSubmitting(true);
+    const payload = {
+      categoryId: isOrdinary ? 'cat-tithe' : 'cat-build',
+      amount: numAmount,
+      paymentMethod: 'cash',
+      collectedAt: new Date().toISOString().split('T')[0],
+      donorName: 'Assemblée Générale (Mobile)',
+    };
+
+    try {
+      await mobileApi.createEntry(payload);
+      Alert.alert('Succès', `Recette de ${numAmount.toLocaleString('fr-FR')} FCFA comptabilisée.`);
+    } catch {
+      await OfflineSyncService.queueEntry(payload);
+      await checkPendingQueue();
+      Alert.alert(
+        'Mode Hors-Ligne',
+        'Connexion instable : la recette a été sécurisée en local et sera synchronisée dès le retour du réseau.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.pageTitle}>Module Finances Mobile</Text>
-      <Text style={styles.pageSub}>Simulateur & Encaissement en direct</Text>
+      <Text style={styles.pageSub}>Simulateur & Encaissement certifié en direct</Text>
+
+      {/* Alerte si des opérations sont en attente de synchronisation */}
+      {pendingSyncCount > 0 && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            📶 {pendingSyncCount} élément(s) en attente de synchronisation
+          </Text>
+          <TouchableOpacity style={styles.syncBtn} onPress={handleSyncNow}>
+            <Text style={styles.syncBtnText}>Synchroniser</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Select Category */}
       <View style={styles.tabToggle}>
@@ -74,9 +142,12 @@ export default function FinanceMobile() {
 
       <TouchableOpacity
         style={styles.submitBtn}
-        onPress={() => Alert.alert('Succès', `Recette de ${numAmount.toLocaleString('fr-FR')} FCFA enregistrée.`)}
+        onPress={handleSaveEntry}
+        disabled={submitting}
       >
-        <Text style={styles.submitBtnText}>Enregistrer la Recette</Text>
+        <Text style={styles.submitBtnText}>
+          {submitting ? 'Comptabilisation...' : 'Enregistrer la Recette'}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -87,6 +158,25 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
   pageTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '900' },
   pageSub: { color: '#94A3B8', fontSize: 12, marginTop: 2, marginBottom: 16 },
+  offlineBanner: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  offlineBannerText: { color: '#F59E0B', fontSize: 11, fontWeight: 'bold', flex: 1 },
+  syncBtn: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  syncBtnText: { color: '#091338', fontWeight: '900', fontSize: 11 },
   tabToggle: {
     flexDirection: 'row',
     backgroundColor: '#091338',
@@ -135,7 +225,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 14,
     alignItems: 'center',
+    marginTop: 8,
   },
   submitBtnText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14 },
 });
-

@@ -49,6 +49,11 @@ export const mobileApi = {
       body: JSON.stringify(data),
     }),
   getExpenses: () => mobileRequest<any[]>('/finance/expenses'),
+  createEntry: (data: any) =>
+    mobileRequest<any>('/finance/entries', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   createExpense: (data: any) =>
     mobileRequest<any>('/finance/expenses', {
       method: 'POST',
