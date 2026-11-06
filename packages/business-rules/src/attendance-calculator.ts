@@ -38,3 +38,4 @@ export function calculateAttendanceTotal(counts: AttendanceCounts): AttendanceCa
     isConsistent: total >= 0,
   };
 }
+

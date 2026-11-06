@@ -22,3 +22,4 @@ mkdir -p "${PB_DATA_DIR}"
 tar -xzf "${ARCHIVE_PATH}" -C "${PB_DATA_DIR}"
 
 echo "✅ Restauration terminée avec succès dans ${PB_DATA_DIR}."
+

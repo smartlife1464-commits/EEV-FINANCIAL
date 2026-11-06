@@ -292,3 +292,4 @@ export const FinancialEntryForm: React.FC = () => {
     </div>
   );
 };
+

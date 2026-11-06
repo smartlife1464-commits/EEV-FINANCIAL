@@ -107,3 +107,4 @@ export const FinanceDashboard: React.FC = () => {
     </div>
   );
 };
+

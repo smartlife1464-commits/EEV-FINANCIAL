@@ -107,3 +107,4 @@ describe('Scénarios Financiers et Règles Métier EEV', () => {
     expect(PERMISSIONS_MATRIX[UserRole.AUDITOR].canViewAuditLogs).toBe(true);
   });
 });
+

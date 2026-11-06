@@ -122,3 +122,4 @@ export const AttendanceDashboard: React.FC = () => {
     </div>
   );
 };
+

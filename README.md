@@ -137,3 +137,4 @@ Services déployés :
 | `protocol_agent` | **Agent Protocole** | ❌ | ❌ | ❌ | ❌ | ❌ | **✅ Saisie** | ❌ |
 | `auditor` | **Auditeur** | ✅ Totale | ❌ | ❌ | ❌ | ❌ | ✅ Consultation | **✅ Totale** |
 | `admin` | **Administrateur** | ✅ Totale | ✅ | ✅ | ❌ | ❌ | ✅ Totale | ✅ |
+

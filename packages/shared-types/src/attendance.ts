@@ -51,3 +51,4 @@ export interface AttendanceSummary {
   newVisitorsCount: number;
   salvationsCount: number;
 }
+

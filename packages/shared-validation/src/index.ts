@@ -89,3 +89,4 @@ export const internalTransferSchema = z.object({
   message: 'Le fonds source et le fonds destination doivent être distincts',
   path: ['destinationFundId'],
 });
+

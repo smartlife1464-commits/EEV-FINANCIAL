@@ -298,3 +298,4 @@ migrate((app) => {
 }, (app) => {
   // Rollback logic if needed
 });
+

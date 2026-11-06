@@ -174,3 +174,4 @@ export const ExpensesList: React.FC = () => {
     </div>
   );
 };
+

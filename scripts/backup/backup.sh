@@ -26,3 +26,4 @@ echo "📊 Taille de l'archive : $(du -h "${ARCHIVE_NAME}" | cut -f1)"
 # Conservation des 30 dernières sauvegardes
 find "${BACKUP_DIR}" -name "eev_backup_*.tar.gz" -mtime +30 -delete 2>/dev/null || true
 echo "🧹 Nettoyage des sauvegardes de plus de 30 jours effectué."
+

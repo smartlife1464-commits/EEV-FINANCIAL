@@ -74,3 +74,4 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   return app;
 }
+

@@ -187,3 +187,4 @@ export function canTransitionExpense(
       return { allowed: false, reason: "État inconnu." };
   }
 }
+

@@ -82,3 +82,4 @@ export const FinancialEntriesList: React.FC = () => {
     </div>
   );
 };
+

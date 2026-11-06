@@ -11,3 +11,4 @@ export const config = {
   corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:3000').split(','),
   jwtSecret: process.env.JWT_SECRET || 'super-secret-eev-financial-2026-key',
 };
+

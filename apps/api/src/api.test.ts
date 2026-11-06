@@ -79,3 +79,4 @@ describe('API EEV-FINANCIAL Endpoints', () => {
     expect(res.statusCode).toBe(401);
   });
 });
+

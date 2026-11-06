@@ -111,3 +111,4 @@ export const api = {
   getReportsSummary: (period: string = 'monthly') => request<any>(`/reports/summary?period=${period}`),
   getAuditLogs: () => request<any[]>('/audit-logs'),
 };
+

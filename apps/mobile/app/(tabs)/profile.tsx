@@ -116,3 +116,4 @@ const styles = StyleSheet.create({
   },
   logoutBtnText: { color: '#EF4444', fontWeight: 'bold', fontSize: 13 },
 });
+

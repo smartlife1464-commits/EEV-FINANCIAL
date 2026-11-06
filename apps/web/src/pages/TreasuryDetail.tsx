@@ -178,3 +178,4 @@ export const TreasuryDetail: React.FC = () => {
     </div>
   );
 };
+

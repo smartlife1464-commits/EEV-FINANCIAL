@@ -138,3 +138,4 @@ const styles = StyleSheet.create({
   },
   submitBtnText: { color: '#FFFFFF', fontWeight: '900', fontSize: 14 },
 });
+
