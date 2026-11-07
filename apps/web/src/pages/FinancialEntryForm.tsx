@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { calculateEntryAllocations } from '@eev/business-rules';
 import { AllocationRule, FundAccountCode, PaymentMethod } from '@eev/shared-types';
-import { formatFCFA } from '../utils/formatters';
+import { formatFCFA, formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import {
   Wallet,
@@ -16,11 +16,15 @@ import {
   ArrowLeft,
   Info,
   ShieldCheck,
+  Calendar,
+  Clock,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 export const FinancialEntryForm: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryServiceId = searchParams.get('serviceId') || '';
+  const queryCategoryId = searchParams.get('categoryId') || 'cat-tithe';
 
   const { data: services = [] } = useQuery({
     queryKey: ['services'],
@@ -32,8 +36,8 @@ export const FinancialEntryForm: React.FC = () => {
     queryFn: () => api.getCategories(),
   });
 
-  const [categoryId, setCategoryId] = useState('cat-tithe');
-  const [serviceId, setServiceId] = useState('');
+  const [categoryId, setCategoryId] = useState(queryCategoryId);
+  const [serviceId, setServiceId] = useState(queryServiceId);
   const [amount, setAmount] = useState<number>(100000);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
   const [reference, setReference] = useState('');
@@ -41,6 +45,17 @@ export const FinancialEntryForm: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [collectedAt, setCollectedAt] = useState(new Date().toISOString().split('T')[0]);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (queryServiceId && !serviceId) {
+      setServiceId(queryServiceId);
+    }
+    if (queryCategoryId && categoryId === 'cat-tithe') {
+      setCategoryId(queryCategoryId);
+    }
+  }, [queryServiceId, queryCategoryId]);
+
+  const selectedService = services.find((s: any) => s.id === serviceId);
 
   // Déterminer la règle de la catégorie sélectionnée
   const selectedCat = categories.find((c: any) => c.id === categoryId) || {
@@ -184,6 +199,15 @@ export const FinancialEntryForm: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {selectedService && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Rattaché au culte : {selectedService.name}</span>
+                  </span>
+                  <span className="text-slate-500 font-semibold">{formatDate(selectedService.date)}</span>
+                </div>
+              )}
             </div>
 
             {/* Date d'encaissement */}

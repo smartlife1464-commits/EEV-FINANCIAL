@@ -15,6 +15,7 @@ import {
   FileCheck,
   Search,
   Filter,
+  Download,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -58,6 +59,13 @@ export const FinancialEntriesList: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.open('/api/analytics/export/csv?type=finance', '_blank')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] hover:bg-slate-200 dark:hover:bg-[#1e2c63] text-slate-800 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-amber-500" />
+            <span>Exporter CSV</span>
+          </button>
           <Link
             to="/finance/entries/new"
             className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"

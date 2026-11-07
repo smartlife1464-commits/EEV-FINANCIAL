@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { calculateAttendanceTotal } from '@eev/business-rules';
+import { formatDate } from '../utils/formatters';
 import {
   Users,
   UserPlus,
@@ -12,18 +13,29 @@ import {
   ArrowLeft,
   ShieldCheck,
   Sparkles,
+  Calendar,
+  Clock,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 export const AttendanceForm: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryServiceId = searchParams.get('serviceId') || '';
 
   const { data: services = [] } = useQuery({
     queryKey: ['services'],
     queryFn: () => api.getServices(),
   });
 
-  const [serviceId, setServiceId] = useState('');
+  const [serviceId, setServiceId] = useState(queryServiceId);
+
+  useEffect(() => {
+    if (queryServiceId && !serviceId) {
+      setServiceId(queryServiceId);
+    }
+  }, [queryServiceId]);
+
+  const selectedService = services.find((s: any) => s.id === serviceId);
   const [menCount, setMenCount] = useState(0);
   const [womenCount, setWomenCount] = useState(0);
   const [youthCount, setYouthCount] = useState(0);
@@ -116,6 +128,19 @@ export const AttendanceForm: React.FC = () => {
               </option>
             ))}
           </select>
+
+          {selectedService && (
+            <div className="p-3.5 rounded-2xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
+                <Calendar className="w-4 h-4 text-amber-500" />
+                <span>{selectedService.name} • {formatDate(selectedService.date)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
+                <Clock className="w-3.5 h-3.5 text-amber-500" />
+                <span>{selectedService.start_time || '09:00'} - {selectedService.end_time || '12:00'}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 4 Catégories Exclusives */}

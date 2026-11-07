@@ -13,11 +13,14 @@ import {
   X,
   Receipt,
   FileCheck,
+  Search,
+  Download,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const ExpensesList: React.FC = () => {
   const { user } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [payingExpenseId, setPayingExpenseId] = useState<string | null>(null);
   const [voucherExpense, setVoucherExpense] = useState<any | null>(null);
@@ -46,9 +49,15 @@ export const ExpensesList: React.FC = () => {
   };
 
   const filtered = expenses.filter((e: any) => {
-    if (statusFilter === 'all') return true;
-    return e.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
+    const matchesSearch =
+      (e.expense_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.beneficiary || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.purpose || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
   });
+
+  const totalFilteredAmount = filtered.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -95,13 +104,42 @@ export const ExpensesList: React.FC = () => {
           </p>
         </div>
 
-        <Link
-          to="/finance/expenses/new"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Engager une Dépense</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.open('/api/analytics/export/csv?type=finance', '_blank')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] hover:bg-slate-200 dark:hover:bg-[#1e2c63] text-slate-800 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-amber-500" />
+            <span>Exporter CSV</span>
+          </button>
+          <Link
+            to="/finance/expenses/new"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Engager une Dépense</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Barre de Recherche & Statut */}
+      <div className="p-4 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="relative w-full md:w-96">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Rechercher par N° dépense, bénéficiaire, motif..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+          <span className="px-3.5 py-1.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-black whitespace-nowrap">
+            Total filtré : {formatFCFA(totalFilteredAmount)}
+          </span>
+        </div>
       </div>
 
       {/* Filtres de statut */}

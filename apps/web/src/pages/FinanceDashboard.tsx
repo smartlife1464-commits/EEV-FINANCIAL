@@ -11,6 +11,13 @@ import {
   Coins,
   ShieldCheck,
   PiggyBank,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
+  ArrowLeftRight,
+  BookOpen,
+  FileText,
+  BarChart3,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -19,6 +26,18 @@ export const FinanceDashboard: React.FC = () => {
     queryKey: ['finance-dashboard'],
     queryFn: () => api.getFinanceDashboard(),
   });
+
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses'],
+    queryFn: () => api.getExpenses(),
+  });
+
+  const { data: entries = [] } = useQuery({
+    queryKey: ['financial-entries'],
+    queryFn: () => api.getEntries(),
+  });
+
+  const pendingExpenses = expenses.filter((e: any) => e.status === 'pending_approval');
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
@@ -170,6 +189,72 @@ export const FinanceDashboard: React.FC = () => {
             <span className="text-[10px] text-emerald-500/70">Secours & assistance</span>
           </div>
         </div>
+      </div>
+
+      {/* Raccourcis Opérationnels & Contrôle */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Link
+          to="/finance/approvals"
+          className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] hover:border-amber-400/50 shadow-sm transition-all group flex items-center justify-between"
+        >
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+              Autorisations Dépenses
+            </span>
+            <div className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <span>{pendingExpenses.length} en attente</span>
+              {pendingExpenses.length > 0 && (
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+              )}
+            </div>
+          </div>
+          <ShieldCheck className="w-6 h-6 text-amber-500 group-hover:scale-110 transition-transform" />
+        </Link>
+
+        <Link
+          to="/finance/transfers"
+          className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] hover:border-amber-400/50 shadow-sm transition-all group flex items-center justify-between"
+        >
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+              Virement Inter-Fonds
+            </span>
+            <div className="text-lg font-black text-slate-900 dark:text-white">
+              Transférer
+            </div>
+          </div>
+          <ArrowLeftRight className="w-6 h-6 text-blue-500 group-hover:scale-110 transition-transform" />
+        </Link>
+
+        <Link
+          to="/finance/transactions"
+          className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] hover:border-amber-400/50 shadow-sm transition-all group flex items-center justify-between"
+        >
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+              Grand Livre
+            </span>
+            <div className="text-lg font-black text-slate-900 dark:text-white">
+              Journal Immuable
+            </div>
+          </div>
+          <BookOpen className="w-6 h-6 text-indigo-500 group-hover:scale-110 transition-transform" />
+        </Link>
+
+        <Link
+          to="/analytics/finance"
+          className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] hover:border-amber-400/50 shadow-sm transition-all group flex items-center justify-between"
+        >
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+              Analyses Détaillées
+            </span>
+            <div className="text-lg font-black text-slate-900 dark:text-white">
+              Graphiques & Ratios
+            </div>
+          </div>
+          <BarChart3 className="w-6 h-6 text-emerald-500 group-hover:scale-110 transition-transform" />
+        </Link>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
-import { ClipboardList, Plus, Printer, X, CheckCircle2 } from 'lucide-react';
+import { ClipboardList, Plus, Printer, X, CheckCircle2, Search, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const AttendanceList: React.FC = () => {
@@ -12,7 +12,16 @@ export const AttendanceList: React.FC = () => {
     queryFn: () => api.getAttendance(),
   });
 
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedSheet, setSelectedSheet] = useState<any | null>(null);
+
+  const filteredSheets = sheets.filter((sheet: any) => {
+    const sName = sheet.service?.name || sheet.service_name || '';
+    return sName.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const totalFilteredAttendance = filteredSheets.reduce((sum: number, s: any) => sum + (s.total_attendance || 0), 0);
+  const totalFilteredVisitors = filteredSheets.reduce((sum: number, s: any) => sum + (s.new_visitors_count || 0), 0);
 
   const handlePrint = () => {
     window.print();
@@ -32,13 +41,45 @@ export const AttendanceList: React.FC = () => {
           </p>
         </div>
 
-        <Link
-          to="/attendance/new"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-400/20 transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Saisir une Nouvelle Fiche</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.open('/api/analytics/export/csv?type=attendance', '_blank')}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] hover:bg-slate-200 dark:hover:bg-[#1e2c63] text-slate-800 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-amber-500" />
+            <span>Exporter CSV</span>
+          </button>
+          <Link
+            to="/attendance/new"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-400/20 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Saisir une Nouvelle Fiche</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Barre de Recherche et Compteurs */}
+      <div className="p-4 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="relative w-full md:w-96">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Rechercher par intitulé du culte..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+          <span className="px-3.5 py-1.5 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-500 text-xs font-black whitespace-nowrap">
+            Total participants : {totalFilteredAttendance}
+          </span>
+          <span className="px-3.5 py-1.5 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 text-xs font-black whitespace-nowrap">
+            Nouveaux visiteurs : +{totalFilteredVisitors}
+          </span>
+        </div>
       </div>
 
       {/* Tableau des fiches */}
@@ -60,7 +101,14 @@ export const AttendanceList: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-[#16214A]">
-              {sheets.map((sheet: any) => (
+              {filteredSheets.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-slate-500 dark:text-slate-400 text-xs">
+                    Aucune fiche de fréquentation trouvée.
+                  </td>
+                </tr>
+              ) : (
+                filteredSheets.map((sheet: any) => (
                 <tr key={sheet.id} className="hover:bg-slate-50/60 dark:hover:bg-white/5 transition-colors">
                   <td className="py-4 px-6 font-bold text-slate-900 dark:text-white">
                     {sheet.service?.name || sheet.service_name || 'Culte de Célébration'}
@@ -93,7 +141,7 @@ export const AttendanceList: React.FC = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
