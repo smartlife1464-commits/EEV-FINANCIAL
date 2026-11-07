@@ -90,3 +90,54 @@ export const internalTransferSchema = z.object({
   path: ['destinationFundId'],
 });
 
+// ==================== CHARGES FIXES & RÉCURRENTES ====================
+export const createFixedExpenseSchema = z.object({
+  name: z.string().min(2, 'Le nom de la charge est requis'),
+  category: z.string().min(2, 'La catégorie est requise'),
+  description: z.string().optional(),
+  amount: z.number().int().positive('Le montant habituel doit être strictement supérieur à 0 (XAF)'),
+  currency: z.string().default('XAF'),
+  frequency: z.enum(['weekly', 'monthly', 'quarterly', 'semiannual', 'annual', 'custom']).default('monthly'),
+  dueDay: z.number().int().min(1).max(31).optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (AAAA-MM-JJ)'),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (AAAA-MM-JJ)').optional().or(z.literal('')),
+  fundAccountId: z.string().min(1, 'Compartiment analytique requis'),
+  beneficiary: z.string().min(2, 'Le bénéficiaire ou fournisseur est obligatoire'),
+  responsibleUserId: z.string().optional(),
+  paymentMethod: z.string().default('cash'),
+  status: z.enum(['active', 'suspended', 'archived']).default('active'),
+  notes: z.string().optional(),
+});
+
+export const updateFixedExpenseSchema = createFixedExpenseSchema.partial();
+
+// ==================== BUDGETS DÉPENSES VARIABLES ====================
+export const createExpenseBudgetSchema = z.object({
+  category: z.string().min(2, 'La catégorie est requise'),
+  amount: z.number().int().positive('Le budget prévu doit être supérieur à 0 (XAF)'),
+  periodType: z.enum(['monthly', 'quarterly', 'annual']).default('monthly'),
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date de début requise'),
+  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date de fin requise'),
+  fundAccountId: z.string().optional(),
+  alertThreshold: z.number().int().min(1).max(100).default(80),
+  status: z.enum(['active', 'closed']).default('active'),
+});
+
+// ==================== FICHES DE FRÉQUENTATION STRUCTURÉES (7 PROGRAMMES) ====================
+export const structuredAttendanceSchema = z.object({
+  serviceTypeSlug: z.string().min(1, 'Programme requis'),
+  serviceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date du service requise (AAAA-MM-JJ)'),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  menCount: z.number().int().nonnegative('Le nombre d’hommes doit être >= 0').default(0),
+  womenCount: z.number().int().nonnegative('Le nombre de femmes doit être >= 0').default(0),
+  youthCount: z.number().int().nonnegative('Le nombre de jeunes doit être >= 0').default(0),
+  childrenCount: z.number().int().nonnegative('Le nombre d’enfants doit être >= 0').default(0),
+  newVisitorsCount: z.number().int().nonnegative('Le nombre de nouveaux visiteurs doit être >= 0').default(0),
+  salvationsCount: z.number().int().nonnegative('Le nombre de décisions pour Christ doit être >= 0').default(0),
+  notes: z.string().optional(),
+  responsibleUserId: z.string().optional(),
+  isDraft: z.boolean().default(false),
+});
+
+

@@ -14,10 +14,12 @@ import { mobileApi } from '../../src/services/api';
 import { OfflineSyncService } from '../../src/services/offlineSync';
 
 export default function FinanceMobile() {
+  const [mainTab, setMainTab] = useState<'entries' | 'fixed_expenses'>('entries');
   const [amount, setAmount] = useState('100000');
   const [category, setCategory] = useState<'ordinary' | 'building'>('ordinary');
   const [submitting, setSubmitting] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [fixedExpenses, setFixedExpenses] = useState<any[]>([]);
 
   const numAmount = parseInt(amount) || 0;
   const isOrdinary = category === 'ordinary';
@@ -30,7 +32,23 @@ export default function FinanceMobile() {
 
   useEffect(() => {
     checkPendingQueue();
+    loadFixedExpenses();
   }, []);
+
+  const loadFixedExpenses = async () => {
+    try {
+      const data = await mobileApi.getFixedExpenses();
+      setFixedExpenses(data);
+    } catch {
+      // Données de repli
+      setFixedExpenses([
+        { id: '1', name: 'Loyer', amount: 150000, frequency: 'MONTHLY', due_day: 5 },
+        { id: '2', name: 'Eau', amount: 15000, frequency: 'MONTHLY', due_day: 10 },
+        { id: '3', name: 'Électricité', amount: 35000, frequency: 'MONTHLY', due_day: 15 },
+        { id: '4', name: 'Internet', amount: 25000, frequency: 'MONTHLY', due_day: 20 },
+      ]);
+    }
+  };
 
   const checkPendingQueue = async () => {
     const count = await OfflineSyncService.getPendingCount();
@@ -97,58 +115,102 @@ export default function FinanceMobile() {
         </View>
       )}
 
-      {/* Select Category */}
-      <View style={styles.tabToggle}>
+      {/* Switcher Principal : Recettes vs Dépenses Fixes */}
+      <View style={styles.mainTabToggle}>
         <TouchableOpacity
-          style={[styles.toggleBtn, isOrdinary && styles.toggleBtnActive]}
-          onPress={() => setCategory('ordinary')}
+          style={[styles.mainToggleBtn, mainTab === 'entries' && styles.mainToggleBtnActive]}
+          onPress={() => setMainTab('entries')}
         >
-          <Text style={[styles.toggleText, isOrdinary && styles.toggleTextActive]}>
-            Dîmes & Offrandes (80/10/10)
+          <Text style={[styles.mainToggleText, mainTab === 'entries' && styles.mainToggleTextActive]}>
+            💰 Recettes & Dîmes
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity
-          style={[styles.toggleBtn, !isOrdinary && styles.toggleBtnActive]}
-          onPress={() => setCategory('building')}
+          style={[styles.mainToggleBtn, mainTab === 'fixed_expenses' && styles.mainToggleBtnActive]}
+          onPress={() => setMainTab('fixed_expenses')}
         >
-          <Text style={[styles.toggleText, !isOrdinary && styles.toggleTextActive]}>
-            Auditorium (100%)
+          <Text style={[styles.mainToggleText, mainTab === 'fixed_expenses' && styles.mainToggleTextActive]}>
+            ⚡ Charges Fixes ({fixedExpenses.length})
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Input Montant */}
-      <View style={styles.formCard}>
-        <Text style={styles.cardHeader}>Montant Brut Encaissé (FCFA)</Text>
-        <TextInput
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-          placeholder="Ex: 100000"
-          style={styles.amountInput}
-        />
+      {mainTab === 'entries' ? (
+        <>
+          {/* Select Category */}
+          <View style={styles.tabToggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, isOrdinary && styles.toggleBtnActive]}
+              onPress={() => setCategory('ordinary')}
+            >
+              <Text style={[styles.toggleText, isOrdinary && styles.toggleTextActive]}>
+                Dîmes & Offrandes (80/10/10)
+              </Text>
+            </TouchableOpacity>
 
-        {/* Live Allocations Preview */}
-        <Text style={styles.previewHeader}>Ventilation Analytique Automatique :</Text>
-
-        {split.allocations.map((alloc, idx) => (
-          <View key={idx} style={styles.allocRow}>
-            <Text style={styles.allocDesc}>{alloc.description}</Text>
-            <Text style={styles.allocVal}>{alloc.amount.toLocaleString('fr-FR')} FCFA</Text>
+            <TouchableOpacity
+              style={[styles.toggleBtn, !isOrdinary && styles.toggleBtnActive]}
+              onPress={() => setCategory('building')}
+            >
+              <Text style={[styles.toggleText, !isOrdinary && styles.toggleTextActive]}>
+                Auditorium (100%)
+              </Text>
+            </TouchableOpacity>
           </View>
-        ))}
-      </View>
 
-      <TouchableOpacity
-        style={styles.submitBtn}
-        onPress={handleSaveEntry}
-        disabled={submitting}
-      >
-        <Text style={styles.submitBtnText}>
-          {submitting ? 'Comptabilisation...' : 'Enregistrer la Recette'}
-        </Text>
-      </TouchableOpacity>
+          {/* Input Montant */}
+          <View style={styles.formCard}>
+            <Text style={styles.cardHeader}>Montant Brut Encaissé (FCFA)</Text>
+            <TextInput
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="Ex: 100000"
+              style={styles.amountInput}
+            />
+
+            {/* Live Allocations Preview */}
+            <Text style={styles.previewHeader}>Ventilation Analytique Automatique :</Text>
+
+            {split.allocations.map((alloc, idx) => (
+              <View key={idx} style={styles.allocRow}>
+                <Text style={styles.allocDesc}>{alloc.description}</Text>
+                <Text style={styles.allocVal}>{alloc.amount.toLocaleString('fr-FR')} FCFA</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitBtn}
+            onPress={handleSaveEntry}
+            disabled={submitting}
+          >
+            <Text style={styles.submitBtnText}>
+              {submitting ? 'Comptabilisation...' : 'Enregistrer la Recette'}
+            </Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <View style={styles.fixedExpensesSection}>
+          <Text style={styles.sectionTitle}>Charges Fixes Mensuelles Autorisées</Text>
+          <Text style={styles.sectionSubtitle}>
+            Imputées exclusivement sur les 80% du Fonds Général
+          </Text>
+
+          {fixedExpenses.map((fe) => (
+            <View key={fe.id} style={styles.fixedCard}>
+              <View style={styles.fixedCardHeader}>
+                <Text style={styles.fixedCardName}>{fe.name}</Text>
+                <Text style={styles.fixedCardAmount}>{fe.amount?.toLocaleString('fr-FR')} FCFA</Text>
+              </View>
+              <View style={styles.fixedCardFooter}>
+                <Text style={styles.fixedCardDetail}>Périodicité : {fe.frequency || 'Mensuelle'}</Text>
+                <Text style={styles.fixedCardDetail}>Échéance : le {fe.due_day || 5} du mois</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -177,6 +239,35 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   syncBtnText: { color: '#091338', fontWeight: '900', fontSize: 11 },
+  mainTabToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#0C1530',
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#16214A',
+  },
+  mainToggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+  mainToggleBtnActive: { backgroundColor: '#FFBC00' },
+  mainToggleText: { color: '#94A3B8', fontSize: 12, fontWeight: 'bold' },
+  mainToggleTextActive: { color: '#091338', fontWeight: '900' },
+  fixedExpensesSection: { marginTop: 4 },
+  sectionTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  sectionSubtitle: { color: '#94A3B8', fontSize: 11, marginBottom: 12, marginTop: 2 },
+  fixedCard: {
+    backgroundColor: '#0C1530',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#16214A',
+    padding: 14,
+    marginBottom: 10,
+  },
+  fixedCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fixedCardName: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
+  fixedCardAmount: { color: '#FFBC00', fontSize: 15, fontWeight: '900' },
+  fixedCardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  fixedCardDetail: { color: '#64748B', fontSize: 11 },
   tabToggle: {
     flexDirection: 'row',
     backgroundColor: '#091338',

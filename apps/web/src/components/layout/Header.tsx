@@ -60,13 +60,13 @@ export const Header: React.FC = () => {
 
   const handleSwitchRole = (newRole: UserRole) => {
     const roleUsers = {
-      [UserRole.LEAD_PASTOR]: { id: 'dev-leader-id', email: 'leader@espritvie.org', name: 'Pasteur Principal' },
-      [UserRole.ADMIN]: { id: 'dev-admin-id', email: 'admin@espritvie.org', name: 'Administrateur' },
-      [UserRole.FINANCE_LEAD]: { id: 'dev-finance-id', email: 'finance@espritvie.org', name: 'Responsable Finances' },
-      [UserRole.PROTOCOL_LEAD]: { id: 'dev-protocol-id', email: 'protocol@espritvie.org', name: 'Responsable Protocole' },
-      [UserRole.CASHIER]: { id: 'dev-cashier-id', email: 'caissier@espritvie.org', name: 'Caissier Principal' },
-      [UserRole.AUDITOR]: { id: 'dev-auditor-id', email: 'auditeur@espritvie.org', name: 'Auditeur / Contrôleur' },
-      [UserRole.PROTOCOL_AGENT]: { id: 'dev-agent-id', email: 'agent@espritvie.org', name: 'Agent Protocole' },
+      [UserRole.LEAD_PASTOR]: { id: '88196e8a7d26spt', email: 'leader@espritvie.org', name: 'Pasteur Principal' },
+      [UserRole.ADMIN]: { id: '900286e90az8m1k', email: 'admin@espritvie.org', name: 'Administrateur' },
+      [UserRole.FINANCE_LEAD]: { id: '997whsmow930w37', email: 'finance@espritvie.org', name: 'Responsable Finances' },
+      [UserRole.PROTOCOL_LEAD]: { id: 'h070a28998183ge', email: 'protocol@espritvie.org', name: 'Responsable Protocole' },
+      [UserRole.CASHIER]: { id: '7lh063hmv9x4y5a', email: 'caissier@espritvie.org', name: 'Caissier Principal' },
+      [UserRole.AUDITOR]: { id: '1515au79574ss4x', email: 'auditeur@espritvie.org', name: 'Auditeur / Contrôleur' },
+      [UserRole.PROTOCOL_AGENT]: { id: '91mui0shch2ehn5', email: 'agent@espritvie.org', name: 'Agent Protocole' },
     };
 
     const target = roleUsers[newRole];

@@ -3,32 +3,117 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
-import { ClipboardList, Plus, Printer, X, CheckCircle2, Search, Download } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import {
+  ClipboardList,
+  Plus,
+  Printer,
+  X,
+  CheckCircle2,
+  Search,
+  Download,
+  Filter,
+  Copy,
+  Calendar,
+  Clock,
+  Eye,
+  UserCheck,
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export const AttendanceList: React.FC = () => {
+  const navigate = useNavigate();
+
   const { data: sheets = [], isLoading } = useQuery({
     queryKey: ['attendance-sheets'],
     queryFn: () => api.getAttendance(),
   });
 
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ['service-types'],
+    queryFn: () => api.getServiceTypes(),
+  });
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [selectedSheet, setSelectedSheet] = useState<any | null>(null);
 
+  const getProgramName = (sheet: any) => {
+    if (sheet.service_type?.name) return sheet.service_type.name;
+    const found = serviceTypes.find((st: any) => st.slug === sheet.service_type_slug);
+    if (found) return found.name;
+    return sheet.service?.name || sheet.service_name || 'Culte Esprit & Vie';
+  };
+
   const filteredSheets = sheets.filter((sheet: any) => {
-    const sName = sheet.service?.name || sheet.service_name || '';
-    return sName.toLowerCase().includes(searchTerm.toLowerCase());
+    const pName = getProgramName(sheet).toLowerCase();
+    const matchesSearch =
+      pName.includes(searchTerm.toLowerCase()) ||
+      (sheet.responsible_user?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (sheet.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesType =
+      selectedType === 'all' ||
+      sheet.service_type_slug === selectedType ||
+      sheet.service?.service_type === selectedType;
+
+    const matchesStatus = statusFilter === 'all' || sheet.status === statusFilter;
+
+    const sheetDate = sheet.service_date || sheet.created?.split('T')[0] || sheet.date;
+    const matchesStartDate = !startDate || sheetDate >= startDate;
+    const matchesEndDate = !endDate || sheetDate <= endDate;
+
+    return matchesSearch && matchesType && matchesStatus && matchesStartDate && matchesEndDate;
   });
 
   const totalFilteredAttendance = filteredSheets.reduce((sum: number, s: any) => sum + (s.total_attendance || 0), 0);
   const totalFilteredVisitors = filteredSheets.reduce((sum: number, s: any) => sum + (s.new_visitors_count || 0), 0);
 
+  const handleDuplicate = (sheet: any) => {
+    const params = new URLSearchParams({
+      slug: sheet.service_type_slug || '',
+      men: String(sheet.men_count || 0),
+      women: String(sheet.women_count || 0),
+      youth: String(sheet.youth_count || 0),
+      children: String(sheet.children_count || 0),
+      visitors: String(sheet.new_visitors_count || 0),
+    });
+    navigate(`/attendance/new?${params.toString()}`);
+  };
+
   const handlePrint = () => {
     window.print();
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'validated':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/25">
+            Validée
+          </span>
+        );
+      case 'submitted':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/25">
+            Soumise
+          </span>
+        );
+      case 'draft':
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/25">
+            Brouillon
+          </span>
+        );
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
         <div>
@@ -37,7 +122,7 @@ export const AttendanceList: React.FC = () => {
             <span>Fiches de Fréquentation & Statistiques</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Historique complet des fiches de présence renseignées par le Protocole.
+            Historique complet des fiches de présence renseignées par le Protocole pour les 7 programmes officiels.
           </p>
         </div>
 
@@ -54,30 +139,95 @@ export const AttendanceList: React.FC = () => {
             className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-400/20 transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Saisir une Nouvelle Fiche</span>
+            <span>Saisir une Fiche</span>
           </Link>
         </div>
       </div>
 
-      {/* Barre de Recherche et Compteurs */}
-      <div className="p-4 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:w-96">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Rechercher par intitulé du culte..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
-          />
+      {/* Barre de Filtres Multiples */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm space-y-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+          <Filter className="w-4 h-4 text-amber-500" />
+          <span>Filtres de consultation</span>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          <span className="px-3.5 py-1.5 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-500 text-xs font-black whitespace-nowrap">
-            Total participants : {totalFilteredAttendance}
-          </span>
-          <span className="px-3.5 py-1.5 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 text-xs font-black whitespace-nowrap">
-            Nouveaux visiteurs : +{totalFilteredVisitors}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* Recherche texte */}
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Rechercher culte, responsable..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+
+          {/* Filtre Programme (7 types) */}
+          <div>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="w-full px-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+            >
+              <option value="all">Tous les 7 programmes</option>
+              {serviceTypes.map((st: any) => (
+                <option key={st.slug} value={st.slug}>
+                  {st.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date de début */}
+          <div className="relative">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+
+          {/* Date de fin */}
+          <div className="relative">
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+
+          {/* Statut */}
+          <div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="validated">Validées</option>
+              <option value="submitted">Soumises</option>
+              <option value="draft">Brouillons</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Totaux filtrés */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-[#16214A]">
+          <div className="flex items-center gap-3">
+            <span className="px-3.5 py-1.5 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-500 text-xs font-black">
+              Total participants filtrés : {totalFilteredAttendance}
+            </span>
+            <span className="px-3.5 py-1.5 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 text-xs font-black">
+              Nouveaux visiteurs : +{totalFilteredVisitors}
+            </span>
+          </div>
+
+          <span className="text-xs text-slate-400">
+            {filteredSheets.length} fiche(s) répertoriée(s)
           </span>
         </div>
       </div>
@@ -88,60 +238,81 @@ export const AttendanceList: React.FC = () => {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="bg-slate-50 dark:bg-[#080E25] text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-[#16214A]">
-                <th className="py-4 px-6">Culte</th>
-                <th className="py-4 px-6">Date</th>
+                <th className="py-4 px-6">Programme</th>
+                <th className="py-4 px-6">Date & Heures</th>
                 <th className="py-4 px-6">Hommes</th>
                 <th className="py-4 px-6">Femmes</th>
                 <th className="py-4 px-6">Jeunes</th>
                 <th className="py-4 px-6">Enfants</th>
-                <th className="py-4 px-6 font-bold text-amber-500">Total Présents</th>
+                <th className="py-4 px-6 font-bold text-amber-500">Total Participants</th>
                 <th className="py-4 px-6 font-bold text-blue-500">Nouveaux Visiteurs</th>
                 <th className="py-4 px-6">Statut</th>
-                <th className="py-4 px-6 text-right">Fiche Officielle</th>
+                <th className="py-4 px-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-[#16214A]">
               {filteredSheets.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-12 text-center text-slate-500 dark:text-slate-400 text-xs">
-                    Aucune fiche de fréquentation trouvée.
+                    Aucune fiche de fréquentation ne correspond aux filtres appliqués.
                   </td>
                 </tr>
               ) : (
-                filteredSheets.map((sheet: any) => (
-                <tr key={sheet.id} className="hover:bg-slate-50/60 dark:hover:bg-white/5 transition-colors">
-                  <td className="py-4 px-6 font-bold text-slate-900 dark:text-white">
-                    {sheet.service?.name || sheet.service_name || 'Culte de Célébration'}
-                  </td>
-                  <td className="py-4 px-6 text-xs text-slate-500 whitespace-nowrap">
-                    {formatDate(sheet.created || sheet.date)}
-                  </td>
-                  <td className="py-4 px-6 text-slate-700 dark:text-slate-300 font-medium">{sheet.men_count}</td>
-                  <td className="py-4 px-6 text-slate-700 dark:text-slate-300 font-medium">{sheet.women_count}</td>
-                  <td className="py-4 px-6 text-slate-700 dark:text-slate-300 font-medium">{sheet.youth_count}</td>
-                  <td className="py-4 px-6 text-slate-700 dark:text-slate-300 font-medium">{sheet.children_count}</td>
-                  <td className="py-4 px-6 font-black text-slate-900 dark:text-white text-base">
-                    {sheet.total_attendance}
-                  </td>
-                  <td className="py-4 px-6 font-bold text-blue-600 dark:text-blue-400">
-                    +{sheet.new_visitors_count}
-                  </td>
-                  <td className="py-4 px-6 whitespace-nowrap">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/25">
-                      Validée
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right whitespace-nowrap">
-                    <button
-                      onClick={() => setSelectedSheet(sheet)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 ml-auto transition-colors"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>Fiche PDF</span>
-                    </button>
-                  </td>
-                </tr>
-              )))}
+                filteredSheets.map((sheet: any) => {
+                  const sDate = sheet.service_date || sheet.created?.split('T')[0] || sheet.date;
+                  return (
+                    <tr key={sheet.id} className="hover:bg-slate-50/60 dark:hover:bg-white/5 transition-colors">
+                      <td className="py-4 px-6">
+                        <span className="font-bold text-slate-900 dark:text-white block">
+                          {getProgramName(sheet)}
+                        </span>
+                        {sheet.responsible_user?.name && (
+                          <span className="text-[11px] text-slate-400">
+                            Resp: {sheet.responsible_user.name}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-xs text-slate-500 whitespace-nowrap">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">{formatDate(sDate)}</div>
+                        <div className="text-[10px] text-slate-400">
+                          {sheet.start_time || '09:00'} - {sheet.end_time || '12:00'}
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-slate-700 dark:text-slate-300 font-medium">{sheet.men_count}</td>
+                      <td className="py-4 px-6 text-slate-700 dark:text-slate-300 font-medium">{sheet.women_count}</td>
+                      <td className="py-4 px-6 text-slate-700 dark:text-slate-300 font-medium">{sheet.youth_count}</td>
+                      <td className="py-4 px-6 text-slate-700 dark:text-slate-300 font-medium">{sheet.children_count}</td>
+                      <td className="py-4 px-6 font-black text-slate-900 dark:text-white text-base">
+                        <span className="px-2.5 py-1 rounded-xl bg-amber-400/10 text-amber-500 font-black">
+                          {sheet.total_attendance}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 font-bold text-blue-600 dark:text-blue-400">
+                        +{sheet.new_visitors_count}
+                      </td>
+                      <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(sheet.status)}</td>
+                      <td className="py-4 px-6 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedSheet(sheet)}
+                            title="Consulter / Imprimer"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-slate-800 dark:text-slate-200 transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(sheet)}
+                            title="Dupliquer comme brouillon"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-amber-500 transition-colors"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -159,14 +330,14 @@ export const AttendanceList: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handlePrint}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center gap-2 hover:bg-slate-800"
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center gap-2 hover:bg-slate-800 cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
                   <span>Imprimer / Exporter PDF</span>
                 </button>
                 <button
                   onClick={() => setSelectedSheet(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -190,8 +361,11 @@ export const AttendanceList: React.FC = () => {
                 </div>
               </div>
               <div className="text-right text-xs">
-                <p className="font-bold">Date : {formatDate(selectedSheet.created || selectedSheet.date)}</p>
-                <p className="text-slate-500">Service : {selectedSheet.service?.name || selectedSheet.service_name}</p>
+                <p className="font-bold">Date : {formatDate(selectedSheet.service_date || selectedSheet.date)}</p>
+                <p className="text-slate-500">Service : {getProgramName(selectedSheet)}</p>
+                <p className="text-[10px] text-slate-400">
+                  {selectedSheet.start_time || '09:00'} - {selectedSheet.end_time || '12:00'}
+                </p>
               </div>
             </div>
 
@@ -223,7 +397,9 @@ export const AttendanceList: React.FC = () => {
               <div className="p-4 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-between font-extrabold mt-3">
                 <div>
                   <span className="text-xs uppercase tracking-wider block">Total Fréquentation Vérifié</span>
-                  <span className="text-[10px] font-normal opacity-90">Formule : Hommes + Femmes + Jeunes + Enfants</span>
+                  <span className="text-[10px] font-normal opacity-90">
+                    Formule : Hommes + Femmes + Jeunes + Enfants
+                  </span>
                 </div>
                 <span className="text-3xl">{selectedSheet.total_attendance}</span>
               </div>
@@ -242,14 +418,20 @@ export const AttendanceList: React.FC = () => {
                 </div>
                 <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
                   <span className="text-[10px] font-bold text-emerald-700 uppercase">✝️ Décisions pour Christ</span>
-                  <p className="text-2xl font-black text-emerald-900 mt-1">{selectedSheet.salvations_count || 14}</p>
+                  <p className="text-2xl font-black text-emerald-900 mt-1">{selectedSheet.salvations_count || 0}</p>
                   <span className="text-[10px] text-emerald-600">Âmes sauvées</span>
                 </div>
               </div>
             </div>
 
+            {selectedSheet.notes && (
+              <div className="text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <strong>Observations : </strong> {selectedSheet.notes}
+              </div>
+            )}
+
             {/* Signatures */}
-            <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-200 text-xs">
+            <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200 text-xs">
               <div className="space-y-12">
                 <p className="font-bold text-slate-700">L'Agent du Protocole (Saisie) :</p>
                 <div className="border-b border-dashed border-slate-400 w-4/5" />

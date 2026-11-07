@@ -13,9 +13,12 @@ export class ApiError extends Error {
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('eev_token');
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
+
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -61,6 +64,7 @@ export const api = {
 
   // Services & Attendance
   getServices: () => request<any[]>('/services'),
+  getServiceTypes: () => request<any[]>('/service-types'),
   createService: (data: any) =>
     request<any>('/services', {
       method: 'POST',
@@ -70,6 +74,16 @@ export const api = {
   createAttendance: (data: any) =>
     request<any>('/attendance', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  createStructuredAttendance: (data: any) =>
+    request<any>('/attendance/structured', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateAttendance: (id: string, data: any) =>
+    request<any>(`/attendance/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     }),
 
@@ -118,6 +132,54 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Charges Fixes Récurrentes & Moteur de Prévision
+  getFixedExpenses: () => request<any[]>('/finance/fixed-expenses'),
+  createFixedExpense: (data: any) =>
+    request<any>('/finance/fixed-expenses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateFixedExpense: (id: string, data: any) =>
+    request<any>(`/finance/fixed-expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  toggleFixedExpenseStatus: (id: string) =>
+    request<any>(`/finance/fixed-expenses/${id}/toggle-status`, {
+      method: 'POST',
+    }),
+  getFixedExpenseOccurrences: () => request<any[]>('/finance/fixed-expenses/occurrences'),
+  generateFixedExpenseOccurrences: () =>
+    request<any>('/finance/fixed-expenses/generate-occurrences', {
+      method: 'POST',
+    }),
+  submitFixedExpenseOccurrencePayment: (id: string) =>
+    request<any>(`/finance/fixed-expenses/occurrences/${id}/submit-payment`, {
+      method: 'POST',
+    }),
+  approveFixedExpenseOccurrence: (id: string, decision: 'approve' | 'reject', reason?: string) =>
+    request<any>(`/finance/fixed-expenses/occurrences/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, reason }),
+    }),
+  payFixedExpenseOccurrence: (id: string, paymentMethod: string, paymentReference?: string) =>
+    request<any>(`/finance/fixed-expenses/occurrences/${id}/pay`, {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod, paymentReference }),
+    }),
+  getFixedExpensesSummary: () => request<any>('/finance/fixed-expenses/summary'),
+
+  // Budgets Dépenses Variables
+  getExpenseBudgets: () => request<any[]>('/finance/budgets'),
+  createExpenseBudget: (data: any) =>
+    request<any>('/finance/budgets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Projections Intelligentes de Trésorerie
+  getCashProjections: () => request<any>('/finance/cash-projections'),
 
   // Analytics & Statistics Module
   getAnalyticsOverview: (period: string = 'this_month', startDate?: string, endDate?: string) => {

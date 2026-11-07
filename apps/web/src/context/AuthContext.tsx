@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       // Pour une prise en main immédiate et démonstration par défaut, initialiser en Leader
       const defaultUser: UserSession = {
-        id: 'dev-leader-id',
+        id: '88196e8a7d26spt',
         email: 'leader@espritvie.org',
         name: 'Pasteur Principal',
         role: UserRole.LEAD_PASTOR,

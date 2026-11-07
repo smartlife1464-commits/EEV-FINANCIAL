@@ -308,6 +308,110 @@ export class LedgerService {
   }
 
   /**
+   * Procède au décaissement effectif d'une échéance de charge fixe (après approbation).
+   * Débite simultanément le solde physique de la caisse et le compartiment analytique concerné.
+   */
+  static async payFixedOccurrence(input: {
+    occurrenceId: string;
+    paymentMethod: PaymentMethod | string;
+    paymentReference?: string;
+    paidById: string;
+  }) {
+    await ensureAdminAuth();
+
+    const occ = await pb.collection('fixed_expense_occurrences').getOne(input.occurrenceId, {
+      expand: 'fixed_expense,fund_account',
+    });
+
+    if (occ.status === 'paid') {
+      throw new Error('Cette échéance a déjà été réglée.');
+    }
+
+    const fund = (occ.expand as any)?.fund_account;
+    if (!fund) {
+      throw new Error('Compartiment analytique associé à l’échéance introuvable.');
+    }
+
+    if (fund.current_balance < occ.expected_amount) {
+      throw new Error(
+        `Solde insuffisant dans le fonds ${fund.name} (${fund.current_balance} FCFA disponible, ${occ.expected_amount} FCFA requis).`
+      );
+    }
+
+    // 1. Débiter le fonds analytique
+    const newFundBalance = fund.current_balance - occ.expected_amount;
+    await pb.collection('fund_accounts').update(fund.id, {
+      current_balance: newFundBalance,
+    });
+
+    // 2. Générer le numéro de dépense et créer l'enregistrement comptable
+    const expCount = await pb.collection('expenses').getList(1, 1);
+    const expNumber = `DEP-${new Date().getFullYear()}-${String(expCount.totalItems + 1).padStart(5, '0')}`;
+    const fixedExpName = (occ.expand as any)?.fixed_expense?.name || 'Charge fixe';
+
+    const expenseRecord = await pb.collection('expenses').create({
+      expense_number: expNumber,
+      expense_type: 'fixed',
+      fixed_expense: occ.fixed_expense,
+      fixed_occurrence: occ.id,
+      category_name: (occ.expand as any)?.fixed_expense?.category || 'Charge fixe',
+      fund_account: fund.id,
+      amount: occ.expected_amount,
+      beneficiary: (occ.expand as any)?.fixed_expense?.beneficiary || 'Fournisseur',
+      purpose: `Règlement échéance du ${occ.due_date} - ${fixedExpName}`,
+      expense_date: occ.due_date,
+      status: ExpenseStatus.PAID,
+      requested_by: input.paidById,
+      approved_by: occ.approved_by || input.paidById,
+      approved_at: occ.approved_at || new Date().toISOString(),
+      paid_by: input.paidById,
+      paid_at: new Date().toISOString(),
+      payment_method: input.paymentMethod,
+      payment_reference: input.paymentReference || '',
+    });
+
+    // 3. Écrire au grand livre
+    const txCount = await pb.collection('fund_transactions').getList(1, 1);
+    const txNumber = `TX-${new Date().getFullYear()}-${String(txCount.totalItems + 1).padStart(6, '0')}`;
+
+    await pb.collection('fund_transactions').create({
+      transaction_number: txNumber,
+      fund_account: fund.id,
+      type: FundTransactionType.DEBIT_EXPENSE,
+      direction: 'debit',
+      amount: occ.expected_amount,
+      balance_after: newFundBalance,
+      related_expense: expenseRecord.id,
+      description: `Règlement charge fixe ${fixedExpName} (${expNumber})`,
+      created_by: input.paidById,
+    });
+
+    // 4. Mettre à jour l'occurrence
+    const updatedOcc = await pb.collection('fixed_expense_occurrences').update(occ.id, {
+      status: 'paid',
+      paid_amount: occ.expected_amount,
+      paid_at: new Date().toISOString(),
+      payment_transaction: txNumber,
+    });
+
+    // 5. Piste d'audit
+    await createAuditLog({
+      userId: input.paidById,
+      action: 'pay_fixed_occurrence',
+      collectionName: 'fixed_expense_occurrences',
+      recordId: occ.id,
+      oldValues: { status: occ.status },
+      newValues: {
+        status: 'paid',
+        paidAmount: occ.expected_amount,
+        txNumber,
+      },
+    });
+
+    return { occurrence: updatedOcc, expense: expenseRecord };
+  }
+
+  /**
    * Fournit la synthèse de la Trésorerie Unique Consolidée et la répartition analytique.
    */
   static async getConsolidatedTreasury(): Promise<ConsolidatedTreasury> {

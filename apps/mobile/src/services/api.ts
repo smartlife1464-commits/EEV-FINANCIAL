@@ -64,5 +64,23 @@ export const mobileApi = {
       method: 'POST',
       body: JSON.stringify({ decision, reason }),
     }),
+  getServiceTypes: () => mobileRequest<any[]>('/service-types'),
+  createStructuredAttendance: (data: any) =>
+    mobileRequest<any>('/attendance/structured', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getFixedExpenses: () => mobileRequest<any[]>('/finance/fixed-expenses'),
+  getFixedOccurrences: () => mobileRequest<any[]>('/finance/fixed-expenses/occurrences'),
+  payFixedExpenseOccurrence: (id: string, paymentMethod: string, paymentReference?: string) =>
+    mobileRequest<any>(`/finance/fixed-expenses/occurrences/${id}/pay`, {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod, paymentReference }),
+    }),
+  approveFixedExpenseOccurrence: (id: string, decision: 'approve' | 'reject', reason?: string) =>
+    mobileRequest<any>(`/finance/fixed-expenses/occurrences/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, reason }),
+    }),
 };
 

@@ -50,7 +50,7 @@ export async function authRoutes(app: FastifyInstance) {
         return reply.send({
           token: 'dev-token-leader',
           user: {
-            id: 'dev-leader-id',
+            id: '88196e8a7d26spt',
             email: 'leader@espritvie.org',
             name: 'Leader Principal',
             role: UserRole.LEAD_PASTOR,
@@ -62,7 +62,7 @@ export async function authRoutes(app: FastifyInstance) {
         return reply.send({
           token: 'dev-token-admin',
           user: {
-            id: 'dev-admin-id',
+            id: '900286e90az8m1k',
             email: 'admin@espritvie.org',
             name: 'Administrateur Général',
             role: UserRole.ADMIN,
@@ -74,7 +74,7 @@ export async function authRoutes(app: FastifyInstance) {
         return reply.send({
           token: 'dev-token-finance',
           user: {
-            id: 'dev-finance-id',
+            id: '997whsmow930w37',
             email: 'finance@espritvie.org',
             name: 'Responsable Finances',
             role: UserRole.FINANCE_LEAD,
@@ -86,11 +86,47 @@ export async function authRoutes(app: FastifyInstance) {
         return reply.send({
           token: 'dev-token-protocol',
           user: {
-            id: 'dev-protocol-id',
+            id: 'h070a28998183ge',
             email: 'protocol@espritvie.org',
             name: 'Responsable Protocole',
             role: UserRole.PROTOCOL_LEAD,
             permissions: PERMISSIONS_MATRIX[UserRole.PROTOCOL_LEAD],
+          },
+        });
+      }
+      if (parsed.data.email === 'caissier@espritvie.org' && parsed.data.password === 'Caissier2026!') {
+        return reply.send({
+          token: 'dev-token-cashier',
+          user: {
+            id: '7lh063hmv9x4y5a',
+            email: 'caissier@espritvie.org',
+            name: 'Caissier Principal',
+            role: UserRole.CASHIER,
+            permissions: PERMISSIONS_MATRIX[UserRole.CASHIER],
+          },
+        });
+      }
+      if (parsed.data.email === 'agent@espritvie.org' && parsed.data.password === 'Agent2026!') {
+        return reply.send({
+          token: 'dev-token-protocol_agent',
+          user: {
+            id: '91mui0shch2ehn5',
+            email: 'agent@espritvie.org',
+            name: 'Agent Protocole',
+            role: UserRole.PROTOCOL_AGENT,
+            permissions: PERMISSIONS_MATRIX[UserRole.PROTOCOL_AGENT],
+          },
+        });
+      }
+      if (parsed.data.email === 'auditeur@espritvie.org' && parsed.data.password === 'Auditeur2026!') {
+        return reply.send({
+          token: 'dev-token-auditor',
+          user: {
+            id: '1515au79574ss4x',
+            email: 'auditeur@espritvie.org',
+            name: 'Auditeur / Contrôleur',
+            role: UserRole.AUDITOR,
+            permissions: PERMISSIONS_MATRIX[UserRole.AUDITOR],
           },
         });
       }
