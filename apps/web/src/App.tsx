@@ -27,6 +27,7 @@ import { NotificationsPage } from './pages/NotificationsPage';
 import { AnalyticsOverview } from './pages/analytics/AnalyticsOverview';
 import { AttendanceAnalytics } from './pages/analytics/AttendanceAnalytics';
 import { FinancialAnalytics } from './pages/analytics/FinancialAnalytics';
+import { CashClosingReconciliation } from './pages/CashClosingReconciliation';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +59,7 @@ export const App: React.FC = () => {
                 <Route path="finance/expenses/new" element={<ExpenseForm />} />
                 <Route path="finance/approvals" element={<ExpenseApprovals />} />
                 <Route path="finance/treasury" element={<TreasuryDetail />} />
+                <Route path="finance/cash-closing" element={<CashClosingReconciliation />} />
                 <Route path="finance/transfers" element={<InternalTransfers />} />
                 <Route path="finance/transactions" element={<GeneralLedger />} />
                 <Route path="analytics" element={<AnalyticsOverview />} />

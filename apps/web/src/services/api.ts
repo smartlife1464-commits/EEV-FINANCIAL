@@ -111,6 +111,14 @@ export const api = {
   getReportsSummary: (period: string = 'monthly') => request<any>(`/reports/summary?period=${period}`),
   getAuditLogs: () => request<any[]>('/audit-logs'),
 
+  // Cash Closings & Reconciliation (Procès-Verbal de Caisse)
+  getCashClosings: () => request<any[]>('/finance/cash-closings'),
+  createCashClosing: (data: any) =>
+    request<any>('/finance/cash-closings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   // Analytics & Statistics Module
   getAnalyticsOverview: (period: string = 'this_month', startDate?: string, endDate?: string) => {
     const params = new URLSearchParams({ period });

@@ -5,6 +5,7 @@ import {
   calculateAttendanceTotal,
   canTransitionExpense,
   PERMISSIONS_MATRIX,
+  calculateCashReconciliation,
 } from './index.js';
 import {
   AllocationRule,
@@ -105,6 +106,35 @@ describe('Scénarios Financiers et Règles Métier EEV', () => {
     expect(PERMISSIONS_MATRIX[UserRole.AUDITOR].canCreateFinancialEntry).toBe(false);
     expect(PERMISSIONS_MATRIX[UserRole.AUDITOR].canCreateExpense).toBe(false);
     expect(PERMISSIONS_MATRIX[UserRole.AUDITOR].canViewAuditLogs).toBe(true);
+  });
+
+  it('Scénario 11 : Dénombrement physique (billetage) et rapprochement de caisse avec détection des écarts', () => {
+    // 5 billets de 10 000 (50k) + 4 billets de 5 000 (20k) + 10 billets de 2 000 (20k) + 10 pièces de 500 (5k) + 50k Mobile Money = 145 000 FCFA
+    const count = {
+      b10000: 5,
+      b5000: 4,
+      b2000: 10,
+      c500: 10,
+      mobileMoneyAmount: 50000,
+    };
+
+    // Cas 1 : Caisse parfaitement juste
+    const resBalanced = calculateCashReconciliation(count, 145000);
+    expect(resBalanced.physicalCashTotal).toBe(95000);
+    expect(resBalanced.electronicAndChecksTotal).toBe(50000);
+    expect(resBalanced.grandTotalCounted).toBe(145000);
+    expect(resBalanced.discrepancy).toBe(0);
+    expect(resBalanced.status).toBe('balanced');
+
+    // Cas 2 : Manquant de caisse (solde théorique = 150 000, compté = 145 000 -> manquant de -5 000)
+    const resShortage = calculateCashReconciliation(count, 150000);
+    expect(resShortage.discrepancy).toBe(-5000);
+    expect(resShortage.status).toBe('shortage');
+
+    // Cas 3 : Excédent de caisse (solde théorique = 140 000, compté = 145 000 -> excédent de +5 000)
+    const resSurplus = calculateCashReconciliation(count, 140000);
+    expect(resSurplus.discrepancy).toBe(5000);
+    expect(resSurplus.status).toBe('surplus');
   });
 });
 

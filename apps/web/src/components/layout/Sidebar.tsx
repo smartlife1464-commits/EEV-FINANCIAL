@@ -8,6 +8,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   PiggyBank,
+  Scale,
   FileText,
   Users,
   Settings,
@@ -67,6 +68,12 @@ export const Sidebar: React.FC = () => {
       label: 'Trésorerie',
       icon: PiggyBank,
       show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.AUDITOR].includes(role),
+    },
+    {
+      to: '/finance/cash-closing',
+      label: 'Clôture & PV de Caisse',
+      icon: Scale,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
     },
     {
       to: '/reports',

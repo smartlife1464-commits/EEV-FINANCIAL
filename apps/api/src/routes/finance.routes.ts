@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { calculateCashReconciliation, CashCountBreakdown } from '@eev/business-rules';
 import {
   financialEntrySchema,
   createExpenseSchema,
@@ -387,5 +388,81 @@ export async function financeRoutes(app: FastifyInstance) {
       ]);
     }
   });
+
+  // Liste des Procès-Verbaux de Clôture de Caisse
+  app.get('/api/finance/cash-closings', { preHandler: authenticateRequest }, async (request, reply) => {
+    return reply.send([
+      {
+        id: 'cl-1',
+        closing_number: 'PV-2026-00001',
+        date: '2026-11-01',
+        closed_by_name: 'Responsable Finances',
+        service_name: 'Culte Dominical de Célébration',
+        theoretical_balance: 14750000,
+        counted_balance: 14750000,
+        discrepancy: 0,
+        status: 'balanced',
+        notes: 'Clôture contradictoire effectuée après le culte dominical. Caisse juste.',
+        created: '2026-11-01T14:30:00Z',
+      },
+    ]);
+  });
+
+  // Enregistrement officiel d'une clôture de caisse avec PV
+  app.post(
+    '/api/finance/cash-closings',
+    { preHandler: requirePermission('canCreateFinancialEntry') },
+    async (request, reply) => {
+      const body = request.body as {
+        serviceId?: string;
+        serviceName?: string;
+        theoreticalBalance: number;
+        breakdown: CashCountBreakdown;
+        notes?: string;
+      };
+
+      if (!body.breakdown) {
+        return reply.status(400).send({ error: 'Le détail du billetage est obligatoire.' });
+      }
+
+      const reconciliation = calculateCashReconciliation(body.breakdown, body.theoreticalBalance);
+      const pvNumber = `PV-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
+
+      const closingRecord = {
+        id: `cl-${Date.now()}`,
+        closing_number: pvNumber,
+        date: new Date().toISOString().split('T')[0],
+        closed_by: request.user!.id,
+        closed_by_name: request.user!.name || 'Agent Financier',
+        service_id: body.serviceId || null,
+        service_name: body.serviceName || 'Caisse Générale',
+        breakdown: body.breakdown,
+        physical_cash_total: reconciliation.physicalCashTotal,
+        electronic_and_checks_total: reconciliation.electronicAndChecksTotal,
+        theoretical_balance: body.theoreticalBalance,
+        counted_balance: reconciliation.grandTotalCounted,
+        discrepancy: reconciliation.discrepancy,
+        status: reconciliation.status,
+        status_label: reconciliation.statusLabel,
+        notes: body.notes || '',
+        created: new Date().toISOString(),
+      };
+
+      await createAuditLog({
+        userId: request.user!.id,
+        action: 'cash_closing' as any,
+        collectionName: 'cash_closings',
+        recordId: closingRecord.id,
+        newValues: {
+          pvNumber,
+          discrepancy: reconciliation.discrepancy,
+          countedTotal: reconciliation.grandTotalCounted,
+          status: reconciliation.status,
+        },
+      });
+
+      return reply.status(201).send(closingRecord);
+    }
+  );
 }
 
