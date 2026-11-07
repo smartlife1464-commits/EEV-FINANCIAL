@@ -320,3 +320,4 @@ export const FinancialAnalytics: React.FC = () => {
     </div>
   );
 };
+

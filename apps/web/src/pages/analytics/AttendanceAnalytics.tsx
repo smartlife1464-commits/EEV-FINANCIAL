@@ -460,3 +460,4 @@ export const AttendanceAnalytics: React.FC = () => {
     </div>
   );
 };
+

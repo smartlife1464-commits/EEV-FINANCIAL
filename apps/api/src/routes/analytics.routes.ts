@@ -77,3 +77,4 @@ export async function analyticsRoutes(app: FastifyInstance) {
     return reply.send(csvContent);
   });
 }
+

@@ -100,3 +100,4 @@ describe('Analytics Calculations Engine & Statistical Accuracy', () => {
     expect(trends[0].total).toBe(trends[0].men + trends[0].women + trends[0].youth + trends[0].children);
   });
 });
+
