@@ -209,11 +209,10 @@ export const AttendanceAnalytics: React.FC = () => {
               <button
                 key={g.id}
                 onClick={() => setGranularity(g.id as any)}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  granularity === g.id
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${granularity === g.id
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 {g.label}
               </button>
@@ -227,55 +226,50 @@ export const AttendanceAnalytics: React.FC = () => {
 
           <button
             onClick={() => setShowTotal(!showTotal)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showTotal
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showTotal
                 ? 'bg-indigo-600 text-white'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Total Participants</span>
           </button>
 
           <button
             onClick={() => setShowWomen(!showWomen)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showWomen
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showWomen
                 ? 'bg-pink-600 text-white'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Femmes</span>
           </button>
 
           <button
             onClick={() => setShowMen(!showMen)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showMen
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showMen
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Hommes</span>
           </button>
 
           <button
             onClick={() => setShowYouth(!showYouth)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showYouth
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showYouth
                 ? 'bg-amber-500 text-slate-950 font-black'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Jeunes</span>
           </button>
 
           <button
             onClick={() => setShowChildren(!showChildren)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showChildren
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showChildren
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Enfants</span>
           </button>

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatFCFA, formatDate } from '../../utils/formatters';
 import { numberToWordsFCFA } from '../../utils/numberToWords';
+import { exportElementToPdf } from '../../utils/exportToPdf';
 import { X, Printer, ShieldCheck, CheckCircle2, Download } from 'lucide-react';
 
 export interface DonationReceiptData {
@@ -24,6 +25,8 @@ interface DonationReceiptModalProps {
 }
 
 export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ receipt, onClose }) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+
   if (!receipt) return null;
 
   const receiptRef =
@@ -51,10 +54,22 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
     window.print();
   };
 
+  const handleDownloadPdf = async () => {
+    setIsDownloading(true);
+    try {
+      await exportElementToPdf('printable-receipt', {
+        filename: `Recu_${receiptRef}.pdf`,
+        orientation: 'landscape',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in print:p-0 print:bg-white print:static select-none">
-      <div className="bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[95vh] print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none">
-        {/* Header de contrôle (Masqué à l'impression) */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in print:p-0 print:m-0 print:bg-white print:static select-none">
+      <div className="printable-modal-box bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[95vh] print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none">
+        {/* Header de contrôle (Masqué complètement à l'impression / PDF) */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#16214A] flex items-center justify-between bg-slate-50/70 dark:bg-[#091338]/80 print:hidden">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-500 flex items-center justify-center">
@@ -65,30 +80,42 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
                 Reçu Officiel Certifié
               </p>
               <p className="text-[11px] font-mono text-amber-500 font-bold">
-                Réf: {receiptRef}
+                Réf: {receiptRef} • Format A4 Paysage
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleDownloadPdf}
+              disabled={isDownloading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-100 font-black text-xs transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              title="Télécharger directement en PDF A4 Paysage"
+            >
+              <Download className="w-4 h-4 text-amber-400 dark:text-amber-500" />
+              <span>{isDownloading ? 'Génération...' : 'Télécharger PDF'}</span>
+            </button>
+            <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>Imprimer / PDF</span>
+              <span>Imprimer (A4 Paysage)</span>
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Corps du Reçu Officiel (A5/A4 Stylisé et Prêt à l'impression) */}
-        <div className="p-8 sm:p-10 overflow-y-auto space-y-6 bg-white text-slate-900 font-sans print:p-6 print:overflow-visible">
+        {/* Corps du Reçu Officiel Standardisé A4 Paysage */}
+        <div
+          id="printable-receipt"
+          className="printable-document a4-landscape-document p-8 sm:p-10 overflow-y-auto space-y-6 bg-white text-slate-900 font-sans print:p-0 print:overflow-visible"
+        >
           {/* En-tête Institutionnel */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5">
             <div className="flex items-center gap-4">
@@ -251,8 +278,15 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
               Document officiel tenant lieu de reçu de libéralité ecclésiastique certifiée.
             </p>
           </div>
+
+          {/* Pied de Page Officiel Standardisé */}
+          <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 font-medium">
+            <span>Ministère Esprit & Vie — Caisse Centrale & Trésorerie</span>
+            <span>Quittance Officielle Certifiée • Format A4 Paysage • Page 1/1</span>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+

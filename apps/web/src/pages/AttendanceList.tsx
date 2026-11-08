@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import { WhatsAppReportShareModal, WhatsAppServiceReportData } from '../components/documents/WhatsAppReportShareModal';
+import { exportElementToPdf } from '../utils/exportToPdf';
 import {
   ClipboardList,
   Plus,
@@ -42,6 +43,7 @@ export const AttendanceList: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [selectedSheet, setSelectedSheet] = useState<any | null>(null);
   const [whatsAppReportData, setWhatsAppReportData] = useState<WhatsAppServiceReportData | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const getProgramName = (sheet: any) => {
     if (sheet.service_type?.name) return sheet.service_type.name;
@@ -104,6 +106,21 @@ export const AttendanceList: React.FC = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!selectedSheet) return;
+    setIsDownloading(true);
+    try {
+      const prog = getProgramName(selectedSheet).replace(/[^a-zA-Z0-9]/g, '_');
+      const dateStr = (selectedSheet.service_date || selectedSheet.date || '').replace(/[^0-9]/g, '');
+      await exportElementToPdf('printable-attendance', {
+        filename: `Fiche_Frequentation_${prog}_${dateStr || 'Culte'}.pdf`,
+        orientation: 'landscape',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -344,135 +361,219 @@ export const AttendanceList: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Fiche de Fréquentation Imprimable Officielle */}
+      {/* Modal Fiche de Fréquentation Imprimable Officielle Standardisée A4 Paysage */}
       {selectedSheet && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white text-slate-900 max-w-2xl w-full rounded-3xl p-8 border border-slate-200 shadow-2xl space-y-6 relative print:p-0 print:border-none print:shadow-none">
-            {/* Boutons d'action haut (masqués à l'impression) */}
-            <div className="flex items-center justify-between border-b pb-4 print:hidden">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-600">
-                Aperçu Fiche Officielle • Ministère Esprit & Vie
-              </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in print:p-0 print:m-0 print:bg-white print:static select-none">
+          <div className="printable-modal-box bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[95vh] print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none">
+            {/* Boutons d'action haut (masqués à l'impression / PDF) */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#16214A] flex items-center justify-between bg-slate-50/70 dark:bg-[#091338]/80 print:hidden">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-500 flex items-center justify-center">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-black text-sm text-slate-900 dark:text-white">
+                    Fiche Officielle de Fréquentation du Culte
+                  </p>
+                  <p className="text-[11px] font-mono text-amber-500 font-bold">
+                    {getProgramName(selectedSheet)} • {formatDate(selectedSheet.service_date || selectedSheet.date)} • Format A4 Paysage
+                  </p>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleOpenWhatsApp(selectedSheet)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm"
-                  title="Générer le message WhatsApp officiel"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all cursor-pointer shadow-sm"
+                  title="Générer la synthèse WhatsApp pour le Pasteur"
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span>Partager WhatsApp</span>
                 </button>
                 <button
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-100 font-black text-xs transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Télécharger directement en PDF A4 Paysage"
+                >
+                  <Download className="w-4 h-4 text-amber-400 dark:text-amber-500" />
+                  <span>{isDownloading ? 'Génération...' : 'Télécharger PDF'}</span>
+                </button>
+                <button
                   onClick={handlePrint}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center gap-2 hover:bg-slate-800 cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>Imprimer / Exporter PDF</span>
+                  <span>Imprimer (A4 Paysage)</span>
                 </button>
                 <button
                   onClick={() => setSelectedSheet(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* En-tête imprimable */}
-            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
-              <div className="flex items-center gap-3">
-                <img src="/logo-eev.png" alt="Esprit & Vie" className="w-14 h-14 object-contain" />
-                <div>
-                  <h2 className="text-lg font-black tracking-wider uppercase text-slate-900">
-                    Ministère Esprit & Vie
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-semibold">
-                    Siège Central • Yaoundé, Cameroun
-                  </p>
-                  <p className="text-xs font-bold text-amber-600 uppercase mt-0.5">
-                    Fiche Officielle de Fréquentation du Culte
-                  </p>
+            {/* Corps Officiel A4 de la Fiche de Fréquentation Standardisé */}
+            <div
+              id="printable-attendance"
+              className="printable-document a4-landscape-document p-8 sm:p-10 overflow-y-auto space-y-5 bg-white text-slate-900 font-sans print:p-0 print:overflow-visible"
+            >
+              {/* En-tête Institutionnel Standardisé */}
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 p-2 flex items-center justify-center shrink-0">
+                    <img
+                      src="/logo-eev.png"
+                      alt="Ministère Esprit & Vie"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div>
+                    <h1 className="font-black text-lg tracking-wider text-slate-950 uppercase">
+                      MINISTÈRE ESPRIT & VIE
+                    </h1>
+                    <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">
+                      Direction du Protocole & Accueil • Suivi des Rassemblements
+                    </p>
+                    <p className="text-[11px] text-slate-600">
+                      Siège Central • Yaoundé, Cameroun • BP 1420 • Tél : +237 699 00 00 00
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="text-right text-xs">
-                <p className="font-bold">Date : {formatDate(selectedSheet.service_date || selectedSheet.date)}</p>
-                <p className="text-slate-500">Service : {getProgramName(selectedSheet)}</p>
-                <p className="text-[10px] text-slate-400">
-                  {selectedSheet.start_time || '09:00'} - {selectedSheet.end_time || '12:00'}
-                </p>
-              </div>
-            </div>
 
-            {/* Grille des Présences Exclusives */}
-            <div className="space-y-2">
-              <span className="text-xs font-extrabold uppercase text-slate-700 tracking-wider">
-                1. Comptabilisation des Participants Exclusifs
-              </span>
-              <div className="grid grid-cols-4 gap-3">
-                <div className="p-3 rounded-xl bg-slate-100 text-center border">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Hommes</span>
-                  <p className="text-2xl font-black text-slate-900 mt-1">{selectedSheet.men_count}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-100 text-center border">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Femmes</span>
-                  <p className="text-2xl font-black text-slate-900 mt-1">{selectedSheet.women_count}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-100 text-center border">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Jeunes</span>
-                  <p className="text-2xl font-black text-slate-900 mt-1">{selectedSheet.youth_count}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-100 text-center border">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Enfants</span>
-                  <p className="text-2xl font-black text-slate-900 mt-1">{selectedSheet.children_count}</p>
-                </div>
-              </div>
-
-              {/* Total Strict Formule */}
-              <div className="p-4 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-between font-extrabold mt-3">
-                <div>
-                  <span className="text-xs uppercase tracking-wider block">Total Fréquentation Vérifié</span>
-                  <span className="text-[10px] font-normal opacity-90">
-                    Formule : Hommes + Femmes + Jeunes + Enfants
+                <div className="text-right text-xs space-y-1">
+                  <p className="font-mono font-bold text-slate-950">
+                    FICHE N° ATT-{selectedSheet.id ? selectedSheet.id.substring(0, 8).toUpperCase() : 'REC'}
+                  </p>
+                  <p className="text-slate-600">
+                    Date du culte : <strong className="text-slate-950">{formatDate(selectedSheet.service_date || selectedSheet.date)}</strong>
+                  </p>
+                  <p className="text-slate-600">
+                    Horaire : <span className="font-mono">{selectedSheet.start_time || '09:00'} - {selectedSheet.end_time || '12:00'}</span>
+                  </p>
+                  <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                    ★ REGISTRE OFFICIEL CERTIFIÉ
                   </span>
                 </div>
-                <span className="text-3xl">{selectedSheet.total_attendance}</span>
               </div>
-            </div>
 
-            {/* Indicateurs complémentaires */}
-            <div className="space-y-2">
-              <span className="text-xs font-extrabold uppercase text-slate-700 tracking-wider">
-                2. Indicateurs Analytiques Complémentaires (Non Additionnés)
-              </span>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
-                  <span className="text-[10px] font-bold text-blue-700 uppercase">⭐ Nouveaux Visiteurs</span>
-                  <p className="text-2xl font-black text-blue-900 mt-1">{selectedSheet.new_visitors_count}</p>
-                  <span className="text-[10px] text-blue-600">Pour intégration pastorale</span>
+              {/* Titre et Service */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                <div>
+                  <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                    Programme / Culte
+                  </span>
+                  <p className="text-base font-black text-slate-900">
+                    {getProgramName(selectedSheet)}
+                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase">✝️ Décisions pour Christ</span>
-                  <p className="text-2xl font-black text-emerald-900 mt-1">{selectedSheet.salvations_count || 0}</p>
-                  <span className="text-[10px] text-emerald-600">Âmes sauvées</span>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                    Agent du Protocole Référent
+                  </span>
+                  <p className="text-xs font-bold text-slate-800">
+                    {selectedSheet.recorded_by_name || 'Équipe Protocole'}
+                  </p>
                 </div>
               </div>
-            </div>
 
-            {selectedSheet.notes && (
-              <div className="text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <strong>Observations : </strong> {selectedSheet.notes}
+              {/* 1. Comptabilisation des Participants Exclusifs */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                    1. Répartition Exclusive des Participants
+                  </span>
+                  <span className="text-[10px] text-slate-500 italic">
+                    Chaque participant est compté dans une et une seule catégorie
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 gap-3">
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Hommes</span>
+                    <p className="text-2xl font-black text-slate-900 mt-1">{selectedSheet.men_count}</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Femmes</span>
+                    <p className="text-2xl font-black text-slate-900 mt-1">{selectedSheet.women_count}</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Jeunes</span>
+                    <p className="text-2xl font-black text-slate-900 mt-1">{selectedSheet.youth_count}</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Enfants</span>
+                    <p className="text-2xl font-black text-slate-900 mt-1">{selectedSheet.children_count}</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-amber-400 text-slate-950 text-center font-black border border-amber-500 shadow-sm flex flex-col justify-center">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-900">Total Général</span>
+                    <p className="text-2xl font-black">{selectedSheet.total_attendance}</p>
+                    <span className="text-[8px] font-normal opacity-80">(Formule vérifiée)</span>
+                  </div>
+                </div>
               </div>
-            )}
 
-            {/* Signatures */}
-            <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200 text-xs">
-              <div className="space-y-12">
-                <p className="font-bold text-slate-700">L'Agent du Protocole (Saisie) :</p>
-                <div className="border-b border-dashed border-slate-400 w-4/5" />
+              {/* 2. Indicateurs Analytiques Complémentaires */}
+              <div className="space-y-2">
+                <span className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                  2. Indicateurs Analytiques & Moisson Pastorale (Non additionnés au total physique)
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-blue-700 uppercase">⭐ Nouveaux Visiteurs (Première Fois)</span>
+                      <p className="text-[11px] text-blue-600">À orienter vers la cellule d'intégration pastorale</p>
+                    </div>
+                    <p className="text-2xl font-black text-blue-900">{selectedSheet.new_visitors_count}</p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-emerald-700 uppercase">✝️ Décisions pour Christ / Conversions</span>
+                      <p className="text-[11px] text-emerald-600">Âmes réconciliées avec Dieu durant le culte</p>
+                    </div>
+                    <p className="text-2xl font-black text-emerald-900">{selectedSheet.salvations_count || 0}</p>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-12 text-right">
-                <p className="font-bold text-slate-700">Le Responsable du Protocole (Visa) :</p>
-                <div className="border-b border-dashed border-slate-400 w-4/5 ml-auto" />
+
+              {selectedSheet.notes && (
+                <div className="text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <strong className="text-slate-900">Observations & Faits Marquants : </strong>
+                  <span className="text-slate-700">{selectedSheet.notes}</span>
+                </div>
+              )}
+
+              {/* Blocs de Signatures Standardisés */}
+              <div className="grid grid-cols-2 gap-8 pt-4 border-t-2 border-slate-900 text-xs">
+                <div className="border border-slate-200 rounded-xl p-3 flex flex-col justify-between h-24 bg-white">
+                  <div>
+                    <p className="text-[10px] uppercase font-black text-slate-500">
+                      1. Agent du Protocole (Saisie & Comptage)
+                    </p>
+                    <p className="font-bold text-[11px] text-slate-900">
+                      {selectedSheet.recorded_by_name || 'Agent de Service'}
+                    </p>
+                  </div>
+                  <p className="text-[9px] text-slate-400 italic">Signature & Visa</p>
+                </div>
+                <div className="border border-slate-200 rounded-xl p-3 flex flex-col justify-between h-24 bg-white">
+                  <div>
+                    <p className="text-[10px] uppercase font-black text-slate-500">
+                      2. Responsable du Protocole / Pasteur de Culte (Validation)
+                    </p>
+                    <p className="font-bold text-[11px] text-slate-900">
+                      Gouvernance Ecclésiastique
+                    </p>
+                  </div>
+                  <p className="text-[9px] text-slate-400 italic">Signature & Date</p>
+                </div>
+              </div>
+
+              {/* Pied de Page Officiel Standardisé */}
+              <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 font-medium">
+                <span>Ministère Esprit & Vie — Département du Protocole & Accueil • Registre Officiel de Fréquentation</span>
+                <span>Document Officiel Certifié • Format A4 Paysage • Page 1/1</span>
               </div>
             </div>
           </div>

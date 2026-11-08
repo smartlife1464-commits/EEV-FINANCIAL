@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding }) => {
   };
 
   return (
-    <header className="px-6 md:px-10 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-30 transition-colors bg-[#F8FAFC]/95 dark:bg-[#060D24]/95 backdrop-blur-md border-b border-slate-200/90 dark:border-[#16214A]/90 select-none">
+    <header className="px-6 md:px-10 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-30 transition-colors bg-[#F8FAFC]/95 dark:bg-[#060D24]/95 backdrop-blur-md border-b border-slate-200/90 dark:border-[#16214A]/90 select-none print:hidden">
       {/* Salutation personnalisée avec typographie généreuse */}
       <div>
         <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white flex items-center gap-2.5 tracking-tight">

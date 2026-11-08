@@ -20,8 +20,10 @@ import {
   Scale,
   FileText,
   MessageCircle,
+  Download,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { exportElementToPdf } from '../utils/exportToPdf';
 
 export const CashClosingReconciliation: React.FC = () => {
   const { data: treasury } = useQuery({
@@ -62,6 +64,21 @@ export const CashClosingReconciliation: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [selectedPV, setSelectedPV] = useState<any | null>(null);
   const [whatsAppReportData, setWhatsAppReportData] = useState<WhatsAppServiceReportData | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!selectedPV) return;
+    setIsDownloading(true);
+    try {
+      const pvRef = (selectedPV.closing_number || 'PV-CLOTURE').replace(/[^a-zA-Z0-9]/g, '_');
+      await exportElementToPdf('printable-cash-closing', {
+        filename: `PV_Cloture_Caisse_${pvRef}.pdf`,
+        orientation: 'landscape',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleShareClosingWhatsApp = (closing: any) => {
     setWhatsAppReportData({
@@ -504,20 +521,31 @@ export const CashClosingReconciliation: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Officiel Procès-Verbal Imprimable */}
+      {/* Modal Officiel Procès-Verbal Imprimable Standardisé A4 Paysage */}
       {selectedPV && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white text-slate-900 max-w-2xl w-full rounded-3xl p-8 border border-slate-200 shadow-2xl space-y-6 relative print:p-0 print:border-none print:shadow-none">
-            {/* Header masqué à l'impression */}
-            <div className="flex items-center justify-between border-b pb-4 print:hidden">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-600">
-                Document Officiel de Gouvernance • Ministère Esprit & Vie
-              </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in print:p-0 print:m-0 print:bg-white print:static select-none">
+          <div className="printable-modal-box bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[95vh] print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none">
+            {/* Header masqué à l'impression / PDF */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#16214A] flex items-center justify-between bg-slate-50/70 dark:bg-[#091338]/80 print:hidden">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-500 flex items-center justify-center">
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-black text-sm text-slate-900 dark:text-white">
+                    Procès-Verbal de Clôture de Caisse Contradictoire
+                  </p>
+                  <p className="text-[11px] font-mono text-amber-500 font-bold">
+                    N° {selectedPV.closing_number} • Format A4 Paysage
+                  </p>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleShareClosingWhatsApp(selectedPV)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all cursor-pointer shadow-sm"
                   title="Partager le bilan sur WhatsApp"
                 >
                   <MessageCircle className="w-4 h-4" />
@@ -525,92 +553,198 @@ export const CashClosingReconciliation: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloading}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-100 font-black text-xs transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                  title="Télécharger directement en PDF A4 Paysage"
+                >
+                  <Download className="w-4 h-4 text-amber-400 dark:text-amber-500" />
+                  <span>{isDownloading ? 'Génération...' : 'Télécharger PDF'}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => window.print()}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center gap-2 hover:bg-slate-800 cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>Imprimer le PV</span>
+                  <span>Imprimer (A4 Paysage)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedPV(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* En-tête officiel du PV */}
-            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
-              <div className="flex items-center gap-3">
-                <img src="/logo-eev.png" alt="Esprit & Vie" className="w-14 h-14 object-contain" />
-                <div>
-                  <h2 className="text-base font-black uppercase text-slate-900">
-                    Ministère Esprit & Vie
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-semibold">
-                    Département des Finances & Contrôle Interne
+            {/* Corps Officiel A4 du Procès-Verbal Standardisé */}
+            <div
+              id="printable-cash-closing"
+              className="printable-document a4-landscape-document p-8 sm:p-10 overflow-y-auto space-y-5 bg-white text-slate-900 font-sans print:p-0 print:overflow-visible"
+            >
+              {/* En-tête Institutionnel Standardisé */}
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 p-2 flex items-center justify-center shrink-0">
+                    <img
+                      src="/logo-eev.png"
+                      alt="Ministère Esprit & Vie"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div>
+                    <h1 className="font-black text-lg tracking-wider text-slate-950 uppercase">
+                      MINISTÈRE ESPRIT & VIE
+                    </h1>
+                    <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">
+                      Département des Finances & Contrôle Interne
+                    </p>
+                    <p className="text-[11px] text-slate-600">
+                      Siège Central • Yaoundé, Cameroun • BP 1420 • Tél : +237 699 00 00 00
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right text-xs space-y-1">
+                  <p className="font-mono font-bold text-slate-950">
+                    PV N° {selectedPV.closing_number}
                   </p>
-                  <p className="text-xs font-bold text-amber-600 uppercase mt-0.5">
-                    PROCÈS-VERBAL DE CLÔTURE DE CAISSE CONTRADICTOIRE
+                  <p className="text-slate-600">
+                    Arrêté le : <strong className="text-slate-950">{formatDate(selectedPV.date || selectedPV.created)}</strong>
+                  </p>
+                  <p className="text-slate-600">
+                    Devise : <span className="font-mono font-bold text-amber-600">FCFA (XAF)</span>
+                  </p>
+                  <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                    ★ CONTRÔLE CONTRADICTOIRE CONFORME
+                  </span>
+                </div>
+              </div>
+
+              {/* Titre et Contexte */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                <div>
+                  <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                    Contexte & Rassemblement
+                  </span>
+                  <p className="text-base font-black text-slate-900">
+                    {selectedPV.service_name || 'Séance Générale de Caisse'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
+                    Agent Clôturant Référent
+                  </span>
+                  <p className="text-xs font-bold text-slate-800">
+                    {selectedPV.closed_by_name || 'Caissier Principal'}
                   </p>
                 </div>
               </div>
-              <div className="text-right text-xs">
-                <p className="font-mono font-bold text-slate-900">{selectedPV.closing_number}</p>
-                <p className="text-slate-500">Date : {formatDate(selectedPV.date || selectedPV.created)}</p>
-              </div>
-            </div>
 
-            {/* Tableau de Rapprochement */}
-            <div className="p-4 rounded-2xl bg-slate-100 border space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b">
-                <span className="text-slate-500 font-bold uppercase">Contexte / Culte :</span>
-                <span className="font-extrabold text-slate-900">{selectedPV.service_name}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b">
-                <span className="text-slate-500 font-bold uppercase">Agent Clôturant :</span>
-                <span className="font-medium text-slate-900">{selectedPV.closed_by_name}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b">
-                <span className="text-slate-500 font-bold uppercase">Solde Théorique Calculé :</span>
-                <span className="font-bold text-slate-900">{formatFCFA(selectedPV.theoretical_balance)}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b">
-                <span className="text-slate-500 font-bold uppercase">Total Physique Dénombré :</span>
-                <span className="font-black text-slate-900 text-sm">{formatFCFA(selectedPV.counted_balance)}</span>
-              </div>
-              <div className="flex justify-between py-1 text-sm font-bold">
-                <span className="uppercase text-slate-700">Diagnostic de l'Écart :</span>
-                <span className={selectedPV.discrepancy === 0 ? 'text-emerald-600 font-black' : 'text-rose-600 font-black'}>
-                  {selectedPV.discrepancy === 0
-                    ? '✓ Caisse Parfaitement Juste (Écart : 0 FCFA)'
+              {/* Synthèse Tripartite de Rapprochement */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    1. Solde Théorique Comptable
+                  </span>
+                  <p className="text-xl font-black text-slate-900 mt-1">
+                    {formatFCFA(selectedPV.theoretical_balance)}
+                  </p>
+                  <span className="text-[10px] text-slate-500">Selon écritures enregistrées</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    2. Total Physique Dénombré
+                  </span>
+                  <p className="text-xl font-black text-slate-900 mt-1">
+                    {formatFCFA(selectedPV.counted_balance)}
+                  </p>
+                  <span className="text-[10px] text-slate-500">Billetage, pièces & valeurs</span>
+                </div>
+
+                <div className={`p-4 rounded-2xl border ${
+                  selectedPV.discrepancy === 0
+                    ? 'bg-emerald-50/70 border-emerald-300 text-emerald-900'
                     : selectedPV.discrepancy > 0
-                    ? `Excédent constaté : +${formatFCFA(selectedPV.discrepancy)}`
-                    : `Manquant constaté : ${formatFCFA(selectedPV.discrepancy)}`}
-                </span>
+                    ? 'bg-amber-50/70 border-amber-300 text-amber-900'
+                    : 'bg-rose-50/70 border-rose-300 text-rose-900'
+                }`}>
+                  <span className="text-[10px] font-bold uppercase tracking-wider block">
+                    3. Écart de Rapprochement
+                  </span>
+                  <p className="text-xl font-black mt-1">
+                    {selectedPV.discrepancy === 0
+                      ? '0 FCFA'
+                      : (selectedPV.discrepancy > 0 ? `+${formatFCFA(selectedPV.discrepancy)}` : formatFCFA(selectedPV.discrepancy))}
+                  </p>
+                  <span className="text-[10px] font-bold">
+                    {selectedPV.discrepancy === 0
+                      ? '✓ Caisse Parfaitement Équilibrée'
+                      : selectedPV.discrepancy > 0
+                      ? 'Excédent physique constaté'
+                      : 'Déficit physique constaté'}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Note d'intégrité */}
-            <p className="text-[11px] text-slate-600 italic border-l-2 border-amber-500 pl-3">
-              « Les soussignés certifient sur l'honneur l'exactitude des montants dénombrés ci-dessus, scellés en caisse centrale conformément aux statuts du Ministère Esprit & Vie. »
-            </p>
+              {/* Note d'intégrité ecclésiastique */}
+              <div className="p-3 bg-slate-50 border-l-4 border-amber-500 rounded-r-xl text-xs text-slate-700 italic">
+                « Les soussignés certifient sur l'honneur l'exactitude des montants dénombrés contradictoirement ci-dessus, scellés en caisse centrale conformément aux statuts et règlements financiers du Ministère Esprit & Vie. »
+              </div>
 
-            {/* 3 Blocs de Signature */}
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-200 text-xs">
-              <div className="space-y-10 text-center">
-                <p className="font-bold text-slate-700">Le Caissier</p>
-                <div className="border-b border-dashed border-slate-400 w-4/5 mx-auto" />
+              {selectedPV.notes && (
+                <div className="text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <strong className="text-slate-900">Observations de Séance : </strong>
+                  <span className="text-slate-700">{selectedPV.notes}</span>
+                </div>
+              )}
+
+              {/* Triple Bloc de Signatures Standardisé */}
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t-2 border-slate-900 text-xs">
+                <div className="border border-slate-200 rounded-xl p-3 flex flex-col justify-between h-24 bg-white">
+                  <div>
+                    <p className="text-[10px] uppercase font-black text-slate-500">
+                      1. Le Caissier (Dénombrement)
+                    </p>
+                    <p className="font-bold text-[11px] text-slate-900 truncate">
+                      {selectedPV.closed_by_name || 'Caissier de Service'}
+                    </p>
+                  </div>
+                  <p className="text-[9px] text-slate-400 italic">Signature & Visa</p>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl p-3 flex flex-col justify-between h-24 bg-white">
+                  <div>
+                    <p className="text-[10px] uppercase font-black text-slate-500">
+                      2. L'Auditeur / Contrôleur Interne
+                    </p>
+                    <p className="font-bold text-[11px] text-slate-900 truncate">
+                      Contrôle & Certification
+                    </p>
+                  </div>
+                  <p className="text-[9px] text-slate-400 italic">Visa & Date</p>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl p-3 flex flex-col justify-between h-24 bg-white">
+                  <div>
+                    <p className="text-[10px] uppercase font-black text-slate-500">
+                      3. Le Leader Principal
+                    </p>
+                    <p className="font-bold text-[11px] text-slate-900 truncate">
+                      Approbation Pastorale
+                    </p>
+                  </div>
+                  <p className="text-[9px] text-slate-400 italic">Signature & Mention "Vu"</p>
+                </div>
               </div>
-              <div className="space-y-10 text-center">
-                <p className="font-bold text-slate-700">L'Auditeur / Contrôleur</p>
-                <div className="border-b border-dashed border-slate-400 w-4/5 mx-auto" />
-              </div>
-              <div className="space-y-10 text-center">
-                <p className="font-bold text-slate-700">Le Leader Principal</p>
-                <div className="border-b border-dashed border-slate-400 w-4/5 mx-auto" />
+
+              {/* Pied de Page Officiel Standardisé */}
+              <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 font-medium">
+                <span>Ministère Esprit & Vie — Département des Finances & Contrôle Interne • Registre des Clôtures</span>
+                <span>Document Officiel Certifié • Format A4 Paysage • Page 1/1</span>
               </div>
             </div>
           </div>

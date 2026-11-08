@@ -109,7 +109,7 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside className="w-72 bg-[#091338] text-slate-300 flex flex-col h-full border-r border-[#16214A] select-none shrink-0 transition-all duration-200">
+    <aside className="w-72 bg-[#091338] text-slate-300 flex flex-col h-full border-r border-[#16214A] select-none shrink-0 transition-all duration-200 print:hidden">
       {/* Brand Header — Exact Logo & Typography agrandis pour une lisibilité parfaite */}
       <div className="p-6 flex items-center gap-4 border-b border-[#16214A]/70">
         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/35 p-2 flex items-center justify-center shrink-0 shadow-lg shadow-amber-400/15">

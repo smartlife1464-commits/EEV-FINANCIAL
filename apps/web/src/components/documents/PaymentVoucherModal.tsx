@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatFCFA, formatDate } from '../../utils/formatters';
 import { numberToWordsFCFA } from '../../utils/numberToWords';
-import { X, Printer, ShieldCheck, FileCheck, Paperclip } from 'lucide-react';
+import { exportElementToPdf } from '../../utils/exportToPdf';
+import { X, Printer, ShieldCheck, FileCheck, Paperclip, Download } from 'lucide-react';
 
 export interface PaymentVoucherData {
   id: string;
@@ -29,6 +30,8 @@ interface PaymentVoucherModalProps {
 }
 
 export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ voucher, onClose }) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+
   if (!voucher) return null;
 
   const voucherRef =
@@ -54,10 +57,22 @@ export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ vouche
     window.print();
   };
 
+  const handleDownloadPdf = async () => {
+    setIsDownloading(true);
+    try {
+      await exportElementToPdf('printable-voucher', {
+        filename: `Bon_Decaissement_${voucherRef}.pdf`,
+        orientation: 'landscape',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in print:p-0 print:bg-white print:static select-none">
-      <div className="bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[95vh] print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none">
-        {/* Header de contrôle (Masqué à l'impression) */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in print:p-0 print:m-0 print:bg-white print:static select-none">
+      <div className="printable-modal-box bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[95vh] print:border-none print:shadow-none print:max-w-none print:w-full print:rounded-none">
+        {/* Header de contrôle (Masqué à l'impression / PDF) */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#16214A] flex items-center justify-between bg-slate-50/70 dark:bg-[#091338]/80 print:hidden">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-500 flex items-center justify-center">
@@ -68,30 +83,42 @@ export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ vouche
                 Bon de Décaissement Comptable (Payment Voucher)
               </p>
               <p className="text-[11px] font-mono text-amber-500 font-bold">
-                N° {voucherRef}
+                N° {voucherRef} • Format A4 Paysage
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleDownloadPdf}
+              disabled={isDownloading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-100 font-black text-xs transition-all cursor-pointer shadow-sm disabled:opacity-50"
+              title="Télécharger directement en PDF A4 Paysage"
+            >
+              <Download className="w-4 h-4 text-amber-400 dark:text-amber-500" />
+              <span>{isDownloading ? 'Génération...' : 'Télécharger PDF'}</span>
+            </button>
+            <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>Imprimer le Bon / PDF</span>
+              <span>Imprimer (A4 Paysage)</span>
             </button>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Corps Officiel A4 du Bon de Décaissement */}
-        <div className="p-8 sm:p-10 overflow-y-auto space-y-6 bg-white text-slate-900 font-sans print:p-6 print:overflow-visible">
+        {/* Corps Officiel A4 du Bon de Décaissement Standardisé */}
+        <div
+          id="printable-voucher"
+          className="printable-document a4-landscape-document p-8 sm:p-10 overflow-y-auto space-y-6 bg-white text-slate-900 font-sans print:p-0 print:overflow-visible"
+        >
           {/* En-tête Institutionnel */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5">
             <div className="flex items-center gap-4">
@@ -273,8 +300,15 @@ export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ vouche
               <p className="text-[9px] text-slate-400 italic">Signature Bénéficiaire</p>
             </div>
           </div>
+
+          {/* Pied de Page Officiel Standardisé */}
+          <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 font-medium">
+            <span>Ministère Esprit & Vie — Département des Finances & Contrôle Interne</span>
+            <span>Bon de Décaissement Officiel • Format A4 Paysage • Page 1/1</span>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
