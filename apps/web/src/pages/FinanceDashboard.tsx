@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
+import { usePeriod } from '../context/PeriodContext';
 import { formatFCFA } from '../utils/formatters';
 import {
   Wallet,
@@ -22,8 +23,10 @@ import {
 import { Link } from 'react-router-dom';
 
 export const FinanceDashboard: React.FC = () => {
+  const { period, periodLabel } = usePeriod();
+
   const { data: fin } = useQuery({
-    queryKey: ['finance-dashboard'],
+    queryKey: ['finance-dashboard', period],
     queryFn: () => api.getFinanceDashboard(),
   });
 
@@ -51,6 +54,11 @@ export const FinanceDashboard: React.FC = () => {
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
             Caisse consolidée unique, ventilation automatique 80/10/10 et décaissements autorisés.
           </p>
+          <div className="mt-2.5">
+            <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-amber-400/20 text-amber-500 border border-amber-400/30">
+              Période active : {periodLabel}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-3.5">

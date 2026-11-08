@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { formatFCFA } from '../../utils/formatters';
 import { PeriodSelector } from '../../components/analytics/PeriodSelector';
+import { usePeriod } from '../../context/PeriodContext';
 import {
   Wallet,
   ArrowDownCircle,
@@ -37,20 +38,12 @@ import {
 import { Link } from 'react-router-dom';
 
 export const FinancialAnalytics: React.FC = () => {
-  const [period, setPeriod] = useState<string>('this_month');
-  const [customStart, setCustomStart] = useState<string | undefined>();
-  const [customEnd, setCustomEnd] = useState<string | undefined>();
+  const { period, startDate: customStart, endDate: customEnd, setPeriod: handlePeriodChange } = usePeriod();
 
   const { data: finData, isLoading } = useQuery({
     queryKey: ['financial-analytics', period, customStart, customEnd],
     queryFn: () => api.getFinancialAnalytics(period, customStart, customEnd),
   });
-
-  const handlePeriodChange = (newPeriod: string, start?: string, end?: string) => {
-    setPeriod(newPeriod);
-    setCustomStart(start);
-    setCustomEnd(end);
-  };
 
   const handleExportCSV = () => {
     window.open('/api/analytics/export/csv?type=finance', '_blank');

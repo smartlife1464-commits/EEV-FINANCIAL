@@ -5,6 +5,7 @@ import { formatFCFA } from '../../utils/formatters';
 import { PeriodSelector } from '../../components/analytics/PeriodSelector';
 import { MetricCard } from '../../components/analytics/MetricCard';
 import { useAuth } from '../../context/AuthContext';
+import { usePeriod } from '../../context/PeriodContext';
 import { UserRole } from '@eev/shared-types';
 import {
   Users,
@@ -40,9 +41,7 @@ export const AnalyticsOverview: React.FC = () => {
   const { user } = useAuth();
   const canViewFinance = ![UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT].includes(user?.role as UserRole);
 
-  const [period, setPeriod] = useState<string>('this_month');
-  const [customStart, setCustomStart] = useState<string | undefined>();
-  const [customEnd, setCustomEnd] = useState<string | undefined>();
+  const { period, startDate: customStart, endDate: customEnd, setPeriod: handlePeriodChange } = usePeriod();
 
   const { data: overview, isLoading } = useQuery({
     queryKey: ['analytics-overview', period, customStart, customEnd],
@@ -60,11 +59,6 @@ export const AnalyticsOverview: React.FC = () => {
     enabled: canViewFinance, // Les rôles protocole n'exécutent jamais cette requête
   });
 
-  const handlePeriodChange = (newPeriod: string, start?: string, end?: string) => {
-    setPeriod(newPeriod);
-    setCustomStart(start);
-    setCustomEnd(end);
-  };
 
   const handleExportCSV = (type: 'attendance' | 'finance') => {
     const finalType = canViewFinance ? type : 'attendance';

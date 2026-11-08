@@ -40,6 +40,7 @@ interface PeriodSelectorProps {
   onPeriodChange: (period: string, startDate?: string, endDate?: string) => void;
   activeRangeLabel?: string;
   previousRangeLabel?: string;
+  align?: 'left' | 'right';
 }
 
 export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
@@ -47,6 +48,7 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
   onPeriodChange,
   activeRangeLabel,
   previousRangeLabel,
+  align = 'left',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -87,7 +89,7 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
 
           {/* Menu Dropdown structuré par catégories */}
           {isOpen && (
-            <div className="absolute left-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl p-2.5 shadow-2xl z-50 divide-y divide-slate-100 dark:divide-[#16214A]">
+            <div className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl p-2.5 shadow-2xl z-50 divide-y divide-slate-100 dark:divide-[#16214A]`}>
               <div className="p-2">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-400 px-2 block mb-1.5">
                   Périodes Usuelles

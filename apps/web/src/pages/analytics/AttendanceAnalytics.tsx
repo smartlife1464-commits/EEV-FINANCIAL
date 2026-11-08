@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { PeriodSelector } from '../../components/analytics/PeriodSelector';
+import { usePeriod } from '../../context/PeriodContext';
 import { MetricCard } from '../../components/analytics/MetricCard';
 import {
   Users,
@@ -37,9 +38,7 @@ import {
 import { Link } from 'react-router-dom';
 
 export const AttendanceAnalytics: React.FC = () => {
-  const [period, setPeriod] = useState<string>('this_month');
-  const [customStart, setCustomStart] = useState<string | undefined>();
-  const [customEnd, setCustomEnd] = useState<string | undefined>();
+  const { period, startDate: customStart, endDate: customEnd, setPeriod: handlePeriodChange } = usePeriod();
   const [granularity, setGranularity] = useState<'day' | 'week' | 'month' | 'quarter'>('week');
 
   // Séries affichées / masquées
@@ -59,11 +58,6 @@ export const AttendanceAnalytics: React.FC = () => {
     queryFn: () => api.getAttendanceTrends(granularity),
   });
 
-  const handlePeriodChange = (newPeriod: string, start?: string, end?: string) => {
-    setPeriod(newPeriod);
-    setCustomStart(start);
-    setCustomEnd(end);
-  };
 
   const handleExportCSV = () => {
     window.open('/api/analytics/export/csv?type=attendance', '_blank');

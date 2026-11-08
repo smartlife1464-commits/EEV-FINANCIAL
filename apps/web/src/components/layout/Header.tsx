@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { usePeriod } from '../../context/PeriodContext';
+import { PeriodSelector } from '../analytics/PeriodSelector';
 import { UserRole } from '@eev/shared-types';
 import {
   Bell,
@@ -24,8 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [selectedPeriod, setSelectedPeriod] = useState('1 - 31 Mai 2026');
-  const [showPeriodMenu, setShowPeriodMenu] = useState(false);
+  const { period, setPeriod } = usePeriod();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const getGreetingTitle = () => {
@@ -99,38 +100,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding }) => {
           </span>
         </Link>
 
-        {/* Sélecteur de date (Période) */}
-        <div className="relative">
-          <button
-            onClick={() => setShowPeriodMenu(!showPeriodMenu)}
-            className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-sm font-bold text-slate-800 dark:text-slate-200 hover:border-amber-400/50 shadow-sm transition-all cursor-pointer"
-          >
-            <Calendar className="w-4 h-4 text-amber-500" />
-            <span>{selectedPeriod}</span>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
-          </button>
-
-          {showPeriodMenu && (
-            <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] shadow-2xl p-2 z-50 text-sm animate-fade-in">
-              {['1 - 31 Mai 2026', '7 derniers jours', 'Ce trimestre', 'Année 2026'].map((p) => (
-                <button
-                  key={p}
-                  onClick={() => {
-                    setSelectedPeriod(p);
-                    setShowPeriodMenu(false);
-                  }}
-                  className={`w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition-colors ${
-                    selectedPeriod === p
-                      ? 'bg-amber-400 text-slate-950 font-black'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Sélecteur de date global unifié */}
+        <PeriodSelector
+          selectedPeriod={period}
+          onPeriodChange={setPeriod}
+          align="right"
+        />
 
         {/* Toggle Mode Clair / Sombre */}
         <button
