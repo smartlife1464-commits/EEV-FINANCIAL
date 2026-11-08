@@ -6,9 +6,7 @@ import {
   UserPlus,
   HeartHandshake,
   TrendingUp,
-  CalendarDays,
   Plus,
-  ArrowRight,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -37,22 +35,22 @@ export const AttendanceDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-7 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-6 h-6 text-amber-500" />
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
+            <Users className="w-7 h-7 text-amber-500" />
             <span>Tableau de Bord du Protocole & Fréquentation</span>
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
             Comptabilisation certifiée des fidèles et suivi pastoral des nouveaux visiteurs.
           </p>
         </div>
 
         <Link
           to="/attendance/new"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-400/20 transition-all"
+          className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-sm shadow-md shadow-amber-400/20 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Saisir une Fiche de Présence</span>
@@ -60,77 +58,77 @@ export const AttendanceDashboard: React.FC = () => {
       </div>
 
       {/* 4 Cartes KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-500 flex items-center justify-center shrink-0">
-              <Users className="w-6 h-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="rounded-3xl p-6 md:p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+          <div className="flex items-center gap-4.5">
+            <div className="w-14 h-14 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-500 flex items-center justify-center shrink-0 shadow-sm">
+              <Users className="w-7 h-7" />
             </div>
             <div>
-              <div className="text-2xl font-black text-slate-900 dark:text-white">
+              <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                 {stats?.lastServiceTotal || 500}
               </div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
                 Fidèles (Dernier Culte)
               </p>
-              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
                 ↗ +35 ce mois
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-500 flex items-center justify-center shrink-0">
-              <UserPlus className="w-6 h-6" />
+        <div className="rounded-3xl p-6 md:p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+          <div className="flex items-center gap-4.5">
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-500 flex items-center justify-center shrink-0 shadow-sm">
+              <UserPlus className="w-7 h-7" />
             </div>
             <div>
-              <div className="text-2xl font-black text-slate-900 dark:text-white">
+              <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                 {stats?.newVisitors || 32}
               </div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
                 Nouveaux Visiteurs
               </p>
-              <p className="text-[11px] font-bold text-blue-500 mt-0.5">
-                Indicateur séparé
+              <p className="text-xs font-extrabold text-blue-500 mt-1">
+                Indicateur séparé (non cumulé)
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center shrink-0">
-              <HeartHandshake className="w-6 h-6" />
+        <div className="rounded-3xl p-6 md:p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+          <div className="flex items-center gap-4.5">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center shrink-0 shadow-sm">
+              <HeartHandshake className="w-7 h-7" />
             </div>
             <div>
-              <div className="text-2xl font-black text-slate-900 dark:text-white">
+              <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                 {stats?.salvations || 14}
               </div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
                 Décisions pour Christ
               </p>
-              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                Âmes sauvées
+              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+                Âmes moissonnées
               </p>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl p-5 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-6 h-6" />
+        <div className="rounded-3xl p-6 md:p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+          <div className="flex items-center gap-4.5">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0 shadow-sm">
+              <TrendingUp className="w-7 h-7" />
             </div>
             <div>
-              <div className="text-2xl font-black text-slate-900 dark:text-white">
+              <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                 480
               </div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
                 Moyenne Dominicale
               </p>
-              <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
                 ↗ +7,5% ce mois
               </p>
             </div>
@@ -140,20 +138,20 @@ export const AttendanceDashboard: React.FC = () => {
 
       {/* Graphiques Démographiques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-4">
+        <div className="rounded-3xl p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+          <h2 className="text-base font-black text-slate-900 dark:text-white mb-5">
             Répartition Démographique Exclusif
           </h2>
-          <div className="flex items-center gap-6">
-            <div className="w-44 h-44 relative flex items-center justify-center shrink-0">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="w-52 h-52 relative flex items-center justify-center shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={demographics}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={75}
+                    innerRadius={58}
+                    outerRadius={88}
                     paddingAngle={4}
                     dataKey="value"
                   >
@@ -164,28 +162,28 @@ export const AttendanceDashboard: React.FC = () => {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute text-center">
-                <span className="text-2xl font-black text-slate-900 dark:text-white block">
+                <span className="text-3xl font-black text-slate-900 dark:text-white block">
                   500
                 </span>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                <span className="text-xs text-slate-400 uppercase font-black tracking-wider">
                   Total
                 </span>
               </div>
             </div>
 
-            <div className="flex-1 space-y-2.5 text-xs">
+            <div className="flex-1 w-full space-y-3 text-sm">
               {demographics.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <span
-                      className="w-2.5 h-2.5 rounded-full"
+                      className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-slate-600 dark:text-slate-300 font-medium">
+                    <span className="text-slate-600 dark:text-slate-300 font-semibold">
                       {item.name}
                     </span>
                   </div>
-                  <span className="font-bold text-slate-900 dark:text-white">
+                  <span className="font-black text-slate-900 dark:text-white">
                     {item.value} fidèles
                   </span>
                 </div>
@@ -194,25 +192,26 @@ export const AttendanceDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl p-6 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-4">
+        <div className="rounded-3xl p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+          <h2 className="text-base font-black text-slate-900 dark:text-white mb-5">
             Fréquentation par Type de Programme
           </h2>
-          <div className="h-52 w-full">
+          <div className="h-64 md:h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats?.byServiceType || []}>
-                <XAxis dataKey="type" stroke="#64748B" fontSize={10} tickLine={false} />
-                <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
+              <BarChart data={stats?.byServiceType || []} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <XAxis dataKey="type" stroke="#94A3B8" fontSize={12} tickLine={false} />
+                <YAxis stroke="#94A3B8" fontSize={12} tickLine={false} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#091338',
-                    border: '1px solid rgba(255, 188, 0, 0.3)',
-                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 188, 0, 0.4)',
+                    borderRadius: '16px',
                     color: '#fff',
-                    fontSize: '11px',
+                    fontSize: '13px',
+                    fontWeight: 700,
                   }}
                 />
-                <Bar dataKey="average" name="Présents Moyens" fill="#FFBC00" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="average" name="Présents Moyens" fill="#FFBC00" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

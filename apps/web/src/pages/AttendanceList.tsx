@@ -91,19 +91,19 @@ export const AttendanceList: React.FC = () => {
     switch (status) {
       case 'validated':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/25">
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
             Validée
           </span>
         );
       case 'submitted':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/25">
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-500/15 text-blue-400 border border-blue-500/30">
             Soumise
           </span>
         );
       case 'draft':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/25">
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-500/15 text-amber-500 border border-amber-500/30">
             Brouillon
           </span>
         );
@@ -115,28 +115,28 @@ export const AttendanceList: React.FC = () => {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
       {/* En-tête */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-7 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <ClipboardList className="w-6 h-6 text-amber-500" />
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
+            <ClipboardList className="w-7 h-7 text-amber-500" />
             <span>Fiches de Fréquentation & Statistiques</span>
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
             Historique complet des fiches de présence renseignées par le Protocole pour les 7 programmes officiels.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3.5">
           <button
             onClick={() => window.open('/api/analytics/export/csv?type=attendance', '_blank')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] hover:bg-slate-200 dark:hover:bg-[#1e2c63] text-slate-800 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-100 dark:bg-[#16214A] hover:bg-slate-200 dark:hover:bg-[#1e2c63] text-slate-800 dark:text-slate-200 font-bold text-sm transition-all cursor-pointer shadow-sm"
           >
             <Download className="w-4 h-4 text-amber-500" />
             <span>Exporter CSV</span>
           </button>
           <Link
             to="/attendance/new"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-400/20 transition-all"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-sm shadow-md shadow-amber-400/20 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Saisir une Fiche</span>
@@ -145,13 +145,13 @@ export const AttendanceList: React.FC = () => {
       </div>
 
       {/* Barre de Filtres Multiples */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm space-y-4">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+      <div className="p-7 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm space-y-4">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-300">
           <Filter className="w-4 h-4 text-amber-500" />
           <span>Filtres de consultation</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {/* Recherche texte */}
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -160,7 +160,7 @@ export const AttendanceList: React.FC = () => {
               placeholder="Rechercher culte, responsable..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
@@ -169,7 +169,7 @@ export const AttendanceList: React.FC = () => {
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full px-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
             >
               <option value="all">Tous les 7 programmes</option>
               {serviceTypes.map((st: any) => (
@@ -186,7 +186,7 @@ export const AttendanceList: React.FC = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
@@ -196,7 +196,7 @@ export const AttendanceList: React.FC = () => {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
@@ -205,7 +205,7 @@ export const AttendanceList: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A] text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
             >
               <option value="all">Tous les statuts</option>
               <option value="validated">Validées</option>
@@ -216,17 +216,17 @@ export const AttendanceList: React.FC = () => {
         </div>
 
         {/* Totaux filtrés */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-[#16214A]">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3.5 border-t border-slate-100 dark:border-[#16214A]">
           <div className="flex items-center gap-3">
-            <span className="px-3.5 py-1.5 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-500 text-xs font-black">
+            <span className="px-4 py-2 rounded-2xl bg-amber-400/15 border border-amber-400/30 text-amber-500 text-xs font-black">
               Total participants filtrés : {totalFilteredAttendance}
             </span>
-            <span className="px-3.5 py-1.5 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 text-xs font-black">
+            <span className="px-4 py-2 rounded-2xl bg-blue-500/15 border border-blue-500/30 text-blue-400 text-xs font-black">
               Nouveaux visiteurs : +{totalFilteredVisitors}
             </span>
           </div>
 
-          <span className="text-xs text-slate-400">
+          <span className="text-xs font-semibold text-slate-400">
             {filteredSheets.length} fiche(s) répertoriée(s)
           </span>
         </div>

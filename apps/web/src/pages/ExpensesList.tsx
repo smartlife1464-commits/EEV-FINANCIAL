@@ -309,22 +309,22 @@ export const ExpensesList: React.FC = () => {
     switch (status) {
       case 'covered':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" />
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Couverte (100%)</span>
           </span>
         );
       case 'partially_covered':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-500 border border-amber-500/25 flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" />
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-500/15 text-amber-500 border border-amber-500/30 flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5" />
             <span>Partielle (Manque {formatFCFA(shortage)})</span>
           </span>
         );
       case 'uncovered':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-500 border border-rose-500/25 flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" />
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-500/15 text-rose-500 border border-rose-500/30 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" />
             <span>Non couverte</span>
           </span>
         );
@@ -337,31 +337,31 @@ export const ExpensesList: React.FC = () => {
     switch (status) {
       case 'paid':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/25">
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
             Réglée
           </span>
         );
       case 'approved':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/25">
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-500/15 text-blue-400 border border-blue-500/30">
             Approuvée
           </span>
         );
       case 'overdue':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/25">
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-500/15 text-rose-500 border border-rose-500/30">
             En retard
           </span>
         );
       case 'due_soon':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/25">
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-500/15 text-amber-500 border border-amber-500/30">
             Échéance proche
           </span>
         );
       default:
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/15 text-slate-400 border border-slate-500/25">
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-500/15 text-slate-400 border border-slate-500/30">
             À venir
           </span>
         );
@@ -433,46 +433,46 @@ export const ExpensesList: React.FC = () => {
       </div>
 
       {/* Navigation par Onglets Principaux */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-[#16214A] pb-1">
+      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-[#16214A] pb-2">
         <button
           onClick={() => setActiveTab('fixed')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2.5 px-6 py-3.5 rounded-2xl text-sm font-black transition-all cursor-pointer ${
             activeTab === 'fixed'
-              ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
+              ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20 translate-y-[-1px]'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <Repeat className="w-4 h-4" />
+          <Repeat className="w-4.5 h-4.5" />
           <span>1. Charges Fixes & Prévisionnelles</span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-950/15 text-slate-950 font-mono">
+          <span className="px-2.5 py-0.5 rounded-full text-xs bg-slate-950/15 text-slate-950 font-mono font-bold">
             {fixedExpenses.length}
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('variable')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2.5 px-6 py-3.5 rounded-2xl text-sm font-black transition-all cursor-pointer ${
             activeTab === 'variable'
-              ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
+              ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20 translate-y-[-1px]'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <Layers className="w-4 h-4" />
+          <Layers className="w-4.5 h-4.5" />
           <span>2. Dépenses Variables & Plafonds</span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-950/15 text-slate-950 font-mono">
+          <span className="px-2.5 py-0.5 rounded-full text-xs bg-slate-950/15 text-slate-950 font-mono font-bold">
             {expenses.length}
           </span>
         </button>
 
         <button
           onClick={() => setActiveTab('projections')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+          className={`flex items-center gap-2.5 px-6 py-3.5 rounded-2xl text-sm font-black transition-all cursor-pointer ${
             activeTab === 'projections'
-              ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
+              ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20 translate-y-[-1px]'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <TrendingUp className="w-4 h-4" />
+          <TrendingUp className="w-4.5 h-4.5" />
           <span>3. Prévisions & Capacité de Couverture</span>
         </button>
       </div>
@@ -483,51 +483,51 @@ export const ExpensesList: React.FC = () => {
       {activeTab === 'fixed' && (
         <div className="space-y-6">
           {/* KPI Cards Synthèse des Charges Fixes */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Total Charges Fixes / Mois
               </span>
-              <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+              <div className="text-3xl font-black text-slate-900 dark:text-white mt-1">
                 {formatFCFA(fixedSummary?.totalMonthlyFixed || 225000)}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
                 Loyer, électricité, eau, internet & récurrents
               </p>
             </div>
 
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Provision Mensuelle Équivalente
               </span>
-              <div className="text-2xl font-black text-amber-500 mt-1">
+              <div className="text-3xl font-black text-amber-500 mt-1">
                 {formatFCFA(fixedSummary?.monthlyEquivalentProvision || 225000)}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
                 Trimestre/3 + Semestre/6 + Année/12
               </p>
             </div>
 
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Échéances à Venir (Horizon)
               </span>
-              <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+              <div className="text-3xl font-black text-slate-900 dark:text-white mt-1">
                 {formatFCFA(fixedSummary?.upcomingOccurrencesTotal || 225000)}
               </div>
-              <p className="text-[11px] text-blue-400 font-semibold mt-1">
+              <p className="text-xs text-blue-400 font-bold mt-1">
                 {occurrences.filter((o: any) => o.status !== 'paid').length} échéance(s) prévues
               </p>
             </div>
 
-            <div className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm card-hover-effect">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 Taux de Couverture des Charges
               </span>
-              <div className="text-2xl font-black text-emerald-500 mt-1">
+              <div className="text-3xl font-black text-emerald-500 mt-1">
                 {fixedSummary?.coverageRate || 100}%
               </div>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-1">
                 Capacité financière vérifiée sur 80% Général
               </p>
             </div>

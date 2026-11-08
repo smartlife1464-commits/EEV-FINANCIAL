@@ -9,7 +9,6 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  UserCheck,
   Sparkles,
 } from 'lucide-react';
 
@@ -82,28 +81,28 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="px-6 md:px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-30 transition-colors bg-[#F8FAFC] dark:bg-[#060D24]/90 backdrop-blur-md border-b border-slate-200/80 dark:border-[#16214A]/80">
-      {/* Salutation personnalisée */}
+    <header className="px-6 md:px-10 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-30 transition-colors bg-[#F8FAFC]/95 dark:bg-[#060D24]/95 backdrop-blur-md border-b border-slate-200/90 dark:border-[#16214A]/90">
+      {/* Salutation personnalisée avec typographie généreuse */}
       <div>
-        <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+        <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white flex items-center gap-2.5 tracking-tight">
           <span>Bienvenue, {getGreetingTitle()}</span>
-          <span className="text-xl">👋</span>
+          <span className="text-2xl md:text-3xl">👋</span>
         </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
           Voici un aperçu de l'activité du ministère.
         </p>
       </div>
 
       {/* Barre d'outils et Profil */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3.5">
         {/* Bouton Notifications avec Badge Gold 3 */}
         <Link
           to="/notifications"
-          className="relative p-2.5 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-slate-600 dark:text-slate-300 hover:scale-105 transition-all shadow-sm cursor-pointer"
+          className="relative p-3 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-slate-700 dark:text-slate-300 hover:scale-105 transition-all shadow-sm cursor-pointer"
           title="3 notifications en attente"
         >
-          <Bell className="w-4 h-4" />
-          <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] flex items-center justify-center shadow-sm">
+          <Bell className="w-5 h-5" />
+          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shadow-md">
             3
           </span>
         </Link>
@@ -112,15 +111,15 @@ export const Header: React.FC = () => {
         <div className="relative">
           <button
             onClick={() => setShowPeriodMenu(!showPeriodMenu)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:border-amber-400/50 shadow-sm transition-all"
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-sm font-bold text-slate-800 dark:text-slate-200 hover:border-amber-400/50 shadow-sm transition-all cursor-pointer"
           >
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <Calendar className="w-4 h-4 text-amber-500" />
             <span>{selectedPeriod}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronDown className="w-4 h-4 text-slate-400" />
           </button>
 
           {showPeriodMenu && (
-            <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] shadow-2xl p-1.5 z-50 text-xs">
+            <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] shadow-2xl p-2 z-50 text-sm">
               {['1 - 31 Mai 2026', '7 derniers jours', 'Ce trimestre', 'Année 2026'].map((p) => (
                 <button
                   key={p}
@@ -128,9 +127,9 @@ export const Header: React.FC = () => {
                     setSelectedPeriod(p);
                     setShowPeriodMenu(false);
                   }}
-                  className={`w-full text-left px-3 py-2 rounded-xl font-medium transition-colors ${
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl font-semibold transition-colors ${
                     selectedPeriod === p
-                      ? 'bg-amber-400 text-slate-950 font-bold'
+                      ? 'bg-amber-400 text-slate-950 font-black'
                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5'
                   }`}
                 >
@@ -144,17 +143,17 @@ export const Header: React.FC = () => {
         {/* Toggle Mode Clair / Sombre */}
         <button
           onClick={toggleTheme}
-          className="p-2.5 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-amber-500 hover:scale-105 transition-all shadow-sm"
+          className="p-3 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-amber-500 hover:scale-105 transition-all shadow-sm cursor-pointer"
           title={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
         >
-          {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+          {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
         </button>
 
         {/* Switcher de rôle pour tester tous les profils */}
         <select
           value={user?.role}
           onChange={(e) => handleSwitchRole(e.target.value as UserRole)}
-          className="px-3 py-2 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none cursor-pointer shadow-sm hover:border-amber-400/50 transition-all"
+          className="px-4 py-2.5 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-sm font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer shadow-sm hover:border-amber-400/50 transition-all"
         >
           <option value={UserRole.ADMIN}>⚙️ Administrateur</option>
           <option value={UserRole.LEAD_PASTOR}>👑 Leader Principal</option>
@@ -165,18 +164,18 @@ export const Header: React.FC = () => {
           <option value={UserRole.AUDITOR}>🔍 Auditeur</option>
         </select>
 
-        {/* Profil Utilisateur - Look exact du screenshot */}
-        <div className="flex items-center gap-2.5 pl-2">
-          <div className="w-9 h-9 rounded-full ring-2 ring-amber-400/60 p-0.5 bg-gradient-to-tr from-amber-400 to-amber-200 shrink-0">
-            <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-amber-400 font-extrabold text-xs">
+        {/* Profil Utilisateur - Look exact du screenshot avec taille plus généreuse */}
+        <div className="flex items-center gap-3 pl-2">
+          <div className="w-11 h-11 rounded-full ring-2 ring-amber-400/70 p-0.5 bg-gradient-to-tr from-amber-400 to-amber-200 shrink-0 shadow-sm">
+            <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-amber-400 font-black text-sm">
               {user?.name ? user.name[0].toUpperCase() : 'A'}
             </div>
           </div>
           <div className="hidden sm:block text-left">
-            <p className="text-xs font-extrabold text-slate-900 dark:text-white leading-tight">
+            <p className="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">
               {user?.name || 'Administrateur'}
             </p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+            <p className="text-xs text-amber-500 font-bold mt-0.5">
               {getRoleSubtext()}
             </p>
           </div>
