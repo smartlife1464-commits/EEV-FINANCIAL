@@ -21,14 +21,20 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { UserRole } from '@eev/shared-types';
+import { PostLoginPreloader } from '../components/auth/PostLoginPreloader';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const { user, login, isAuthenticated } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  // Si l'utilisateur est déjà authentifié, redirection immédiate vers le dashboard
-  if (isAuthenticated && user) {
+  const [pendingAuth, setPendingAuth] = useState<{
+    token: string;
+    user: any;
+  } | null>(null);
+
+  // Si l'utilisateur est déjà authentifié et aucun préchargement n'est en cours, redirection vers le dashboard
+  if (isAuthenticated && user && !pendingAuth) {
     return <Navigate to="/" replace />;
   }
 
@@ -50,8 +56,11 @@ export const Login: React.FC = () => {
 
     try {
       const res = await api.login({ email, password });
-      login(res.token, res.user);
-      navigate('/');
+      // Déclenchement de l'animation Lottie de préchargement en 5 secondes
+      setPendingAuth({
+        token: res.token,
+        user: res.user,
+      });
     } catch (err: any) {
       setError(
         err?.message ||
@@ -61,6 +70,30 @@ export const Login: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const handlePreloaderComplete = () => {
+    if (!pendingAuth) return;
+    login(pendingAuth.token, pendingAuth.user);
+    if (
+      pendingAuth.user.role === UserRole.PROTOCOL_LEAD ||
+      pendingAuth.user.role === UserRole.PROTOCOL_AGENT
+    ) {
+      navigate('/attendance', { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  };
+
+  // Affichage plein écran de l'animation Lottie de 5 secondes après connexion
+  if (pendingAuth) {
+    return (
+      <PostLoginPreloader
+        user={pendingAuth.user}
+        durationMs={5000}
+        onComplete={handlePreloaderComplete}
+      />
+    );
+  }
 
   const handleSelectRolePreset = (presetEmail: string, presetPass: string) => {
     setEmail(presetEmail);

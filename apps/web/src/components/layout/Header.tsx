@@ -16,13 +16,15 @@ import {
   Shield,
   User as UserIcon,
   HelpCircle,
+  Clock,
 } from 'lucide-react';
 
 interface HeaderProps {
   onOpenOnboarding?: () => void;
+  onOpenPreloader?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding, onOpenPreloader }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -174,6 +176,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding }) => {
                 >
                   <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
                   <span>Guide d'accueil (Onboarding)</span>
+                </button>
+              )}
+
+              {onOpenPreloader && (
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    onOpenPreloader();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:bg-amber-400/10 hover:text-amber-500 transition-colors text-left"
+                >
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Animation de connexion (5s)</span>
                 </button>
               )}
 
