@@ -56,6 +56,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  updateUserStatus: (id: string, isActive: boolean) =>
+    request<any>(`/users/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active: isActive }),
+    }),
 
   // Dashboard
   getDashboardOverview: () => request<any>('/dashboard/overview'),

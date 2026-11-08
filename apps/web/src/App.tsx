@@ -65,7 +65,12 @@ export const App: React.FC = () => {
         <AuthProvider>
           <BrowserRouter>
             <Routes>
+              {/* Authentification : Connexion uniquement, inscription publique strictement fermée */}
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Navigate to="/login" replace />} />
+              <Route path="/signup" element={<Navigate to="/login" replace />} />
+              <Route path="/auth/register" element={<Navigate to="/login" replace />} />
+
               <Route path="/" element={<AppLayout />}>
                 {/* Tableau de bord dédié selon le rôle */}
                 <Route index element={<DashboardRouter />} />

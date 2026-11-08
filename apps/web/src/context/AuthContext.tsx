@@ -42,17 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('eev_user');
       }
     } else {
-      // Pour une prise en main immédiate et démonstration par défaut, initialiser en Leader
-      const defaultUser: UserSession = {
-        id: '88196e8a7d26spt',
-        email: 'leader@espritvie.org',
-        name: 'Pasteur Principal',
-        role: UserRole.LEAD_PASTOR,
-        permissions: PERMISSIONS_MATRIX[UserRole.LEAD_PASTOR],
-      };
-      localStorage.setItem('eev_token', 'dev-token-leader');
-      localStorage.setItem('eev_user', JSON.stringify(defaultUser));
-      setUser(defaultUser);
+      // Aucun jeton actif : l'utilisateur doit obligatoirement s'authentifier sur /login
+      setUser(null);
     }
     setIsLoading(false);
   }, []);

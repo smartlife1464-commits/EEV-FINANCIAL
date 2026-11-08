@@ -167,7 +167,8 @@ export async function authRoutes(app: FastifyInstance) {
     }
   });
 
-  app.post('/api/users', { preHandler: requireRoles([UserRole.ADMIN]) }, async (request, reply) => {
+  // Création d'utilisateurs par l'Admin Général ou le Superviseur Général (Leader Principal)
+  app.post('/api/users', { preHandler: requireRoles([UserRole.ADMIN, UserRole.LEAD_PASTOR]) }, async (request, reply) => {
     const parsed = createUserSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.format() });
@@ -197,6 +198,31 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(201).send(record);
     } catch (err: any) {
       return reply.status(500).send({ error: err?.message || 'Erreur lors de la création de l’utilisateur.' });
+    }
+  });
+
+  // Activation / Désactivation d'un compte utilisateur (Admin Général ou Superviseur Général)
+  app.patch('/api/users/:id/status', { preHandler: requireRoles([UserRole.ADMIN, UserRole.LEAD_PASTOR]) }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { is_active } = (request.body as { is_active?: boolean }) || {};
+
+    try {
+      await ensureAdminAuth();
+      const updated = await pb.collection('users').update(id, {
+        is_active: Boolean(is_active),
+      });
+
+      await createAuditLog({
+        userId: request.user!.id,
+        action: 'update_user_status',
+        collectionName: 'users',
+        recordId: id,
+        newValues: { is_active: Boolean(is_active) },
+      });
+
+      return reply.send(updated);
+    } catch (err: any) {
+      return reply.status(500).send({ error: err?.message || 'Impossible de mettre à jour le statut du compte.' });
     }
   });
 }

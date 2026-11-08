@@ -17,3 +17,4 @@ export const FinancialRouteGuard: React.FC<FinancialRouteGuardProps> = ({ childr
 
   return <>{children}</>;
 };
+
