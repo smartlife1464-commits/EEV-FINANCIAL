@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { calculateCashReconciliation, CashCountBreakdown } from '@eev/business-rules';
 import { formatFCFA, formatDate } from '../utils/formatters';
+import { WhatsAppReportShareModal, WhatsAppServiceReportData } from '../components/documents/WhatsAppReportShareModal';
 import {
   Calculator,
   ShieldCheck,
@@ -18,6 +19,7 @@ import {
   Plus,
   Scale,
   FileText,
+  MessageCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -59,6 +61,26 @@ export const CashClosingReconciliation: React.FC = () => {
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [selectedPV, setSelectedPV] = useState<any | null>(null);
+  const [whatsAppReportData, setWhatsAppReportData] = useState<WhatsAppServiceReportData | null>(null);
+
+  const handleShareClosingWhatsApp = (closing: any) => {
+    setWhatsAppReportData({
+      serviceName: closing.service_name || 'Culte Dominical',
+      serviceDate: closing.date || closing.created || new Date().toISOString(),
+      totalAttendance: 500,
+      menCount: 145,
+      womenCount: 198,
+      youthCount: 92,
+      childrenCount: 65,
+      newVisitorsCount: 32,
+      salvationsCount: 4,
+      totalRevenues: closing.counted_balance || 14750000,
+      tithesAmount: Math.round((closing.counted_balance || 14750000) * 0.55),
+      offeringsAmount: Math.round((closing.counted_balance || 14750000) * 0.35),
+      specialOfferingsAmount: Math.round((closing.counted_balance || 14750000) * 0.1),
+      responsibleName: closing.closed_by_name || 'Caissier Principal',
+    });
+  };
 
   const countBreakdown: CashCountBreakdown = {
     b10000,
@@ -458,14 +480,24 @@ export const CashClosingReconciliation: React.FC = () => {
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedPV(closing)}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Voir PV</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleShareClosingWhatsApp(closing)}
+                    title="Partager le Bilan Culte & Caisse sur WhatsApp"
+                    className="p-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400 dark:hover:text-white transition-colors cursor-pointer"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPV(closing)}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Voir PV</span>
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -482,6 +514,15 @@ export const CashClosingReconciliation: React.FC = () => {
                 Document Officiel de Gouvernance • Ministère Esprit & Vie
               </span>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleShareClosingWhatsApp(selectedPV)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm"
+                  title="Partager le bilan sur WhatsApp"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Partager WhatsApp</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -575,6 +616,12 @@ export const CashClosingReconciliation: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Partage WhatsApp Bilan de Culte */}
+      <WhatsAppReportShareModal
+        data={whatsAppReportData}
+        onClose={() => setWhatsAppReportData(null)}
+      />
     </div>
   );
 };

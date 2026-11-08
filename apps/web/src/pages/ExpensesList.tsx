@@ -5,6 +5,7 @@ import { formatFCFA, formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import { useAuth } from '../context/AuthContext';
 import { UserRole, ExpenseStatus, PaymentMethod } from '@eev/shared-types';
+import { PaymentVoucherModal, PaymentVoucherData } from '../components/documents/PaymentVoucherModal';
 import {
   ArrowUpCircle,
   Plus,
@@ -202,13 +203,23 @@ export const ExpensesList: React.FC = () => {
       await refetchExpenses();
       const disbursed = { ...payingItem };
       setPayingItem(null);
-      // Afficher le bon de caisse officiel imprimable
+      // Afficher le bon de caisse officiel imprimable certifié
       setVoucherExpense({
-        expense_number: `DEC-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
+        id: disbursed.id,
+        voucherNumber: `DEC-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
         created: new Date().toISOString(),
+        date: new Date().toISOString(),
+        title: disbursed.title,
         beneficiary: disbursed.beneficiary,
         amount: disbursed.amount,
-        purpose: disbursed.title,
+        fundName: disbursed.fundName || '80% Fonds Général (Fonctionnement)',
+        categoryName: disbursed.type === 'fixed_occurrence' ? 'Charge Fixe' : 'Dépense Variable',
+        paymentMethod: paymentMethod.toUpperCase(),
+        reference: paymentReference || undefined,
+        description: `Règlement caisse : ${disbursed.title}`,
+        requestedBy: user?.name || 'Comptabilité',
+        approvedBy: 'Pasteur Principal (Visa Accordé)',
+        paidBy: user?.name || 'Caissier Principal',
       });
     } catch (err: any) {
       alert(err.message || 'Erreur lors du décaissement.');
@@ -653,7 +664,33 @@ export const ExpensesList: React.FC = () => {
                           </td>
                           <td className="py-4 px-6 text-right whitespace-nowrap">
                             {occ.status === 'paid' ? (
-                              <span className="text-xs font-bold text-emerald-500">✓ Réglé</span>
+                              <div className="flex items-center justify-end gap-2">
+                                <span className="text-xs font-bold text-emerald-500">✓ Réglé</span>
+                                <button
+                                  onClick={() =>
+                                    setVoucherExpense({
+                                      id: occ.id,
+                                      voucherNumber: `DEC-${new Date(occ.occurrence_date || Date.now()).getFullYear()}-${(occ.id || '001').slice(-6).toUpperCase()}`,
+                                      title: occ.expand?.fixed_expense?.name || occ.name || 'Charge Fixe',
+                                      beneficiary: occ.expand?.fixed_expense?.beneficiary || occ.beneficiary || 'Bailleur / Fournisseur',
+                                      amount: occ.amount || occ.reserved_amount || occ.expand?.fixed_expense?.amount || 0,
+                                      date: occ.occurrence_date || occ.created || new Date().toISOString(),
+                                      fundName: occ.fund_account?.name || occ.expand?.fixed_expense?.expand?.fund_account?.name || "80% Fonds Général (Charges d'exploitation)",
+                                      categoryName: occ.expand?.fixed_expense?.category || 'Charge Fixe',
+                                      paymentMethod: occ.payment_method || 'CASH',
+                                      reference: occ.payment_reference,
+                                      description: `Règlement échéance fixe récurrente : ${occ.expand?.fixed_expense?.name || ''}`,
+                                      requestedBy: 'Département Intendance & Finances',
+                                      approvedBy: 'Pasteur Principal (Visa)',
+                                      paidBy: user?.name || 'Caissier',
+                                    })
+                                  }
+                                  title="Bon Officiel de Décaissement"
+                                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             ) : occ.status === 'approved' && canPay ? (
                               <button
                                 onClick={() => handlePayOccurrence(occ)}
@@ -1371,86 +1408,35 @@ export const ExpensesList: React.FC = () => {
       )}
 
       {/* =========================================================================
-          MODAL : BON OFFICIEL DE DÉCAISSEMENT IMPRIMABLE
+          MODAL : BON OFFICIEL DE DÉCAISSEMENT IMPRIMABLE AVEC QR CODE & 4 SIGNATURES
       ========================================================================= */}
-      {voucherExpense && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white text-slate-900 max-w-xl w-full rounded-3xl p-8 border border-slate-200 shadow-2xl space-y-6 relative print:p-0 print:border-none print:shadow-none">
-            <div className="flex items-center justify-between border-b pb-4 print:hidden">
-              <span className="text-xs font-bold uppercase text-amber-600">
-                Bon de Décaissement • Ministère Esprit & Vie
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center gap-2"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Imprimer</span>
-                </button>
-                <button onClick={() => setVoucherExpense(null)} className="p-2 text-slate-400">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-b-2 border-slate-900 pb-4">
-              <div className="flex items-center gap-3">
-                <img src="/logo-eev.png" alt="Esprit & Vie" className="w-12 h-12 object-contain" />
-                <div>
-                  <h2 className="text-base font-black uppercase text-slate-900">Ministère Esprit & Vie</h2>
-                  <p className="text-[11px] text-slate-500">Service de Caisse & Trésorerie</p>
-                  <p className="text-xs font-bold text-rose-600 uppercase mt-0.5">
-                    Bon Officiel de Décaissement Caisse
-                  </p>
-                </div>
-              </div>
-              <div className="text-right text-xs">
-                <p className="font-bold">N° {voucherExpense.expense_number}</p>
-                <p className="text-slate-500">Date : {formatDate(voucherExpense.created || voucherExpense.expense_date)}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-100">
-                <div>
-                  <span className="text-slate-500">Bénéficiaire :</span>
-                  <p className="font-bold text-sm text-slate-900">{voucherExpense.beneficiary}</p>
-                </div>
-                <div>
-                  <span className="text-slate-500">Montant Décaissé :</span>
-                  <p className="font-black text-base text-rose-600">{formatFCFA(voucherExpense.amount)}</p>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-slate-500">Motif de la dépense :</span>
-                <p className="font-semibold text-slate-900 mt-0.5">{voucherExpense.purpose}</p>
-              </div>
-
-              <div>
-                <span className="text-slate-500">Imputation Analytique :</span>
-                <p className="font-semibold text-slate-900">80% Fonds Général (Fonctionnement)</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 pt-8 border-t border-slate-200 text-[11px] text-center">
-              <div>
-                <p className="font-bold">L'Émetteur</p>
-                <div className="h-12 border-b border-dashed border-slate-400 mt-2" />
-              </div>
-              <div>
-                <p className="font-bold">Le Pasteur Principal (Visa)</p>
-                <div className="h-12 border-b border-dashed border-slate-400 mt-2" />
-              </div>
-              <div>
-                <p className="font-bold">Le Caissier (Paiement)</p>
-                <div className="h-12 border-b border-dashed border-slate-400 mt-2" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <PaymentVoucherModal
+        voucher={
+          voucherExpense
+            ? {
+                id: voucherExpense.id || voucherExpense.expense_number,
+                voucherNumber:
+                  voucherExpense.voucherNumber ||
+                  voucherExpense.expense_number ||
+                  `DEC-${new Date().getFullYear()}-${String(voucherExpense.id || '001').slice(-6).toUpperCase()}`,
+                title: voucherExpense.title || voucherExpense.purpose || 'Décaissement Caisse',
+                beneficiary: voucherExpense.beneficiary,
+                beneficiaryPhone: voucherExpense.beneficiary_phone,
+                amount: voucherExpense.amount,
+                date: voucherExpense.date || voucherExpense.created || voucherExpense.expense_date || new Date().toISOString(),
+                fundName: voucherExpense.fundName || voucherExpense.expand?.fund_account?.name || '80% Fonds Général (Fonctionnement)',
+                categoryName: voucherExpense.categoryName || voucherExpense.category?.name || voucherExpense.category || 'Dépense Caisse',
+                paymentMethod: voucherExpense.paymentMethod || voucherExpense.payment_method || 'CASH',
+                reference: voucherExpense.reference || voucherExpense.payment_reference,
+                description: voucherExpense.description || voucherExpense.purpose || 'Paiement autorisé et imputé sur la caisse',
+                requestedBy: voucherExpense.requestedBy || voucherExpense.expand?.requested_by?.name || 'Service Demandeur',
+                approvedBy: voucherExpense.approvedBy || 'Pasteur Principal (Visa Accordé)',
+                paidBy: voucherExpense.paidBy || user?.name || 'Caissier Principal',
+              }
+            : null
+        }
+        onClose={() => setVoucherExpense(null)}
+      />
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
+import { WhatsAppReportShareModal, WhatsAppServiceReportData } from '../components/documents/WhatsAppReportShareModal';
 import {
   ClipboardList,
   Plus,
@@ -17,6 +18,7 @@ import {
   Clock,
   Eye,
   UserCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -39,12 +41,29 @@ export const AttendanceList: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedSheet, setSelectedSheet] = useState<any | null>(null);
+  const [whatsAppReportData, setWhatsAppReportData] = useState<WhatsAppServiceReportData | null>(null);
 
   const getProgramName = (sheet: any) => {
     if (sheet.service_type?.name) return sheet.service_type.name;
     const found = serviceTypes.find((st: any) => st.slug === sheet.service_type_slug);
     if (found) return found.name;
     return sheet.service?.name || sheet.service_name || 'Culte Esprit & Vie';
+  };
+
+  const handleOpenWhatsApp = (sheet: any) => {
+    setWhatsAppReportData({
+      serviceName: getProgramName(sheet),
+      serviceDate: sheet.service_date || sheet.date || sheet.created,
+      totalAttendance: sheet.total_attendance || 0,
+      menCount: sheet.men_count || 0,
+      womenCount: sheet.women_count || 0,
+      youthCount: sheet.youth_count || 0,
+      childrenCount: sheet.children_count || 0,
+      newVisitorsCount: sheet.new_visitors_count || 0,
+      salvationsCount: sheet.salvations_count || 0,
+      capacityRate: sheet.capacity_rate || 88,
+      responsibleName: sheet.responsible_user?.name || sheet.expand?.responsible_user?.name,
+    });
   };
 
   const filteredSheets = sheets.filter((sheet: any) => {
@@ -294,16 +313,23 @@ export const AttendanceList: React.FC = () => {
                       <td className="py-4 px-6 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
+                            onClick={() => handleOpenWhatsApp(sheet)}
+                            title="Partager le Bilan du Culte sur WhatsApp"
+                            className="p-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-400 dark:hover:text-white transition-colors cursor-pointer"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => setSelectedSheet(sheet)}
                             title="Consulter / Imprimer"
-                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-slate-800 dark:text-slate-200 transition-colors"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
                           >
                             <Printer className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDuplicate(sheet)}
                             title="Dupliquer comme brouillon"
-                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-amber-500 transition-colors"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#16214A] dark:hover:bg-[#1E2C60] text-amber-500 transition-colors cursor-pointer"
                           >
                             <Copy className="w-3.5 h-3.5" />
                           </button>
@@ -328,6 +354,14 @@ export const AttendanceList: React.FC = () => {
                 Aperçu Fiche Officielle • Ministère Esprit & Vie
               </span>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleOpenWhatsApp(selectedSheet)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-sm"
+                  title="Générer le message WhatsApp officiel"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Partager WhatsApp</span>
+                </button>
                 <button
                   onClick={handlePrint}
                   className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center gap-2 hover:bg-slate-800 cursor-pointer"
@@ -444,6 +478,12 @@ export const AttendanceList: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Partage WhatsApp Officiel du Bilan de Culte */}
+      <WhatsAppReportShareModal
+        data={whatsAppReportData}
+        onClose={() => setWhatsAppReportData(null)}
+      />
     </div>
   );
 };

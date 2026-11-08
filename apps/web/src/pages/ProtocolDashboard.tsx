@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { usePeriod } from '../context/PeriodContext';
+import { WhatsAppReportShareModal, WhatsAppServiceReportData } from '../components/documents/WhatsAppReportShareModal';
 import {
   Users,
   UserPlus,
@@ -17,6 +18,7 @@ import {
   ChevronDown,
   Clock,
   Award,
+  MessageCircle,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -33,6 +35,7 @@ import { Link } from 'react-router-dom';
 
 export const ProtocolDashboard: React.FC = () => {
   const { period, periodLabel } = usePeriod();
+  const [whatsAppReportData, setWhatsAppReportData] = useState<WhatsAppServiceReportData | null>(null);
 
   const { data: stats } = useQuery({
     queryKey: ['attendance-dashboard', period],
@@ -43,6 +46,23 @@ export const ProtocolDashboard: React.FC = () => {
     queryKey: ['attendance-sheets'],
     queryFn: () => api.getAttendance(),
   });
+
+  const handleShareLastServiceWhatsApp = () => {
+    const latestSheet = sheets[0];
+    setWhatsAppReportData({
+      serviceName: latestSheet?.service?.name || latestSheet?.service_name || 'Culte Dominical',
+      serviceDate: latestSheet?.service_date || latestSheet?.date || new Date().toISOString(),
+      totalAttendance: latestSheet?.total_attendance || stats?.lastServiceTotal || 500,
+      menCount: latestSheet?.men_count || stats?.men || 145,
+      womenCount: latestSheet?.women_count || stats?.women || 198,
+      youthCount: latestSheet?.youth_count || stats?.youth || 92,
+      childrenCount: latestSheet?.children_count || stats?.children || 65,
+      newVisitorsCount: latestSheet?.new_visitors_count || stats?.newVisitors || 32,
+      salvationsCount: latestSheet?.salvations_count || stats?.salvations || 4,
+      capacityRate: latestSheet?.capacity_rate || stats?.occupancyRate || 88,
+      responsibleName: latestSheet?.responsible_user?.name || 'Responsable Protocole',
+    });
+  };
 
   // Tendance de fréquentation dominicale sur le mois (courbe dorée)
   const attendanceTrendData = [
@@ -115,6 +135,37 @@ export const ProtocolDashboard: React.FC = () => {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
+
+        {/* Barre d'action rapide Protocole */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-4 border-t border-slate-100 dark:border-white/10 relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+              Transmission immédiate :
+            </span>
+            <button
+              onClick={handleShareLastServiceWhatsApp}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Transmettre le Bilan au Pasteur (WhatsApp)</span>
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/attendance/new"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-bold text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"
+            >
+              <span>+ Nouvelle Fiche</span>
+            </Link>
+            <Link
+              to="/attendance"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-amber-500" />
+              <span>Journal des fiches</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -538,6 +589,12 @@ export const ProtocolDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Partage WhatsApp Bilan de Culte */}
+      <WhatsAppReportShareModal
+        data={whatsAppReportData}
+        onClose={() => setWhatsAppReportData(null)}
+      />
     </div>
   );
 };

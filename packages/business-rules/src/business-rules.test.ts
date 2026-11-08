@@ -288,4 +288,17 @@ describe('12 Scénarios Obligatoires — Module Dépenses Intelligentes & Fiches
     });
     expect(validCheck.isDuplicate).toBe(false);
   });
+
+  it('Scénario 18 : Conversion d’un montant numérique en lettres en français pour reçus et bons de caisse', async () => {
+    const { numberToWordsFCFA } = await import('./number-to-words.js');
+
+    expect(numberToWordsFCFA(0)).toBe('Zéro franc CFA');
+    expect(numberToWordsFCFA(150000)).toBe('Cent cinquante mille francs CFA');
+    expect(numberToWordsFCFA(15000)).toBe('Quinze mille francs CFA');
+    expect(numberToWordsFCFA(35000)).toBe('Trente-cinq mille francs CFA');
+    expect(numberToWordsFCFA(25000)).toBe('Vingt-cinq mille francs CFA');
+    expect(numberToWordsFCFA(1000000)).toBe('Un million francs CFA');
+    expect(numberToWordsFCFA(2500000)).toBe('Deux millions cinq cent mille francs CFA');
+    expect(numberToWordsFCFA(14750000)).toBe('Quatorze millions sept cent cinquante mille francs CFA');
+  });
 });
