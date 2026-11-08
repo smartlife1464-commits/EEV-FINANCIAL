@@ -7,6 +7,28 @@ export async function reportRoutes(app: FastifyInstance) {
   // Rapport périodique consolidé
   app.get('/api/reports/summary', { preHandler: authenticateRequest }, async (request, reply) => {
     const { period = 'monthly' } = request.query as { period?: string };
+    const isProtocolRole = [UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT].includes(request.user?.role as UserRole);
+
+    // Si rôle protocole, masquer strictement toutes les données financières
+    if (isProtocolRole) {
+      return reply.send({
+        period,
+        generatedAt: new Date().toISOString(),
+        attendance: {
+          totalServicesOrganized: 14,
+          cumulativeAttendance: 5420,
+          averagePerService: 387,
+          totalNewVisitors: 310,
+          totalSalvations: 94,
+          demographics: {
+            menPercent: 29,
+            womenPercent: 40,
+            youthPercent: 18,
+            childrenPercent: 13,
+          },
+        },
+      });
+    }
 
     return reply.send({
       period,
@@ -43,6 +65,21 @@ export async function reportRoutes(app: FastifyInstance) {
 
   // Export CSV
   app.get('/api/reports/export/csv', { preHandler: requirePermission('canExportReports') }, async (request, reply) => {
+    const isProtocolRole = [UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT].includes(request.user?.role as UserRole);
+
+    if (isProtocolRole) {
+      const csvContent = [
+        'Culte;Type_Rassemblement;Date;Hommes;Femmes;Jeunes;Enfants;Total_Participants;Nouveaux_Visiteurs;Decisions_Christ',
+        'Culte Dominical Celebration;Dimanche;2026-11-01;145;198;92;65;500;32;14',
+        'Enseignement & Edification;Mardi;2026-11-03;68;85;45;12;210;8;3',
+        'Intercession & Delivrance;Jeudi;2026-11-05;75;110;50;15;250;11;5',
+      ].join('\n');
+
+      reply.header('Content-Type', 'text/csv; charset=utf-8');
+      reply.header('Content-Disposition', 'attachment; filename="rapport-frequentation-esprit-vie.csv"');
+      return reply.send(csvContent);
+    }
+
     const csvContent = [
       'Type;Numero;Date;Categorie;Montant_FCFA;Beneficiaire_ou_Donateur;Statut',
       'RECETTE;REC-2026-00001;2026-11-01;Dimes et Offrandes;2500000;Assemblee Generale;Validee',
@@ -93,4 +130,3 @@ export async function reportRoutes(app: FastifyInstance) {
     }
   );
 }
-

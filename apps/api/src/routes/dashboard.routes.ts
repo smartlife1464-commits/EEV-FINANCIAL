@@ -1,11 +1,40 @@
 import { FastifyInstance } from 'fastify';
-import { authenticateRequest } from '../middleware/auth.js';
+import { authenticateRequest, requireRoles } from '../middleware/auth.js';
 import { LedgerService } from '../services/ledger.js';
-import { pb, ensureAdminAuth } from '../services/pocketbase.js';
+import { UserRole } from '@eev/shared-types';
 
 export async function dashboardRoutes(app: FastifyInstance) {
-  // Vue d'ensemble générale pour le Leader Principal
+  // Vue d'ensemble générale pour le Leader Principal & l'Admin
   app.get('/api/dashboard/overview', { preHandler: authenticateRequest }, async (request, reply) => {
+    // Si l'utilisateur est du département Protocole, masquer TOUTES les données financières
+    const isProtocolRole = [UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT].includes(request.user?.role as UserRole);
+
+    if (isProtocolRole) {
+      return reply.send({
+        attendance: {
+          lastService: {
+            name: 'Culte de Célébration et d’Adoration',
+            date: '2026-11-01',
+            totalAttendance: 500,
+            menCount: 145,
+            womenCount: 198,
+            youthCount: 92,
+            childrenCount: 65,
+            newVisitorsCount: 32,
+            salvationsCount: 14,
+          },
+          monthlyAverage: 465,
+          weeklyGrowthPercent: 7.5,
+          recentServices: [
+            { date: '11/10', total: 420, newVisitors: 18 },
+            { date: '18/10', total: 445, newVisitors: 24 },
+            { date: '25/10', total: 480, newVisitors: 28 },
+            { date: '01/11', total: 500, newVisitors: 32 },
+          ],
+        },
+      });
+    }
+
     try {
       const treasury = await LedgerService.getConsolidatedTreasury();
 
@@ -20,7 +49,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
             womenCount: 198,
             youthCount: 92,
             childrenCount: 65,
-            newVisitorsCount: 32, // Non additionné
+            newVisitorsCount: 32,
             salvationsCount: 14,
           },
           monthlyAverage: 465,
@@ -38,13 +67,12 @@ export async function dashboardRoutes(app: FastifyInstance) {
           { month: 'Août', revenues: 9800000, expenses: 5100000 },
           { month: 'Sept', revenues: 10400000, expenses: 4900000 },
           { month: 'Oct', revenues: 11200000, expenses: 5300000 },
-          { month: 'Nov', revenues: 3500000, expenses: 350000 }, // Mois en cours
+          { month: 'Nov', revenues: 3500000, expenses: 350000 },
         ],
         pendingApprovalsCount: 2,
         pendingApprovalsTotalAmount: 350000,
       });
     } catch {
-      // Données de repli cohérentes
       return reply.send({
         treasury: {
           consolidatedPhysicalBalance: 14750000,
@@ -93,7 +121,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     }
   });
 
-  // Dashboard Protocole
+  // Dashboard Protocole (100% Présences, Nouveaux Visiteurs, Décisions pour Christ)
   app.get('/api/dashboard/attendance', { preHandler: authenticateRequest }, async (request, reply) => {
     return reply.send({
       lastServiceTotal: 500,
@@ -111,18 +139,32 @@ export async function dashboardRoutes(app: FastifyInstance) {
     });
   });
 
-  // Dashboard Finances
-  app.get('/api/dashboard/finance', { preHandler: authenticateRequest }, async (request, reply) => {
-    return reply.send({
-      totalRevenueMonth: 3500000,
-      totalExpensesMonth: 350000,
-      netCashFlow: 3150000,
-      consolidatedCash: 14750000,
-      generalFundAvailable: 8150000,
-      tithesSplitTotal: 2500000,
-      welfareAidTotal: 1300000,
-      buildingFundTotal: 2800000,
-    });
-  });
+  // Dashboard Finances (STRICTEMENT RÉSERVÉ AUX RÔLES FINANCES & DIRECTION)
+  app.get(
+    '/api/dashboard/finance',
+    {
+      preHandler: [
+        authenticateRequest,
+        requireRoles([
+          UserRole.ADMIN,
+          UserRole.LEAD_PASTOR,
+          UserRole.FINANCE_LEAD,
+          UserRole.CASHIER,
+          UserRole.AUDITOR,
+        ]),
+      ],
+    },
+    async (request, reply) => {
+      return reply.send({
+        totalRevenueMonth: 3500000,
+        totalExpensesMonth: 350000,
+        netCashFlow: 3150000,
+        consolidatedCash: 14750000,
+        generalFundAvailable: 8150000,
+        tithesSplitTotal: 2500000,
+        welfareAidTotal: 1300000,
+        buildingFundTotal: 2800000,
+      });
+    }
+  );
 }
-

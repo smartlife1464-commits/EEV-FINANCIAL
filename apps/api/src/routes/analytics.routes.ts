@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
-import { authenticateRequest } from '../middleware/auth.js';
+import { authenticateRequest, requireRoles } from '../middleware/auth.js';
 import { AnalyticsService, PeriodKey } from '../services/analytics.service.js';
+import { UserRole } from '@eev/shared-types';
 
 export async function analyticsRoutes(app: FastifyInstance) {
   // 1. Synthèse globale KPI Fréquentation + Finances avec variations
@@ -11,7 +12,24 @@ export async function analyticsRoutes(app: FastifyInstance) {
       endDate?: string;
     };
 
+    const isProtocolRole = [UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT].includes(request.user?.role as UserRole);
+
     const overview = await AnalyticsService.getOverview(period, startDate, endDate);
+
+    // Séparation stricte : Si l'utilisateur est du Protocole, aucune donnée financière n'est exposée
+    if (isProtocolRole) {
+      return reply.send({
+        ...overview,
+        kpis: {
+          attendance: overview.kpis.attendance,
+          finance: undefined,
+        },
+        insights: (overview.insights || []).filter(
+          (ins: any) => ins.category !== 'finance' && !ins.title.toLowerCase().includes('dîme') && !ins.title.toLowerCase().includes('recette')
+        ),
+      });
+    }
+
     return reply.send(overview);
   });
 
@@ -34,21 +52,43 @@ export async function analyticsRoutes(app: FastifyInstance) {
     return reply.send(trends);
   });
 
-  // 4. Analyses financières détaillées
-  app.get('/api/analytics/finance', { preHandler: authenticateRequest }, async (request, reply) => {
-    const { period = 'this_month', startDate, endDate } = request.query as {
-      period?: PeriodKey;
-      startDate?: string;
-      endDate?: string;
-    };
+  // 4. Analyses financières détaillées (STRICTEMENT INTERDIT AUX RÔLES PROTOCOLE)
+  app.get(
+    '/api/analytics/finance',
+    {
+      preHandler: [
+        authenticateRequest,
+        requireRoles([
+          UserRole.ADMIN,
+          UserRole.LEAD_PASTOR,
+          UserRole.FINANCE_LEAD,
+          UserRole.CASHIER,
+          UserRole.AUDITOR,
+        ]),
+      ],
+    },
+    async (request, reply) => {
+      const { period = 'this_month', startDate, endDate } = request.query as {
+        period?: PeriodKey;
+        startDate?: string;
+        endDate?: string;
+      };
 
-    const finance = await AnalyticsService.getFinancialAnalytics(period, startDate, endDate);
-    return reply.send(finance);
-  });
+      const finance = await AnalyticsService.getFinancialAnalytics(period, startDate, endDate);
+      return reply.send(finance);
+    }
+  );
 
   // 5. Export des données statistiques en CSV
   app.get('/api/analytics/export/csv', { preHandler: authenticateRequest }, async (request, reply) => {
     const { type = 'attendance' } = request.query as { type?: 'attendance' | 'finance' };
+    const isProtocolRole = [UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT].includes(request.user?.role as UserRole);
+
+    if (type === 'finance' && isProtocolRole) {
+      return reply.status(403).send({
+        error: 'Accès interdit : Le rôle Protocole n’est pas autorisé à exporter les données financières.',
+      });
+    }
 
     let csvContent = '';
     if (type === 'attendance') {
@@ -77,4 +117,3 @@ export async function analyticsRoutes(app: FastifyInstance) {
     return reply.send(csvContent);
   });
 }
-

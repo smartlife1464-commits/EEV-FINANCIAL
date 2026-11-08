@@ -31,6 +31,19 @@ function getSafeUserId(user?: { id?: string; email?: string }): string {
 }
 
 export async function financeRoutes(app: FastifyInstance) {
+  // Règle de séparation stricte : Le département Protocole n'a aucun accès financier
+  app.addHook('preHandler', async (request, reply) => {
+    await authenticateRequest(request, reply);
+    if (reply.sent) return;
+    const userRole = request.user?.role;
+    if (userRole === UserRole.PROTOCOL_LEAD || userRole === UserRole.PROTOCOL_AGENT) {
+      reply.status(403).send({
+        error: "Accès interdit : Le département Protocole n'est pas autorisé à consulter ou modifier les données financières.",
+      });
+      return;
+    }
+  });
+
   // Synthèse de trésorerie consolidée & compartiments
   app.get('/api/finance/overview', { preHandler: authenticateRequest }, async (request, reply) => {
     try {
