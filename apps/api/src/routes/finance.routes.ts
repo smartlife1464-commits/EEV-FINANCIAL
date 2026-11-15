@@ -22,10 +22,13 @@ import { authenticateRequest, requirePermission, requireRoles } from '../middlew
 import { UserRole, ExpenseStatus, AuditAction } from '@eev/shared-types';
 import { pb, ensureAdminAuth } from '../services/pocketbase.js';
 import { createAuditLog } from '../services/audit.js';
+import { sendServiceError, pbString, withRelationsList } from '../utils/http.js';
+import { config } from '../config.js';
+import { expenseCategoryName } from '../services/analytics.service.js';
 
 function getSafeUserId(user?: { id?: string; email?: string }): string {
-  if (!user || !user.id || user.id.startsWith('dev-')) {
-    return '900286e90az8m1k'; // Admin PB record fallback
+  if (!user || !user.id) {
+    throw Object.assign(new Error('Utilisateur non authentifié.'), { status: 401 });
   }
   return user.id;
 }
@@ -49,40 +52,8 @@ export async function financeRoutes(app: FastifyInstance) {
     try {
       const overview = await LedgerService.getConsolidatedTreasury();
       return reply.send(overview);
-    } catch {
-      // Données de repli pour développement
-      return reply.send({
-        consolidatedPhysicalBalance: 14750000,
-        pendingCommitmentsTotal: 350000,
-        generalFundFreeBalance: 8150000,
-        funds: [
-          {
-            account: { code: 'GENERAL', name: 'Fonds Général (80% Dîmes/Offrandes)', isRestricted: false },
-            balance: 8500000,
-            percentageOfTotal: 57.6,
-          },
-          {
-            account: { code: 'TITHE_OF_TITHES', name: 'Dîme des Dîmes (10%)', isRestricted: true },
-            balance: 1450000,
-            percentageOfTotal: 9.8,
-          },
-          {
-            account: { code: 'WELFARE_AID', name: 'Aide Sociale & Secours (10%)', isRestricted: true },
-            balance: 1300000,
-            percentageOfTotal: 8.8,
-          },
-          {
-            account: { code: 'BUILDING', name: 'Construction Auditorium', isRestricted: true },
-            balance: 2800000,
-            percentageOfTotal: 19.0,
-          },
-          {
-            account: { code: 'FRIENDS_OF_JESUS', name: 'Amis de Jésus', isRestricted: true },
-            balance: 700000,
-            percentageOfTotal: 4.8,
-          },
-        ],
-      });
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de calculer la trésorerie consolidée.');
     }
   });
 
@@ -92,14 +63,8 @@ export async function financeRoutes(app: FastifyInstance) {
       await ensureAdminAuth();
       const funds = await pb.collection('fund_accounts').getFullList({ sort: 'code' });
       return reply.send(funds);
-    } catch {
-      return reply.send([
-        { id: 'fnd-gen', code: 'GENERAL', name: 'Fonds Général', current_balance: 8500000, is_restricted: false },
-        { id: 'fnd-tithe', code: 'TITHE_OF_TITHES', name: 'Dîme des Dîmes', current_balance: 1450000, is_restricted: true },
-        { id: 'fnd-aid', code: 'WELFARE_AID', name: 'Aide Sociale', current_balance: 1300000, is_restricted: true },
-        { id: 'fnd-build', code: 'BUILDING', name: 'Construction Auditorium', current_balance: 2800000, is_restricted: true },
-        { id: 'fnd-friends', code: 'FRIENDS_OF_JESUS', name: 'Amis de Jésus', current_balance: 700000, is_restricted: true },
-      ]);
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les compartiments de fonds.');
     }
   });
 
@@ -107,16 +72,10 @@ export async function financeRoutes(app: FastifyInstance) {
   app.get('/api/finance/categories', { preHandler: authenticateRequest }, async (request, reply) => {
     try {
       await ensureAdminAuth();
-      const categories = await pb.collection('financial_categories').getFullList({ sort: 'code' });
+      const categories = await pb.collection('financial_categories').getFullList({ sort: 'code', expand: 'target_fund' });
       return reply.send(categories);
-    } catch {
-      return reply.send([
-        { id: 'cat-tithe', code: 'tithes', name: 'Dîmes', allocation_rule: 'standard_split_80_10_10' },
-        { id: 'cat-offering', code: 'offerings', name: 'Offrandes Ordinaires', allocation_rule: 'standard_split_80_10_10' },
-        { id: 'cat-build', code: 'building', name: 'Don Construction Auditorium', allocation_rule: 'direct_allocated' },
-        { id: 'cat-friends', code: 'friends_of_jesus', name: 'Don Amis de Jésus', allocation_rule: 'direct_allocated' },
-        { id: 'cat-special', code: 'special_offerings', name: 'Offrande Spéciale Affectée', allocation_rule: 'direct_allocated' },
-      ]);
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les catégories de recettes.');
     }
   });
 
@@ -126,15 +85,8 @@ export async function financeRoutes(app: FastifyInstance) {
       await ensureAdminAuth();
       const list = await pb.collection('expense_categories').getFullList({ sort: 'name' });
       return reply.send(list);
-    } catch {
-      return reply.send([
-        { id: 'expcat-elec', code: 'electricity', name: 'Électricité & Énergie' },
-        { id: 'expcat-water', code: 'water', name: 'Eau & Assainissement' },
-        { id: 'expcat-transport', code: 'transport', name: 'Transport & Logistique' },
-        { id: 'expcat-communication', code: 'communication', name: 'Communication & Médias' },
-        { id: 'expcat-maintenance', code: 'maintenance', name: 'Entretien & Réparations' },
-        { id: 'expcat-equipment', code: 'equipment', name: 'Achat Matériel & Équipement' },
-      ]);
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les catégories de dépenses.');
     }
   });
 
@@ -173,71 +125,12 @@ export async function financeRoutes(app: FastifyInstance) {
     try {
       await ensureAdminAuth();
       const entries = await pb.collection('financial_entries').getFullList({
-        sort: '-collected_at',
+        sort: '-collected_at,-created',
         expand: 'category,service,created_by',
       });
-      if (entries && entries.length > 0) {
-        return reply.send(entries);
-      }
-      return reply.send([
-        {
-          id: 'ent-1',
-          entry_number: 'REC-2026-00001',
-          amount: 2500000,
-          payment_method: 'cash',
-          collected_at: '2026-11-01T10:30:00.000Z',
-          donor_name: 'Dr. Marc Kouamé & Famille',
-          donor_phone: '+237 699 00 11 22',
-          reference: 'DIME-NOV-001',
-          status: 'validated',
-          category: { name: 'Dîmes & Offrandes Ordinaires', code: 'tithes' },
-        },
-        {
-          id: 'ent-2',
-          entry_number: 'REC-2026-00002',
-          amount: 1000000,
-          payment_method: 'bank_transfer',
-          collected_at: '2026-11-02T14:15:00.000Z',
-          donor_name: 'Sœur Chantal Nguema',
-          donor_phone: '+237 677 33 44 55',
-          reference: 'VIR-BGFI-8921',
-          status: 'validated',
-          category: { name: 'Don Construction Auditorium', code: 'auditorium' },
-        },
-        {
-          id: 'ent-3',
-          entry_number: 'REC-2026-00003',
-          amount: 150000,
-          payment_method: 'mobile_money',
-          collected_at: '2026-11-03T18:00:00.000Z',
-          donor_name: 'Frère Emmanuel Tchuente',
-          donor_phone: '+237 695 88 99 00',
-          reference: 'OM-TX-774921',
-          status: 'validated',
-          category: { name: 'Offrande Spéciale Action de Grâce', code: 'thanksgiving' },
-        },
-      ]);
-    } catch {
-      return reply.send([
-        {
-          id: 'ent-1',
-          entry_number: 'REC-2026-00001',
-          amount: 2500000,
-          payment_method: 'cash',
-          collected_at: '2026-11-01',
-          status: 'validated',
-          category: { name: 'Dîmes & Offrandes de Célébration' },
-        },
-        {
-          id: 'ent-2',
-          entry_number: 'REC-2026-00002',
-          amount: 1000000,
-          payment_method: 'bank_transfer',
-          collected_at: '2026-11-02',
-          status: 'validated',
-          category: { name: 'Don Construction Auditorium' },
-        },
-      ]);
+      return reply.send(withRelationsList(entries));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les recettes.');
     }
   });
 
@@ -253,16 +146,19 @@ export async function financeRoutes(app: FastifyInstance) {
 
       try {
         await ensureAdminAuth();
-        const count = await pb.collection('expenses').getList(1, 1);
-        const expNumber = `DEP-${new Date().getFullYear()}-${String(count.totalItems + 1).padStart(5, '0')}`;
+        const expNumber = await LedgerService.nextNumber('expenses', 'expense_number', 'DEP', 5);
+        const category = await pb.collection('expense_categories').getOne(parsed.data.categoryId).catch(() => null);
 
         const expense = await pb.collection('expenses').create({
           expense_number: expNumber,
+          expense_type: category?.type || 'variable',
           category: parsed.data.categoryId,
+          category_name: category?.name || '',
           fund_account: parsed.data.fundAccountId,
           amount: parsed.data.amount,
           beneficiary: parsed.data.beneficiary,
           purpose: parsed.data.purpose,
+          expense_date: new Date().toISOString().split('T')[0],
           receipt_url: parsed.data.receiptUrl || '',
           status: ExpenseStatus.PENDING_APPROVAL,
           requested_by: getSafeUserId(request.user),
@@ -291,28 +187,9 @@ export async function financeRoutes(app: FastifyInstance) {
         sort: '-created',
         expand: 'category,fund_account,requested_by,approved_by,paid_by',
       });
-      return reply.send(list);
-    } catch {
-      return reply.send([
-        {
-          id: 'exp-1',
-          expense_number: 'DEP-2026-00001',
-          amount: 150000,
-          beneficiary: 'ENEO Cameroun',
-          purpose: 'Facture électricité du mois d’octobre pour le temple',
-          status: ExpenseStatus.PENDING_APPROVAL,
-          created: '2026-11-04T10:00:00Z',
-        },
-        {
-          id: 'exp-2',
-          expense_number: 'DEP-2026-00002',
-          amount: 200000,
-          beneficiary: 'Sonel Eaux',
-          purpose: 'Réparation plomberie et raccordement annexe',
-          status: ExpenseStatus.APPROVED,
-          created: '2026-11-03T14:30:00Z',
-        },
-      ]);
+      return reply.send(withRelationsList(list));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les dépenses.');
     }
   });
 
@@ -335,6 +212,17 @@ export async function financeRoutes(app: FastifyInstance) {
           return reply.status(400).send({
             error: `La dépense ne peut pas être modifiée car son statut est '${expense.status}'.`,
           });
+        }
+
+        // Règle d'or : l'auto-approbation d'une dépense par son auteur est strictement interdite
+        if (expense.requested_by && expense.requested_by === request.user?.id) {
+          return reply.status(403).send({
+            error: 'Auto-approbation interdite : vous ne pouvez pas arbitrer une dépense que vous avez vous-même demandée.',
+          });
+        }
+
+        if (parsed.data.decision === 'reject' && !parsed.data.reason?.trim()) {
+          return reply.status(400).send({ error: 'Le motif du rejet est obligatoire.' });
         }
 
         const newStatus = parsed.data.decision === 'approve' ? ExpenseStatus.APPROVED : ExpenseStatus.REJECTED;
@@ -422,60 +310,40 @@ export async function financeRoutes(app: FastifyInstance) {
         sort: '-created',
         expand: 'fund_account,created_by',
       });
-      return reply.send(list);
-    } catch {
-      return reply.send([
-        {
-          id: 'tx-1',
-          transaction_number: 'TX-2026-000001',
-          type: 'credit_entry',
-          direction: 'credit',
-          amount: 2000000,
-          balance_after: 8500000,
-          description: 'Recette REC-2026-00001 - 80% Fonds Général',
-          created: '2026-11-01T12:00:00Z',
-        },
-        {
-          id: 'tx-2',
-          transaction_number: 'TX-2026-000002',
-          type: 'credit_entry',
-          direction: 'credit',
-          amount: 250000,
-          balance_after: 1450000,
-          description: 'Recette REC-2026-00001 - 10% Dîme des dîmes',
-          created: '2026-11-01T12:00:00Z',
-        },
-        {
-          id: 'tx-3',
-          transaction_number: 'TX-2026-000003',
-          type: 'credit_entry',
-          direction: 'credit',
-          amount: 250000,
-          balance_after: 1300000,
-          description: 'Recette REC-2026-00001 - 10% Aide sociale',
-          created: '2026-11-01T12:00:00Z',
-        },
-      ]);
+      return reply.send(withRelationsList(list));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger le grand livre.');
     }
   });
 
-  // Liste des Procès-Verbaux de Clôture de Caisse
+  // Liste des Procès-Verbaux de Clôture de Caisse (persistés dans PocketBase)
+  const mapClosing = (c: any) => ({
+    id: c.id,
+    closing_number: c.pv_number,
+    date: c.closing_date,
+    closed_by: c.cashier,
+    closed_by_name: c.closed_by_name || c.expand?.cashier?.name || '',
+    service_name: c.service_name || 'Caisse Générale',
+    breakdown: c.breakdown,
+    physical_cash_total: c.physical_cash_total || 0,
+    electronic_and_checks_total: (c.electronic_total || 0) + (c.checks_total || 0),
+    theoretical_balance: c.theoretical_balance || 0,
+    counted_balance: c.total_counted || 0,
+    discrepancy: c.discrepancy || 0,
+    status: c.status,
+    status_label: c.status_label || '',
+    notes: c.notes || '',
+    created: c.created,
+  });
+
   app.get('/api/finance/cash-closings', { preHandler: authenticateRequest }, async (request, reply) => {
-    return reply.send([
-      {
-        id: 'cl-1',
-        closing_number: 'PV-2026-00001',
-        date: '2026-11-01',
-        closed_by_name: 'Responsable Finances',
-        service_name: 'Culte Dominical de Célébration',
-        theoretical_balance: 14750000,
-        counted_balance: 14750000,
-        discrepancy: 0,
-        status: 'balanced',
-        notes: 'Clôture contradictoire effectuée après le culte dominical. Caisse juste.',
-        created: '2026-11-01T14:30:00Z',
-      },
-    ]);
+    try {
+      await ensureAdminAuth();
+      const list = await pb.collection('cash_closings').getFullList({ sort: '-created', expand: 'cashier' });
+      return reply.send(list.map(mapClosing));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les procès-verbaux de caisse.');
+    }
   });
 
   // Enregistrement officiel d'une clôture de caisse avec PV
@@ -483,7 +351,7 @@ export async function financeRoutes(app: FastifyInstance) {
     '/api/finance/cash-closings',
     { preHandler: requirePermission('canCreateFinancialEntry') },
     async (request, reply) => {
-      const body = request.body as {
+      const body = (request.body || {}) as {
         serviceId?: string;
         serviceName?: string;
         theoreticalBalance: number;
@@ -494,44 +362,58 @@ export async function financeRoutes(app: FastifyInstance) {
       if (!body.breakdown) {
         return reply.status(400).send({ error: 'Le détail du billetage est obligatoire.' });
       }
+      const theoretical = Number(body.theoreticalBalance);
+      if (!Number.isFinite(theoretical) || theoretical < 0) {
+        return reply.status(400).send({ error: 'Le solde théorique est invalide.' });
+      }
 
-      const reconciliation = calculateCashReconciliation(body.breakdown, body.theoreticalBalance);
-      const pvNumber = `PV-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
+      try {
+        await ensureAdminAuth();
+        const reconciliation = calculateCashReconciliation(body.breakdown, theoretical);
+        const pvNumber = await LedgerService.nextNumber('cash_closings', 'pv_number', 'PV', 5);
+        const b: any = body.breakdown;
 
-      const closingRecord = {
-        id: `cl-${Date.now()}`,
-        closing_number: pvNumber,
-        date: new Date().toISOString().split('T')[0],
-        closed_by: request.user!.id,
-        closed_by_name: request.user!.name || 'Agent Financier',
-        service_id: body.serviceId || null,
-        service_name: body.serviceName || 'Caisse Générale',
-        breakdown: body.breakdown,
-        physical_cash_total: reconciliation.physicalCashTotal,
-        electronic_and_checks_total: reconciliation.electronicAndChecksTotal,
-        theoretical_balance: body.theoreticalBalance,
-        counted_balance: reconciliation.grandTotalCounted,
-        discrepancy: reconciliation.discrepancy,
-        status: reconciliation.status,
-        status_label: reconciliation.statusLabel,
-        notes: body.notes || '',
-        created: new Date().toISOString(),
-      };
+        if (reconciliation.status !== 'balanced' && !body.notes?.trim()) {
+          return reply.status(400).send({
+            error: 'Un écart de caisse a été constaté : une note explicative est obligatoire pour signer le PV.',
+          });
+        }
 
-      await createAuditLog({
-        userId: request.user!.id,
-        action: 'cash_closing' as any,
-        collectionName: 'cash_closings',
-        recordId: closingRecord.id,
-        newValues: {
-          pvNumber,
+        const record = await pb.collection('cash_closings').create({
+          pv_number: pvNumber,
+          closing_date: new Date().toISOString().split('T')[0],
+          theoretical_balance: theoretical,
+          physical_cash_total: reconciliation.physicalCashTotal,
+          electronic_total: (Number(b.mobileMoneyAmount) || 0) + (Number(b.bankTransfersAmount) || 0),
+          checks_total: Number(b.checksAmount) || 0,
+          total_counted: reconciliation.grandTotalCounted,
           discrepancy: reconciliation.discrepancy,
-          countedTotal: reconciliation.grandTotalCounted,
           status: reconciliation.status,
-        },
-      });
+          status_label: reconciliation.statusLabel,
+          breakdown: body.breakdown,
+          notes: body.notes || '',
+          cashier: getSafeUserId(request.user),
+          closed_by_name: request.user?.name || '',
+          service_name: body.serviceName || 'Caisse Générale',
+        });
 
-      return reply.status(201).send(closingRecord);
+        await createAuditLog({
+          userId: request.user!.id,
+          action: 'cash_closing',
+          collectionName: 'cash_closings',
+          recordId: record.id,
+          newValues: {
+            pvNumber,
+            discrepancy: reconciliation.discrepancy,
+            countedTotal: reconciliation.grandTotalCounted,
+            status: reconciliation.status,
+          },
+        });
+
+        return reply.status(201).send(mapClosing(record));
+      } catch (err) {
+        return sendServiceError(reply, err, 'Impossible d’enregistrer le procès-verbal de caisse.');
+      }
     }
   );
 
@@ -547,9 +429,9 @@ export async function financeRoutes(app: FastifyInstance) {
         sort: 'due_day',
         expand: 'fund_account,responsible_user',
       });
-      return reply.send(list);
-    } catch {
-      return reply.send([]);
+      return reply.send(withRelationsList(list));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les charges fixes.');
     }
   });
 
@@ -637,7 +519,27 @@ export async function financeRoutes(app: FastifyInstance) {
       try {
         await ensureAdminAuth();
         const existing = await pb.collection('fixed_expenses').getOne(id);
-        const updated = await pb.collection('fixed_expenses').update(id, parsed.data);
+        // Correspondance camelCase (API) → snake_case (PocketBase) : sans elle, les modifications étaient ignorées
+        const d = parsed.data;
+        const fieldMap: Record<string, unknown> = {
+          name: d.name,
+          category: d.category,
+          description: d.description,
+          amount: d.amount,
+          currency: d.currency,
+          frequency: d.frequency,
+          due_day: d.dueDay,
+          start_date: d.startDate,
+          end_date: d.endDate,
+          fund_account: d.fundAccountId,
+          beneficiary: d.beneficiary,
+          responsible_user: d.responsibleUserId,
+          payment_method: d.paymentMethod,
+          status: d.status,
+          notes: d.notes,
+        };
+        const payload = Object.fromEntries(Object.entries(fieldMap).filter(([, v]) => v !== undefined));
+        const updated = await pb.collection('fixed_expenses').update(id, payload);
 
         await createAuditLog({
           userId: request.user!.id,
@@ -732,9 +634,9 @@ export async function financeRoutes(app: FastifyInstance) {
         };
       });
 
-      return reply.send(evaluated);
-    } catch {
-      return reply.send([]);
+      return reply.send(withRelationsList(evaluated));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les échéances.');
     }
   });
 
@@ -752,7 +654,7 @@ export async function financeRoutes(app: FastifyInstance) {
         let totalGenerated = 0;
         for (const fe of activeFixedExpenses) {
           const existingOccs = await pb.collection('fixed_expense_occurrences').getFullList({
-            filter: `fixed_expense = "${fe.id}"`,
+            filter: `fixed_expense = "${pbString(fe.id)}"`,
           });
           const existingDates = existingOccs.map((o) => o.due_date);
 
@@ -831,6 +733,12 @@ export async function financeRoutes(app: FastifyInstance) {
       try {
         await ensureAdminAuth();
         const occ = await pb.collection('fixed_expense_occurrences').getOne(id);
+        if (['paid', 'approved', 'cancelled'].includes(occ.status)) {
+          return reply.status(400).send({ error: `Cette échéance ne peut plus être arbitrée (statut : ${occ.status}).` });
+        }
+        if (!isApproved && !String(body.reason || '').trim()) {
+          return reply.status(400).send({ error: 'Le motif du rejet est obligatoire.' });
+        }
 
         const newStatus = isApproved ? 'approved' : 'cancelled';
         const updated = await pb.collection('fixed_expense_occurrences').update(id, {
@@ -907,21 +815,8 @@ export async function financeRoutes(app: FastifyInstance) {
         generalFundBalance: treasury.generalFundFreeBalance,
         pendingCommitmentsTotal: treasury.pendingCommitmentsTotal,
       });
-    } catch {
-      return reply.send({
-        totalMonthlyFixed: 225000,
-        totalQuarterlyFixed: 0,
-        totalAnnualFixed: 0,
-        monthlyEquivalentProvision: 225000,
-        upcomingOccurrencesTotal: 225000,
-        paidOccurrencesTotal: 0,
-        pendingOccurrencesTotal: 225000,
-        overdueOccurrencesTotal: 0,
-        coverageRate: 100,
-        consolidatedPhysicalBalance: 14750000,
-        generalFundBalance: 8150000,
-        pendingCommitmentsTotal: 350000,
-      });
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de calculer la synthèse des charges fixes.');
     }
   });
 
@@ -934,13 +829,18 @@ export async function financeRoutes(app: FastifyInstance) {
         expand: 'fund_account',
       });
 
-      // Calculer les dépenses réelles engagées et payées par catégorie
-      const allExpenses = await pb.collection('expenses').getFullList();
+      // Calculer les dépenses réelles engagées et payées par catégorie, sur la période du budget
+      const allExpenses = await pb.collection('expenses').getFullList({ expand: 'category' });
+      const norm = (v: string) => (v || '').trim().toLowerCase();
 
       const tracked = budgets.map((b) => {
-        const catExpenses = allExpenses.filter(
-          (e) => (e.category_name || '').toLowerCase() === b.category.toLowerCase()
-        );
+        const catExpenses = allExpenses.filter((e) => {
+          const name = norm(expenseCategoryName(e));
+          const code = norm(e.expand?.category?.code || '');
+          if (name !== norm(b.category) && code !== norm(b.category)) return false;
+          const day = String((e.status === 'paid' ? e.paid_at : '') || e.expense_date || e.created || '').slice(0, 10);
+          return (!b.period_start || day >= b.period_start) && (!b.period_end || day <= b.period_end);
+        });
         const spent = catExpenses.reduce((sum, e) => (e.status === 'paid' ? sum + (e.amount || 0) : sum), 0);
         const committed = catExpenses.reduce(
           (sum, e) => (['approved', 'pending_approval'].includes(e.status) ? sum + (e.amount || 0) : sum),
@@ -964,9 +864,9 @@ export async function financeRoutes(app: FastifyInstance) {
         };
       });
 
-      return reply.send(tracked);
-    } catch {
-      return reply.send([]);
+      return reply.send(withRelationsList(tracked));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les budgets.');
     }
   });
 
@@ -982,19 +882,40 @@ export async function financeRoutes(app: FastifyInstance) {
 
       try {
         await ensureAdminAuth();
-        let record;
-        try {
-          const existing = await pb
-            .collection('expense_budgets')
-            .getFirstListItem(`category = "${parsed.data.category}" && period_start = "${parsed.data.periodStart}"`);
-          record = await pb.collection('expense_budgets').update(existing.id, parsed.data);
-        } catch {
-          record = await pb.collection('expense_budgets').create(parsed.data);
+        const d = parsed.data;
+        if (d.periodEnd < d.periodStart) {
+          return reply.status(400).send({ error: 'La date de fin du budget doit être postérieure à la date de début.' });
         }
+        // Correspondance camelCase → snake_case (auparavant la création échouait systématiquement)
+        const payload = {
+          category: d.category,
+          amount: d.amount,
+          period_type: d.periodType,
+          period_start: d.periodStart,
+          period_end: d.periodEnd,
+          fund_account: d.fundAccountId || '',
+          alert_threshold: d.alertThreshold,
+          status: d.status,
+        };
+        const existing = await pb
+          .collection('expense_budgets')
+          .getFirstListItem(`category = "${pbString(d.category)}" && period_start = "${pbString(d.periodStart)}"`)
+          .catch(() => null);
+        const record = existing
+          ? await pb.collection('expense_budgets').update(existing.id, payload)
+          : await pb.collection('expense_budgets').create(payload);
 
-        return reply.status(201).send(record);
-      } catch (err: any) {
-        return reply.status(500).send({ error: err?.message || 'Erreur lors de l’enregistrement du budget.' });
+        await createAuditLog({
+          userId: request.user!.id,
+          action: existing ? 'update_budget' : 'create_budget',
+          collectionName: 'expense_budgets',
+          recordId: record.id,
+          newValues: payload,
+        });
+
+        return reply.status(existing ? 200 : 201).send(record);
+      } catch (err) {
+        return sendServiceError(reply, err, 'Erreur lors de l’enregistrement du budget.');
       }
     }
   );
@@ -1025,8 +946,17 @@ export async function financeRoutes(app: FastifyInstance) {
         .filter((o) => o.due_date <= in90Days)
         .reduce((sum, o) => sum + (o.expected_amount || 0), 0);
 
-      // Encaissements prévisionnels (estimation prudente basée sur moyenne mensuelle ordinaire : 3 500 000 FCFA / mois)
-      const estimatedMonthlyInflow = 3500000;
+      // Encaissements prévisionnels : moyenne réelle des 3 derniers mois complets (ou valeur configurée)
+      let estimatedMonthlyInflow = config.forecastMonthlyInflow;
+      if (!estimatedMonthlyInflow) {
+        const now = new Date();
+        const from = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString().slice(0, 10);
+        const to = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+        const recent = await pb.collection('financial_entries').getFullList({
+          filter: `collected_at >= "${from}" && collected_at < "${to}" && status != "cancelled"`,
+        });
+        estimatedMonthlyInflow = Math.round(recent.reduce((acc, e) => acc + (e.amount || 0), 0) / 3);
+      }
       const forecastInflow30 = estimatedMonthlyInflow;
       const forecastInflow60 = estimatedMonthlyInflow * 2;
       const forecastInflow90 = estimatedMonthlyInflow * 3;
@@ -1035,6 +965,8 @@ export async function financeRoutes(app: FastifyInstance) {
       const commitmentsNow = treasury.pendingCommitmentsTotal;
 
       return reply.send({
+        forecastBasis: config.forecastMonthlyInflow ? 'configured' : 'average_last_3_months',
+        estimatedMonthlyInflow,
         currentPhysicalCash: physicalNow,
         currentPendingCommitments: commitmentsNow,
         generalFundFreeBalance: treasury.generalFundFreeBalance,
@@ -1065,17 +997,8 @@ export async function financeRoutes(app: FastifyInstance) {
           },
         ],
       });
-    } catch {
-      return reply.send({
-        currentPhysicalCash: 14750000,
-        currentPendingCommitments: 350000,
-        generalFundFreeBalance: 8150000,
-        projections: [
-          { horizonDays: 30, label: '30 jours', startingCash: 14750000, forecastInflows: 3500000, scheduledOutflows: 575000, projectedBalance: 17675000 },
-          { horizonDays: 60, label: '60 jours', startingCash: 14750000, forecastInflows: 7000000, scheduledOutflows: 800000, projectedBalance: 20950000 },
-          { horizonDays: 90, label: '90 jours', startingCash: 14750000, forecastInflows: 10500000, scheduledOutflows: 1025000, projectedBalance: 24225000 },
-        ],
-      });
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de calculer les projections de trésorerie.');
     }
   });
 }

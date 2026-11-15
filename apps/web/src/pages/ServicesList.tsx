@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { formatDate, formatFCFA } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import {
@@ -20,6 +21,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const ServicesList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,14 +37,29 @@ export const ServicesList: React.FC = () => {
     queryFn: () => api.getAttendance(),
   });
 
+  const { hasPermission } = useAuth();
+  const canSeeFinance = hasPermission('canViewDashboardFinance');
+  const canCreateService = hasPermission('canCreateService');
+
   const { data: financialEntries = [] } = useQuery({
     queryKey: ['financial-entries'],
     queryFn: () => api.getEntries(),
+    enabled: canSeeFinance, // le Protocole n'a aucun accès aux données financières
   });
+
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ['service-types'],
+    queryFn: () => api.getServiceTypes(),
+  });
+
+  /** Regroupe les 7 programmes officiels par jour pour les filtres et les badges */
+  const dayGroup = (slug: string = '') =>
+    slug.startsWith('sunday') ? 'sunday' : slug.startsWith('tuesday') ? 'tuesday' : slug.startsWith('thursday') ? 'thursday' : 'special';
+  const typeName = (slug: string) => serviceTypes.find((t: any) => t.slug === slug)?.name;
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [name, setName] = useState('');
-  const [serviceType, setServiceType] = useState('sunday_service');
+  const [serviceType, setServiceType] = useState('sunday_service_1');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('12:00');
@@ -61,12 +78,13 @@ export const ServicesList: React.FC = () => {
         endTime,
         description,
       });
+      toast.success('Culte programmé');
       setShowCreateModal(false);
       setName('');
       setDescription('');
       await refetch();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création');
+      toast.error(err.message || 'Erreur lors de la création');
     } finally {
       setSubmitting(false);
     }
@@ -74,7 +92,7 @@ export const ServicesList: React.FC = () => {
 
   const filteredServices = services.filter((s: any) => {
     const matchesSearch = (s.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === 'all' || s.service_type === typeFilter;
+    const matchesType = typeFilter === 'all' || dayGroup(s.service_type) === typeFilter;
     return matchesSearch && matchesType;
   });
 
@@ -92,6 +110,7 @@ export const ServicesList: React.FC = () => {
           </p>
         </div>
 
+        {canCreateService && (
         <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"
@@ -99,6 +118,7 @@ export const ServicesList: React.FC = () => {
           <Plus className="w-4 h-4" />
           <span>Programmer un Culte</span>
         </button>
+        )}
       </div>
 
       {/* Barre de Recherche et Filtres par Type */}
@@ -117,10 +137,10 @@ export const ServicesList: React.FC = () => {
         <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
           {[
             { id: 'all', label: 'Tous les cultes' },
-            { id: 'sunday_service', label: 'Dimanche' },
-            { id: 'tuesday_program', label: 'Mardi' },
-            { id: 'thursday_program', label: 'Jeudi' },
-            { id: 'special_meeting', label: 'Spéciaux' },
+            { id: 'sunday', label: 'Dimanche' },
+            { id: 'tuesday', label: 'Mardi' },
+            { id: 'thursday', label: 'Jeudi' },
+            { id: 'special', label: 'Spéciaux' },
           ].map((item) => (
             <button
               key={item.id}
@@ -145,11 +165,15 @@ export const ServicesList: React.FC = () => {
           </div>
         ) : (
           filteredServices.map((service: any) => {
-            const isSunday = service.service_type === 'sunday_service';
-            
-            // Fiche de présence associée
+            const group = dayGroup(service.service_type);
+            const isSunday = group === 'sunday';
+
+            // Fiche de présence associée (lien direct, sinon même programme à la même date)
             const sheet = attendanceSheets.find(
-              (s: any) => s.service === service.id || s.service_id === service.id || s.service?.id === service.id
+              (s: any) =>
+                s.service === service.id ||
+                s.service?.id === service.id ||
+                (s.service_type_slug === service.service_type && s.service_date === String(service.date || '').slice(0, 10))
             );
 
             // Recettes associées
@@ -169,20 +193,15 @@ export const ServicesList: React.FC = () => {
                       className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                         isSunday
                           ? 'bg-amber-400/20 text-amber-500 border border-amber-400/30'
-                          : service.service_type === 'tuesday_program'
+                          : group === 'tuesday'
                           ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25'
-                          : service.service_type === 'thursday_program'
+                          : group === 'thursday'
                           ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25'
                           : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
                       }`}
                     >
-                      {isSunday
-                        ? 'Culte Dominical'
-                        : service.service_type === 'tuesday_program'
-                        ? 'Mardi Enseignement'
-                        : service.service_type === 'thursday_program'
-                        ? 'Jeudi Intercession'
-                        : 'Réunion Spéciale'}
+                      {typeName(service.service_type) ||
+                        (isSunday ? 'Culte Dominical' : group === 'tuesday' ? 'Mardi Enseignement' : group === 'thursday' ? 'Jeudi Intercession' : 'Réunion Spéciale')}
                     </span>
                     <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-amber-500" />
@@ -246,7 +265,7 @@ export const ServicesList: React.FC = () => {
                 {/* Actions de Saisie & Suivi */}
                 <div className="pt-4 border-t border-slate-100 dark:border-[#16214A] flex flex-wrap items-center justify-between gap-2">
                   <Link
-                    to={`/attendance/new?serviceId=${service.id}`}
+                    to={sheet ? '/attendance' : `/attendance/new?slug=${encodeURIComponent(service.service_type || '')}&date=${String(service.date || '').slice(0, 10)}`}
                     className="flex-1 py-2 px-3 rounded-xl bg-slate-100 dark:bg-[#16214A] hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                   >
                     <Users className="w-3.5 h-3.5" />
@@ -316,11 +335,11 @@ export const ServicesList: React.FC = () => {
                   onChange={(e) => setServiceType(e.target.value)}
                   className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-amber-400"
                 >
-                  <option value="sunday_service">Culte du Dimanche</option>
-                  <option value="tuesday_program">Programme du Mardi (Enseignement)</option>
-                  <option value="thursday_program">Programme du Jeudi (Délivrance & Prière)</option>
-                  <option value="special_meeting">Réunion Spéciale</option>
-                  <option value="campaign">Campagne d'Évangélisation</option>
+                  {serviceTypes.map((t: any) => (
+                    <option key={t.id} value={t.slug}>
+                      {t.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

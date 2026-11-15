@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
+import { formatNumber, formatDate, formatVariation } from '../utils/formatters';
 import { usePeriod } from '../context/PeriodContext';
 import { WhatsAppReportShareModal, WhatsAppServiceReportData } from '../components/documents/WhatsAppReportShareModal';
 import {
@@ -34,12 +35,12 @@ import {
 import { Link } from 'react-router-dom';
 
 export const ProtocolDashboard: React.FC = () => {
-  const { period, periodLabel } = usePeriod();
+  const { period, periodLabel, startDate, endDate } = usePeriod();
   const [whatsAppReportData, setWhatsAppReportData] = useState<WhatsAppServiceReportData | null>(null);
 
   const { data: stats } = useQuery({
-    queryKey: ['attendance-dashboard', period],
-    queryFn: () => api.getAttendanceDashboard(),
+    queryKey: ['attendance-dashboard', period, startDate, endDate],
+    queryFn: () => api.getAttendanceDashboard(period, startDate, endDate),
   });
 
   const { data: sheets = [] } = useQuery({
@@ -47,41 +48,50 @@ export const ProtocolDashboard: React.FC = () => {
     queryFn: () => api.getAttendance(),
   });
 
+  const last = stats?.lastService;
+  const summary = stats?.period_summary;
+  const sheetTypeName = (s: any) => s?.expand?.service_type?.name || s?.service_type_slug || 'Culte';
+
   const handleShareLastServiceWhatsApp = () => {
-    const latestSheet = sheets[0];
+    const latestSheet: any = sheets[0];
+    if (!latestSheet) return;
     setWhatsAppReportData({
-      serviceName: latestSheet?.service?.name || latestSheet?.service_name || 'Culte Dominical',
-      serviceDate: latestSheet?.service_date || latestSheet?.date || new Date().toISOString(),
-      totalAttendance: latestSheet?.total_attendance || stats?.lastServiceTotal || 500,
-      menCount: latestSheet?.men_count || stats?.men || 145,
-      womenCount: latestSheet?.women_count || stats?.women || 198,
-      youthCount: latestSheet?.youth_count || stats?.youth || 92,
-      childrenCount: latestSheet?.children_count || stats?.children || 65,
-      newVisitorsCount: latestSheet?.new_visitors_count || stats?.newVisitors || 32,
-      salvationsCount: latestSheet?.salvations_count || stats?.salvations || 4,
-      capacityRate: latestSheet?.capacity_rate || stats?.occupancyRate || 88,
-      responsibleName: latestSheet?.responsible_user?.name || 'Responsable Protocole',
+      serviceName: sheetTypeName(latestSheet),
+      serviceDate: latestSheet.service_date,
+      totalAttendance: latestSheet.total_attendance || 0,
+      menCount: latestSheet.men_count || 0,
+      womenCount: latestSheet.women_count || 0,
+      youthCount: latestSheet.youth_count || 0,
+      childrenCount: latestSheet.children_count || 0,
+      newVisitorsCount: latestSheet.new_visitors_count || 0,
+      salvationsCount: latestSheet.salvations_count || 0,
+      capacityRate: stats?.occupancyRate ?? undefined,
+      responsibleName: latestSheet.expand?.responsible_user?.name || latestSheet.expand?.submitted_by?.name || 'Responsable Protocole',
     });
   };
 
-  // Tendance de fréquentation dominicale sur le mois (courbe dorée)
-  const attendanceTrendData = [
-    { name: '11 Oct', total: 420 },
-    { name: '18 Oct', total: 445 },
-    { name: '25 Oct', total: 480 },
-    { name: '01 Nov', total: 500 },
-    { name: '08 Nov', total: 525 },
-  ];
+  // Évolution réelle de l'affluence sur la période sélectionnée
+  const attendanceTrendData = (stats?.trend || []).map((t: any) => ({ name: t.label, total: t.total, newVisitors: t.newVisitors }));
+  const peak = attendanceTrendData.reduce((m: number, p: any) => Math.max(m, p.total), 0);
 
-  // Répartition Démographique stricte (Hommes, Femmes, Jeunes, Enfants)
+  // Répartition démographique stricte de la période (Hommes, Femmes, Jeunes, Enfants)
+  const demoByName = (name: string) => (stats?.demographics || []).find((d: any) => d.name === name)?.count || 0;
   const demographicsData = [
-    { name: 'Hommes', value: stats?.men || 145, color: '#3B82F6' },
-    { name: 'Femmes', value: stats?.women || 198, color: '#EC4899' },
-    { name: 'Jeunes', value: stats?.youth || 92, color: '#FFBC00' },
-    { name: 'Enfants', value: stats?.children || 65, color: '#10B981' },
+    { name: 'Hommes', value: demoByName('Hommes'), color: '#3B82F6' },
+    { name: 'Femmes', value: demoByName('Femmes'), color: '#EC4899' },
+    { name: 'Jeunes', value: demoByName('Jeunes'), color: '#FFBC00' },
+    { name: 'Enfants', value: demoByName('Enfants'), color: '#10B981' },
   ];
-
   const totalDemographics = demographicsData.reduce((acc, curr) => acc + curr.value, 0);
+
+  const topType = [...(stats?.byServiceType || [])].sort((a: any, b: any) => b.total - a.total)[0];
+  const validatedCount = sheets.filter((s: any) => s.status === 'validated').length;
+  const submittedCount = sheets.filter((s: any) => s.status === 'submitted').length;
+  // Comparaison pertinente : précédent culte du MÊME programme (et non la fiche précédente quelconque)
+  const previousSheet: any = sheets.slice(1).find((sh: any) => sh.service_type_slug === (sheets[0] as any)?.service_type_slug);
+  const lastDelta = last && previousSheet ? last.total - (previousSheet.total_attendance || 0) : 0;
+  const visitorRate = summary?.grandTotal ? Math.round((summary.totalNewVisitors / summary.grandTotal) * 1000) / 10 : 0;
+  const statusLabel: Record<string, string> = { draft: 'Brouillon', submitted: 'Soumise', validated: 'Validée', rejected: 'Rejetée' };
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
@@ -95,15 +105,19 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div className="space-y-1.5">
               <span className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Affluence Globale • Dernier Culte Dominical
+                Affluence • Dernier culte enregistré
               </span>
               <div className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight flex items-baseline gap-2">
-                <span>{stats?.lastServiceTotal || 500}</span>
+                <span>{formatNumber(stats?.lastServiceTotal)}</span>
                 <span className="text-xl md:text-2xl font-bold text-amber-500">Fidèles</span>
               </div>
-              <div className="flex items-center gap-2 text-xs md:text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+              <div className={`flex items-center gap-2 text-xs md:text-sm font-extrabold ${lastDelta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
                 <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5" />
-                <span>+35 participants vs culte précédent (+7,5% de croissance)</span>
+                <span>
+                  {last
+                    ? `${last.serviceTypeName} du ${formatDate(last.date)}${previousSheet ? ` • ${lastDelta >= 0 ? '+' : ''}${lastDelta} vs ${formatDate(previousSheet.service_date)}` : ''}`
+                    : 'Aucune fiche de présence enregistrée'}
+                </span>
               </div>
             </div>
           </div>
@@ -112,7 +126,7 @@ export const ProtocolDashboard: React.FC = () => {
           <div className="flex-1 max-w-lg h-28 relative flex flex-col justify-end">
             <div className="absolute top-0 right-2 z-10">
               <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-slate-950 shadow-md">
-                Pic : 525 Fidèles
+                Pic : {formatNumber(peak)} participants
               </span>
             </div>
             <div className="h-24 w-full">
@@ -146,7 +160,8 @@ export const ProtocolDashboard: React.FC = () => {
             </span>
             <button
               onClick={handleShareLastServiceWhatsApp}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+              disabled={sheets.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
             >
               <MessageCircle className="w-4 h-4" />
               <span>Transmettre le Bilan au Pasteur (WhatsApp)</span>
@@ -180,13 +195,13 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {stats?.lastServiceTotal || 500}
+                {formatNumber(summary?.grandTotal)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Fidèles (Dernier Culte)
+                Participants cumulés (période)
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +35 ce mois
+              <p className={`text-xs font-extrabold mt-1 ${(summary?.totalVariation?.difference || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                {formatVariation(summary?.totalVariation?.percentage)} vs période précédente
               </p>
             </div>
           </div>
@@ -200,13 +215,13 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {stats?.newVisitors || 32}
+                {formatNumber(summary?.totalNewVisitors)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Nouveaux Visiteurs (30j)
+                Nouveaux visiteurs (période)
               </p>
               <p className="text-xs font-extrabold text-blue-500 mt-1">
-                ↗ +30 accueillis ce mois
+                {formatVariation(summary?.visitorsVariation?.percentage)} vs période précédente
               </p>
             </div>
           </div>
@@ -220,13 +235,13 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                120
+                {formatNumber(summary?.servicesCount)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Cultes & Générations
+                Cultes enregistrés (période)
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +120 ce mois
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-400 mt-1">
+                {periodLabel}
               </p>
             </div>
           </div>
@@ -240,13 +255,13 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {sheets.filter((s: any) => s.status === 'validated').length || 18}
+                {validatedCount}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Fiches Certifiées Conformes
+                Fiches validées
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                100% de complétude
+              <p className={`text-xs font-extrabold mt-1 ${submittedCount ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                {submittedCount ? `${submittedCount} fiche(s) en attente de validation` : 'Aucune fiche en attente'}
               </p>
             </div>
           </div>
@@ -260,7 +275,7 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {stats?.salvations || 14}
+                {formatNumber(summary?.totalSalvations)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
                 Décisions pour Christ
@@ -280,13 +295,13 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                93,3%
+                {visitorRate.toLocaleString('fr-FR')} %
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Taux de Rétention Visiteurs
+                Taux de nouveaux visiteurs
               </p>
               <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                Standard ministériel d'excellence
+                Visiteurs / participants de la période
               </p>
             </div>
           </div>
@@ -303,13 +318,13 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                486 Fidèles
+                {formatNumber(summary?.averagePerService)} participants
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Moyenne par Culte Validé (Dimanches & Semaine)
+                Moyenne par culte (période)
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +7,5% par rapport au mois précédent
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-400 mt-1">
+                Total ÷ nombre de cultes enregistrés
               </p>
             </div>
           </div>
@@ -326,10 +341,12 @@ export const ProtocolDashboard: React.FC = () => {
                 Capacité d'Accueil du Sanctuaire
               </span>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                500 / 600 Places
+                {stats?.venueCapacity ? `${formatNumber(stats?.lastServiceTotal)} / ${formatNumber(stats.venueCapacity)} places` : 'Non configurée'}
               </div>
               <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                83,3% de taux d'occupation des sièges
+                {stats?.venueCapacity
+                  ? `${stats.occupancyRate}% de taux d'occupation au dernier culte`
+                  : 'Définir VENUE_CAPACITY côté serveur pour suivre le taux d’occupation'}
               </p>
             </div>
           </div>
@@ -354,7 +371,7 @@ export const ProtocolDashboard: React.FC = () => {
           <div className="h-72 md:h-80 w-full mt-2 relative">
             <div className="absolute top-2 right-4 z-10">
               <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-slate-950 shadow-md">
-                500 Présents
+                Pic : {formatNumber(peak)}
               </span>
             </div>
             <ResponsiveContainer width="100%" height="100%">
@@ -418,7 +435,7 @@ export const ProtocolDashboard: React.FC = () => {
               </ResponsiveContainer>
               <div className="absolute text-center">
                 <span className="text-3xl font-black text-slate-900 dark:text-white block">
-                  {totalDemographics}
+                  {formatNumber(totalDemographics)}
                 </span>
                 <span className="text-xs text-slate-400 uppercase font-black tracking-wider">
                   Fidèles
@@ -440,7 +457,7 @@ export const ProtocolDashboard: React.FC = () => {
                     </span>
                   </div>
                   <span className="font-black text-slate-900 dark:text-white">
-                    {item.value} ({Math.round((item.value / totalDemographics) * 100)}%)
+                    {formatNumber(item.value)} ({totalDemographics ? Math.round((item.value / totalDemographics) * 100) : 0}%)
                   </span>
                 </div>
               ))}
@@ -455,77 +472,35 @@ export const ProtocolDashboard: React.FC = () => {
           </h2>
 
           <div className="space-y-3.5">
-            {/* Activité 1 */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-amber-400/15 text-amber-500 flex items-center justify-center shrink-0">
-                  <Church className="w-5 h-5" />
+            {sheets.length === 0 && <p className="text-xs text-slate-400 font-semibold">Aucune fiche saisie pour le moment.</p>}
+            {sheets.slice(0, 4).map((sh: any) => (
+              <div key={sh.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-amber-400/15 text-amber-500 flex items-center justify-center shrink-0">
+                    <ClipboardList className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900 dark:text-white truncate">
+                      {sheetTypeName(sh)} — {formatNumber(sh.total_attendance)} participants
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {formatDate(sh.service_date)} • {sh.new_visitors_count || 0} visiteur(s) • {sh.salvations_count || 0} décision(s)
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">
-                    Culte Dominical validé (500 fidèles)
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">Il y a 2 minutes</p>
-                </div>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-black shrink-0 ml-2 border ${
+                    sh.status === 'validated'
+                      ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/25'
+                      : sh.status === 'rejected'
+                      ? 'bg-rose-500/15 text-rose-500 border-rose-500/25'
+                      : 'bg-amber-400/15 text-amber-500 border-amber-400/25'
+                  }`}
+                >
+                  {statusLabel[sh.status] || sh.status}
+                </span>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 shrink-0 ml-2">
-                Réussi
-              </span>
-            </div>
-
-            {/* Activité 2 */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0">
-                  <UserPlus className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">
-                    8 Nouveaux visiteurs accueillis
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">Il y a 15 minutes</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 shrink-0 ml-2">
-                Réussi
-              </span>
-            </div>
-
-            {/* Activité 3 */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
-                  <HeartHandshake className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">
-                    2 Décisions pour Christ enregistrées
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">Il y a 32 minutes</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-500/15 text-blue-400 border border-blue-500/25 shrink-0 ml-2">
-                Nouveau
-              </span>
-            </div>
-
-            {/* Activité 4 */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
-                  <ClipboardList className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">
-                    Fiche Enseignement Mardi soumise
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">Il y a 1 heure</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 shrink-0 ml-2">
-                Réussi
-              </span>
-            </div>
+            ))}
           </div>
         </div>
       </div>
@@ -547,10 +522,12 @@ export const ProtocolDashboard: React.FC = () => {
                 Programme le plus fréquenté
               </span>
               <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">
-                Culte Dominical
+                {topType && topType.total > 0 ? topType.type : '—'}
               </p>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                42% de la fréquentation globale du ministère
+                {topType && topType.total > 0
+                  ? `${topType.percentage}% de la fréquentation de la période (moy. ${formatNumber(topType.average)})`
+                  : 'Aucune donnée sur la période'}
               </p>
             </div>
           </div>
@@ -571,10 +548,12 @@ export const ProtocolDashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-lg font-black text-slate-900 dark:text-white">
-                Félicitations au Département Protocole !
+                Bilan du Département Protocole
               </p>
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                Excellente mobilisation ! L'assemblée a franchi le cap des 500 fidèles avec 32 nouveaux visiteurs ce mois-ci. Continuez l'évangélisation et l'accueil d'excellence ! 🎉
+                {summary?.servicesCount
+                  ? `${periodLabel} : ${formatNumber(summary.grandTotal)} participants sur ${summary.servicesCount} culte(s), ${formatNumber(summary.totalNewVisitors)} nouveaux visiteurs accueillis et ${formatNumber(summary.totalSalvations)} décision(s) pour Christ. Merci pour votre service !`
+                  : `Aucune fiche enregistrée pour « ${periodLabel} ». Pensez à saisir les fiches après chaque culte.`}
               </p>
             </div>
           </div>

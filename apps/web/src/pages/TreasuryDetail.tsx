@@ -23,42 +23,12 @@ export const TreasuryDetail: React.FC = () => {
     queryFn: () => api.getTreasuryOverview(),
   });
 
-  const physicalBalance = treasury?.consolidatedPhysicalBalance || 14750000;
-  const freeBalance = treasury?.generalFundFreeBalance || 8150000;
-  const pendingCommitments = treasury?.pendingCommitmentsTotal || 350000;
+  const physicalBalance = treasury?.consolidatedPhysicalBalance ?? 0;
+  const freeBalance = treasury?.generalFundFreeBalance ?? 0;
+  const pendingCommitments = treasury?.pendingCommitmentsTotal ?? 0;
 
-  const fundsList = treasury?.funds || [
-    {
-      account: { code: 'GENERAL', name: 'Fonds Général (80% Dîmes/Offrandes)', isRestricted: false },
-      balance: 8500000,
-      percentageOfTotal: 57.6,
-      description: 'Finance 100% des charges courantes du culte et de fonctionnement.',
-    },
-    {
-      account: { code: 'TITHE_OF_TITHES', name: 'Dîme des Dîmes (10%)', isRestricted: true },
-      balance: 1450000,
-      percentageOfTotal: 9.8,
-      description: 'Prélèvement sacerdotal statutaire réservé à la direction pastorale.',
-    },
-    {
-      account: { code: 'WELFARE_AID', name: 'Aide Sociale & Secours (10%)', isRestricted: true },
-      balance: 1300000,
-      percentageOfTotal: 8.8,
-      description: 'Prélèvement statutaire réservé aux secours, orphelins et personnes démunies.',
-    },
-    {
-      account: { code: 'BUILDING', name: 'Construction Auditorium', isRestricted: true },
-      balance: 2800000,
-      percentageOfTotal: 19.0,
-      description: 'Fonds affecté à 100% sans aucun prélèvement pour le futur grand temple.',
-    },
-    {
-      account: { code: 'FRIENDS_OF_JESUS', name: 'Amis de Jésus (Missions)', isRestricted: true },
-      balance: 700000,
-      percentageOfTotal: 4.8,
-      description: 'Fonds affecté à 100% pour les évangélisations et missions extérieures.',
-    },
-  ];
+  // Compartiments réels (aucun solde fictif pendant le chargement)
+  const fundsList = treasury?.funds || [];
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
@@ -145,7 +115,7 @@ export const TreasuryDetail: React.FC = () => {
               Situation Détaillée des Compartiments Analytiques
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Ventilation mathématique des 14 750 000 FCFA dans les 5 comptes dédiés.
+              Ventilation de {formatFCFA(physicalBalance)} entre les {fundsList.length} compartiments analytiques.
             </p>
           </div>
           <Link
@@ -210,7 +180,7 @@ export const TreasuryDetail: React.FC = () => {
                           ? 'bg-blue-500'
                           : 'bg-purple-500'
                       }`}
-                      style={{ width: `${Math.min(100, Math.max(5, fund.percentageOfTotal || 10))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(5, fund.percentageOfTotal || 0))}%` }}
                     />
                   </div>
                 </div>

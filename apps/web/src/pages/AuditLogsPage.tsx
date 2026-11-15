@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { formatDate } from '../utils/formatters';
+import { formatDateTime, formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import {
   History,
@@ -84,13 +84,13 @@ export const AuditLogsPage: React.FC = () => {
             <span>Journal d’Audit & Sécurité Immuable</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Piste d'audit inviolable scellant chaque saisie, modification, autorisation et transaction financière.
+            Piste d'audit en lecture seule : chaque connexion, saisie, autorisation et transaction financière est horodatée et attribuée à son auteur.
           </p>
         </div>
 
         <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
           <ShieldCheck className="w-4 h-4" />
-          <span>Journal Scellé Cryptographiquement</span>
+          <span>Journal non modifiable depuis l’application</span>
         </div>
       </div>
 
@@ -137,7 +137,7 @@ export const AuditLogsPage: React.FC = () => {
                 filteredLogs.map((log: any) => (
                   <tr key={log.id} className="hover:bg-slate-50/60 dark:hover:bg-[#101C3D]/40 transition-colors">
                     <td className="py-4 px-6 text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
-                      {formatDate(log.created)}
+                      {formatDateTime(log.created)}
                     </td>
                     <td className="py-4 px-6 font-bold text-slate-900 dark:text-white">
                       {log.user?.name || log.userName || 'Système Sécurisé'}

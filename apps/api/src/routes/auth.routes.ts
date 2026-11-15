@@ -7,6 +7,35 @@ import { UserRole } from '@eev/shared-types';
 import { PERMISSIONS_MATRIX } from '@eev/business-rules';
 import { pb, ensureAdminAuth } from '../services/pocketbase.js';
 import { createAuditLog } from '../services/audit.js';
+import { sendServiceError } from '../utils/http.js';
+
+/** Comptes de démonstration utilisables UNIQUEMENT en développement quand PocketBase est arrêté */
+const DEV_ACCOUNTS: Record<string, { password: string; token: string; user: { id: string; email: string; name: string; role: UserRole } }> = {
+  'leader@espritvie.org': { password: 'Leader2026!', token: 'dev-token-leader', user: { id: '88196e8a7d26spt', email: 'leader@espritvie.org', name: 'Pasteur Principal', role: UserRole.LEAD_PASTOR } },
+  'admin@espritvie.org': { password: 'Admin2026!', token: 'dev-token-admin', user: { id: '900286e90az8m1k', email: 'admin@espritvie.org', name: 'Administrateur Général', role: UserRole.ADMIN } },
+  'finance@espritvie.org': { password: 'Finance2026!', token: 'dev-token-finance', user: { id: '997whsmow930w37', email: 'finance@espritvie.org', name: 'Responsable Finances', role: UserRole.FINANCE_LEAD } },
+  'caissier@espritvie.org': { password: 'Caissier2026!', token: 'dev-token-cashier', user: { id: '7lh063hmv9x4y5a', email: 'caissier@espritvie.org', name: 'Caissier Principal', role: UserRole.CASHIER } },
+  'protocol@espritvie.org': { password: 'Protocol2026!', token: 'dev-token-protocol', user: { id: 'h070a28998183ge', email: 'protocol@espritvie.org', name: 'Responsable Protocole', role: UserRole.PROTOCOL_LEAD } },
+  'agent@espritvie.org': { password: 'Agent2026!', token: 'dev-token-protocol_agent', user: { id: '91mui0shch2ehn5', email: 'agent@espritvie.org', name: 'Agent Protocole', role: UserRole.PROTOCOL_AGENT } },
+  'auditeur@espritvie.org': { password: 'Auditeur2026!', token: 'dev-token-auditor', user: { id: '1515au79574ss4x', email: 'auditeur@espritvie.org', name: 'Auditeur / Contrôleur', role: UserRole.AUDITOR } },
+};
+
+/** Champs sûrs d'un utilisateur renvoyés au frontend */
+function publicUser(u: any) {
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role,
+    phone: u.phone || '',
+    department: u.department || '',
+    is_active: u.is_active !== false,
+    isActive: u.is_active !== false,
+    verified: u.verified,
+    created: u.created,
+    updated: u.updated,
+  };
+}
 
 export async function authRoutes(app: FastifyInstance) {
   // Connexion utilisateur
@@ -24,6 +53,21 @@ export async function authRoutes(app: FastifyInstance) {
       );
 
       const userRecord = authData.record;
+
+      // Un compte désactivé par l'administration ne peut plus se connecter
+      if (userRecord.is_active === false) {
+        await createAuditLog({
+          userId: userRecord.id,
+          action: 'login_denied',
+          collectionName: 'users',
+          recordId: userRecord.id,
+          reason: 'Tentative de connexion sur un compte désactivé',
+          ipAddress: request.ip,
+          userAgent: String(request.headers['user-agent'] || ''),
+        });
+        return reply.status(403).send({ error: 'Ce compte a été désactivé. Contactez l’administrateur.' });
+      }
+
       const role = (userRecord.role as UserRole) || UserRole.PROTOCOL_AGENT;
 
       await createAuditLog({
@@ -32,6 +76,8 @@ export async function authRoutes(app: FastifyInstance) {
         collectionName: 'users',
         recordId: userRecord.id,
         reason: 'Connexion réussie',
+        ipAddress: request.ip,
+        userAgent: String(request.headers['user-agent'] || ''),
       });
 
       return reply.send({
@@ -45,92 +91,18 @@ export async function authRoutes(app: FastifyInstance) {
         },
       });
     } catch (err: any) {
-      // Mock de développement si le serveur PB n'est pas encore initialisé
-      if (parsed.data.email === 'leader@espritvie.org' && parsed.data.password === 'Leader2026!') {
-        return reply.send({
-          token: 'dev-token-leader',
-          user: {
-            id: '88196e8a7d26spt',
-            email: 'leader@espritvie.org',
-            name: 'Leader Principal',
-            role: UserRole.LEAD_PASTOR,
-            permissions: PERMISSIONS_MATRIX[UserRole.LEAD_PASTOR],
-          },
-        });
+      // PocketBase injoignable : message explicite plutôt qu'un faux « mot de passe incorrect »
+      if (err?.status === 0) {
+        // Mode démonstration hors-ligne réservé au développement local
+        const devUser = config.isDevelopment ? DEV_ACCOUNTS[parsed.data.email] : undefined;
+        if (devUser && devUser.password === parsed.data.password) {
+          return reply.send({
+            token: devUser.token,
+            user: { ...devUser.user, permissions: PERMISSIONS_MATRIX[devUser.user.role] },
+          });
+        }
+        return reply.status(503).send({ error: 'Service d’authentification indisponible. Réessayez dans un instant.' });
       }
-      if (parsed.data.email === 'admin@espritvie.org' && parsed.data.password === 'Admin2026!') {
-        return reply.send({
-          token: 'dev-token-admin',
-          user: {
-            id: '900286e90az8m1k',
-            email: 'admin@espritvie.org',
-            name: 'Administrateur Général',
-            role: UserRole.ADMIN,
-            permissions: PERMISSIONS_MATRIX[UserRole.ADMIN],
-          },
-        });
-      }
-      if (parsed.data.email === 'finance@espritvie.org' && parsed.data.password === 'Finance2026!') {
-        return reply.send({
-          token: 'dev-token-finance',
-          user: {
-            id: '997whsmow930w37',
-            email: 'finance@espritvie.org',
-            name: 'Responsable Finances',
-            role: UserRole.FINANCE_LEAD,
-            permissions: PERMISSIONS_MATRIX[UserRole.FINANCE_LEAD],
-          },
-        });
-      }
-      if (parsed.data.email === 'protocol@espritvie.org' && parsed.data.password === 'Protocol2026!') {
-        return reply.send({
-          token: 'dev-token-protocol',
-          user: {
-            id: 'h070a28998183ge',
-            email: 'protocol@espritvie.org',
-            name: 'Responsable Protocole',
-            role: UserRole.PROTOCOL_LEAD,
-            permissions: PERMISSIONS_MATRIX[UserRole.PROTOCOL_LEAD],
-          },
-        });
-      }
-      if (parsed.data.email === 'caissier@espritvie.org' && parsed.data.password === 'Caissier2026!') {
-        return reply.send({
-          token: 'dev-token-cashier',
-          user: {
-            id: '7lh063hmv9x4y5a',
-            email: 'caissier@espritvie.org',
-            name: 'Caissier Principal',
-            role: UserRole.CASHIER,
-            permissions: PERMISSIONS_MATRIX[UserRole.CASHIER],
-          },
-        });
-      }
-      if (parsed.data.email === 'agent@espritvie.org' && parsed.data.password === 'Agent2026!') {
-        return reply.send({
-          token: 'dev-token-protocol_agent',
-          user: {
-            id: '91mui0shch2ehn5',
-            email: 'agent@espritvie.org',
-            name: 'Agent Protocole',
-            role: UserRole.PROTOCOL_AGENT,
-            permissions: PERMISSIONS_MATRIX[UserRole.PROTOCOL_AGENT],
-          },
-        });
-      }
-      if (parsed.data.email === 'auditeur@espritvie.org' && parsed.data.password === 'Auditeur2026!') {
-        return reply.send({
-          token: 'dev-token-auditor',
-          user: {
-            id: '1515au79574ss4x',
-            email: 'auditeur@espritvie.org',
-            name: 'Auditeur / Contrôleur',
-            role: UserRole.AUDITOR,
-            permissions: PERMISSIONS_MATRIX[UserRole.AUDITOR],
-          },
-        });
-      }
-
       return reply.status(401).send({ error: 'Email ou mot de passe incorrect.' });
     }
   });
@@ -150,20 +122,10 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/api/users', { preHandler: requireRoles([UserRole.ADMIN, UserRole.LEAD_PASTOR]) }, async (request, reply) => {
     try {
       await ensureAdminAuth();
-      const list = await pb.collection('users').getFullList({
-        sort: '-created',
-      });
-      return reply.send(list);
-    } catch {
-      // Fallback
-      return reply.send([
-        { id: 'usr-1', email: 'leader@espritvie.org', name: 'Leader Principal', role: UserRole.LEAD_PASTOR, isActive: true },
-        { id: 'usr-2', email: 'admin@espritvie.org', name: 'Administrateur Général', role: UserRole.ADMIN, isActive: true },
-        { id: 'usr-3', email: 'finance@espritvie.org', name: 'Responsable Finances', role: UserRole.FINANCE_LEAD, isActive: true },
-        { id: 'usr-4', email: 'protocol@espritvie.org', name: 'Responsable Protocole', role: UserRole.PROTOCOL_LEAD, isActive: true },
-        { id: 'usr-5', email: 'agent@espritvie.org', name: 'Agent Protocole', role: UserRole.PROTOCOL_AGENT, isActive: true },
-        { id: 'usr-6', email: 'caissier@espritvie.org', name: 'Caissier Principal', role: UserRole.CASHIER, isActive: true },
-      ]);
+      const list = await pb.collection('users').getFullList({ sort: '-created' });
+      return reply.send(list.map(publicUser));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger la liste des utilisateurs.');
     }
   });
 
@@ -195,9 +157,13 @@ export async function authRoutes(app: FastifyInstance) {
         newValues: { email: parsed.data.email, role: parsed.data.role, name: parsed.data.name },
       });
 
-      return reply.status(201).send(record);
+      return reply.status(201).send(publicUser(record));
     } catch (err: any) {
-      return reply.status(500).send({ error: err?.message || 'Erreur lors de la création de l’utilisateur.' });
+      const emailTaken = err?.response?.data?.email;
+      if (emailTaken) {
+        return reply.status(409).send({ error: 'Un compte existe déjà avec cette adresse email.' });
+      }
+      return sendServiceError(reply, err, 'Erreur lors de la création de l’utilisateur.');
     }
   });
 
@@ -205,6 +171,10 @@ export async function authRoutes(app: FastifyInstance) {
   app.patch('/api/users/:id/status', { preHandler: requireRoles([UserRole.ADMIN, UserRole.LEAD_PASTOR]) }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const { is_active } = (request.body as { is_active?: boolean }) || {};
+
+    if (id === request.user?.id && is_active === false) {
+      return reply.status(400).send({ error: 'Vous ne pouvez pas désactiver votre propre compte.' });
+    }
 
     try {
       await ensureAdminAuth();
@@ -220,9 +190,9 @@ export async function authRoutes(app: FastifyInstance) {
         newValues: { is_active: Boolean(is_active) },
       });
 
-      return reply.send(updated);
-    } catch (err: any) {
-      return reply.status(500).send({ error: err?.message || 'Impossible de mettre à jour le statut du compte.' });
+      return reply.send(publicUser(updated));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de mettre à jour le statut du compte.');
     }
   });
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const InternalTransfers: React.FC = () => {
   const navigate = useNavigate();
@@ -21,23 +22,21 @@ export const InternalTransfers: React.FC = () => {
     queryFn: () => api.getFunds(),
   });
 
-  const [sourceFundId, setSourceFundId] = useState('fnd-gen');
-  const [destinationFundId, setDestinationFundId] = useState('fnd-build');
-  const [amount, setAmount] = useState<number>(100000);
+  const [sourceFundId, setSourceFundId] = useState('');
+  const [destinationFundId, setDestinationFundId] = useState('');
+  const [amount, setAmount] = useState<number>(0);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const sourceFund = funds.find((f: any) => f.id === sourceFundId) || {
-    id: 'fnd-gen',
-    name: 'Fonds Général (80%)',
-    current_balance: 8500000,
-  };
+  // Valeurs par défaut réelles (identifiants PocketBase) : Fonds Général → Construction Auditorium
+  useEffect(() => {
+    if (!funds.length) return;
+    if (!sourceFundId) setSourceFundId((funds.find((f: any) => f.code === 'GENERAL') || funds[0]).id);
+    if (!destinationFundId) setDestinationFundId((funds.find((f: any) => f.code === 'BUILDING') || funds[1] || funds[0]).id);
+  }, [funds, sourceFundId, destinationFundId]);
 
-  const destFund = funds.find((f: any) => f.id === destinationFundId) || {
-    id: 'fnd-build',
-    name: 'Construction Auditorium',
-    current_balance: 2800000,
-  };
+  const sourceFund: any = funds.find((f: any) => f.id === sourceFundId) || { id: '', name: '—', current_balance: 0 };
+  const destFund: any = funds.find((f: any) => f.id === destinationFundId) || { id: '', name: '—', current_balance: 0 };
 
   const sourceBalanceAfter = Math.max(0, (sourceFund.current_balance || 0) - (amount || 0));
   const destBalanceAfter = (destFund.current_balance || 0) + (amount || 0);
@@ -45,19 +44,19 @@ export const InternalTransfers: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (sourceFundId === destinationFundId) {
-      alert('Le fonds source et le fonds destination doivent être strictement distincts.');
+      toast.error('Le fonds source et le fonds destination doivent être strictement distincts.');
       return;
     }
     if (!amount || amount <= 0) {
-      alert('Le montant doit être strictement supérieur à 0 FCFA.');
+      toast.error('Le montant doit être strictement supérieur à 0 FCFA.');
       return;
     }
     if (sourceFund && sourceFund.current_balance < amount) {
-      alert(`Solde insuffisant dans le fonds source (${formatFCFA(sourceFund.current_balance)}).`);
+      toast.error(`Solde insuffisant dans le fonds source (${formatFCFA(sourceFund.current_balance)}).`);
       return;
     }
     if (!reason.trim()) {
-      alert('Le motif du transfert est obligatoire.');
+      toast.error('Le motif du transfert est obligatoire.');
       return;
     }
 
@@ -69,10 +68,10 @@ export const InternalTransfers: React.FC = () => {
         amount,
         reason,
       });
-      alert('Transfert interne enregistré avec succès !');
+      toast.success('Transfert interne enregistré avec succès !');
       navigate('/finance/treasury');
     } catch (err: any) {
-      alert(err.message || 'Erreur lors du transfert.');
+      toast.error(err.message || 'Erreur lors du transfert.');
     } finally {
       setSubmitting(false);
     }

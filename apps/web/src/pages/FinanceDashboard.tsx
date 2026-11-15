@@ -2,7 +2,9 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { usePeriod } from '../context/PeriodContext';
-import { formatFCFA } from '../utils/formatters';
+import { formatFCFA, formatVariation } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import {
   Wallet,
   ArrowDownCircle,
@@ -23,24 +25,18 @@ import {
 import { Link } from 'react-router-dom';
 
 export const FinanceDashboard: React.FC = () => {
-  const { period, periodLabel } = usePeriod();
+  const { period, periodLabel, startDate, endDate } = usePeriod();
+  const { hasPermission } = useAuth();
 
-  const { data: fin } = useQuery({
-    queryKey: ['finance-dashboard', period],
-    queryFn: () => api.getFinanceDashboard(),
+  const { data: fin, isLoading, isError, error } = useQuery({
+    queryKey: ['finance-dashboard', period, startDate, endDate],
+    queryFn: () => api.getFinanceDashboard(period, startDate, endDate),
   });
 
-  const { data: expenses = [] } = useQuery({
-    queryKey: ['expenses'],
-    queryFn: () => api.getExpenses(),
-  });
-
-  const { data: entries = [] } = useQuery({
-    queryKey: ['financial-entries'],
-    queryFn: () => api.getEntries(),
-  });
-
-  const pendingExpenses = expenses.filter((e: any) => e.status === 'pending_approval');
+  const fundBalance = (code: string) =>
+    (fin?.funds || []).find((f: any) => f.account?.code === code)?.balance || 0;
+  const pendingCount = fin?.pendingApprovalCount || 0;
+  const val = (n: number | undefined) => (isLoading ? '…' : formatFCFA(n));
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
@@ -62,6 +58,7 @@ export const FinanceDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3.5">
+          {hasPermission('canCreateFinancialEntry') && (
           <Link
             to="/finance/entries/new"
             className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-sm shadow-md shadow-amber-400/20 transition-all cursor-pointer"
@@ -69,6 +66,8 @@ export const FinanceDashboard: React.FC = () => {
             <Plus className="w-4 h-4" />
             <span>Nouvelle Recette</span>
           </Link>
+          )}
+          {hasPermission('canCreateExpense') && (
           <Link
             to="/finance/expenses/new"
             className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-sm shadow-md shadow-rose-600/20 transition-all cursor-pointer"
@@ -76,8 +75,15 @@ export const FinanceDashboard: React.FC = () => {
             <Plus className="w-4 h-4" />
             <span>Nouvelle Dépense</span>
           </Link>
+          )}
         </div>
       </div>
+
+      {isError && (
+        <div className="p-5 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300 text-sm font-semibold">
+          {(error as Error)?.message || 'Impossible de charger les indicateurs financiers.'}
+        </div>
+      )}
 
       {/* 4 Cartes Majeures */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -88,13 +94,13 @@ export const FinanceDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {formatFCFA(fin?.totalRevenueMonth || 3500000)}
+                {val(fin?.totalRevenueMonth)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Recettes du Mois
+                Recettes de la période
               </p>
               <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                Encaissé brut certifié
+                {fin?.entriesCount || 0} encaissement(s) • {formatVariation(fin?.revenueVariation?.percentage)}
               </p>
             </div>
           </div>
@@ -107,13 +113,13 @@ export const FinanceDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {formatFCFA(fin?.totalExpensesMonth || 350000)}
+                {val(fin?.totalExpensesMonth)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Dépenses Payées
+                Dépenses payées
               </p>
               <p className="text-xs font-extrabold text-rose-500 mt-1">
-                Décaissements validés
+                Décaissements effectifs • {formatVariation(fin?.expensesVariation?.percentage)}
               </p>
             </div>
           </div>
@@ -126,13 +132,13 @@ export const FinanceDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {formatFCFA(fin?.netCashFlow || 3150000)}
+                {val(fin?.netCashFlow)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Flux Net Mensuel
+                Flux net de la période
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                Excédent net consolidé
+              <p className={`text-xs font-extrabold mt-1 ${(fin?.netCashFlow || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                {(fin?.netCashFlow || 0) >= 0 ? 'Excédent net' : 'Déficit net'}
               </p>
             </div>
           </div>
@@ -145,7 +151,7 @@ export const FinanceDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                {formatFCFA(fin?.consolidatedCash || 14750000)}
+                {val(fin?.consolidatedCash)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
                 Caisse Consolidée
@@ -181,7 +187,7 @@ export const FinanceDashboard: React.FC = () => {
           <div className="p-5 rounded-2xl bg-slate-50 dark:bg-[#080E25] border border-slate-200 dark:border-[#16214A]">
             <span className="text-xs font-black uppercase tracking-wider text-slate-400">Fonds Général (80%)</span>
             <p className="text-2xl font-black text-slate-900 dark:text-white mt-1.5">
-              {formatFCFA(8500000)}
+              {formatFCFA(fundBalance('GENERAL'))}
             </p>
             <span className="text-xs text-slate-500 mt-1 block">Finance 100% des charges d'exploitation</span>
           </div>
@@ -189,7 +195,7 @@ export const FinanceDashboard: React.FC = () => {
           <div className="p-5 rounded-2xl bg-amber-500/5 border border-amber-500/25">
             <span className="text-xs font-black uppercase tracking-wider text-amber-500">Dîme des Dîmes (10%)</span>
             <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1.5">
-              {formatFCFA(1450000)}
+              {formatFCFA(fundBalance('TITHE_OF_TITHES'))}
             </p>
             <span className="text-xs text-amber-500/80 mt-1 block">Fonds sacré réservé à la gouvernance</span>
           </div>
@@ -197,10 +203,29 @@ export const FinanceDashboard: React.FC = () => {
           <div className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/25">
             <span className="text-xs font-black uppercase tracking-wider text-emerald-500">Aide Sociale (10%)</span>
             <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1.5">
-              {formatFCFA(1300000)}
+              {formatFCFA(fundBalance('WELFARE_AID'))}
             </p>
             <span className="text-xs text-emerald-500/80 mt-1 block">Secours, bienfaisance & assistance</span>
           </div>
+        </div>
+      </div>
+
+      {/* Évolution recettes / dépenses sur la période */}
+      <div className="rounded-3xl p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm">
+        <h2 className="text-base font-black text-slate-900 dark:text-white mb-4">
+          Recettes et dépenses payées — {periodLabel}
+        </h2>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={fin?.trend || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#94A3B833" vertical={false} />
+              <XAxis dataKey="label" stroke="#94A3B8" fontSize={11} tickLine={false} />
+              <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} tickFormatter={(v) => (v >= 1_000_000 ? `${v / 1_000_000}M` : `${v / 1000}k`)} />
+              <Tooltip formatter={(v: any, name: any) => [formatFCFA(Number(v)), name === 'revenues' ? 'Recettes' : 'Dépenses payées']} />
+              <Bar dataKey="revenues" fill="#10B981" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="expenses" fill="#F43F5E" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -213,7 +238,7 @@ export const FinanceDashboard: React.FC = () => {
           <div className="space-y-1.5">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Approbations</span>
             <p className="text-lg font-black text-slate-900 dark:text-white">
-              {pendingExpenses.length} en attente
+              {pendingCount} en attente
             </p>
             <span className="text-xs text-amber-500 font-bold group-hover:underline flex items-center gap-1">
               Examiner <ArrowRight className="w-3.5 h-3.5" />

@@ -36,6 +36,7 @@ import {
   Legend,
 } from 'recharts';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const AttendanceAnalytics: React.FC = () => {
   const { period, startDate: customStart, endDate: customEnd, setPeriod: handlePeriodChange } = usePeriod();
@@ -60,7 +61,7 @@ export const AttendanceAnalytics: React.FC = () => {
 
 
   const handleExportCSV = () => {
-    window.open('/api/analytics/export/csv?type=attendance', '_blank');
+    api.exportAnalyticsCsv('attendance', period, customStart, customEnd).catch((err) => toast.error('Export impossible', { description: err.message }));
   };
 
   const summary = attendanceData?.summary;
@@ -132,7 +133,7 @@ export const AttendanceAnalytics: React.FC = () => {
             <Users className="w-5 h-5 text-blue-500" />
           </div>
           <div className="text-3xl font-black text-slate-900 dark:text-white">
-            {summary?.grandTotal?.toLocaleString('fr-FR') || 1485}
+            {summary?.grandTotal?.toLocaleString('fr-FR') ?? 0}
           </div>
           <p className="text-[11px] text-slate-400">
             Sur {summary?.servicesCount || 4} cultes officiellement validés
@@ -147,7 +148,7 @@ export const AttendanceAnalytics: React.FC = () => {
             <CalendarDays className="w-5 h-5 text-amber-500" />
           </div>
           <div className="text-3xl font-black text-amber-500">
-            {summary?.averagePerService || 371}
+            {summary?.averagePerService ?? 0}
           </div>
           <p className="text-[11px] text-slate-400">
             Divisé strictement par le nombre de cultes
@@ -162,7 +163,7 @@ export const AttendanceAnalytics: React.FC = () => {
             <UserPlus className="w-5 h-5 text-emerald-500" />
           </div>
           <div className="text-3xl font-black text-emerald-500">
-            {summary?.totalNewVisitors || 86}
+            {summary?.totalNewVisitors ?? 0}
           </div>
           <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
             Taux d'accueil : {summary?.visitorRate || 5.8}% (Indicateur isolé)
@@ -177,7 +178,7 @@ export const AttendanceAnalytics: React.FC = () => {
             <HeartHandshake className="w-5 h-5 text-pink-500" />
           </div>
           <div className="text-3xl font-black text-pink-500">
-            {summary?.totalSalvations || 40}
+            {summary?.totalSalvations ?? 0}
           </div>
           <p className="text-[11px] text-slate-400">
             Orientés vers la classe de baptême

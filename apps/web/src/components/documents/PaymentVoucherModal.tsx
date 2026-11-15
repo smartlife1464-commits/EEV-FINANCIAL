@@ -4,6 +4,7 @@ import { formatFCFA, formatDate } from '../../utils/formatters';
 import { numberToWordsFCFA } from '../../utils/numberToWords';
 import { exportElementToPdf } from '../../utils/exportToPdf';
 import { X, Printer, ShieldCheck, FileCheck, Paperclip, Download } from 'lucide-react';
+import { useMinistry } from '../../hooks/useMinistry';
 
 export interface PaymentVoucherData {
   id: string;
@@ -31,6 +32,7 @@ interface PaymentVoucherModalProps {
 
 export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ voucher, onClose }) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const { ministry, addressLine, contactLine } = useMinistry();
 
   if (!voucher) return null;
 
@@ -137,10 +139,10 @@ export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ vouche
                   Direction Financière & Caisse Centrale
                 </p>
                 <p className="text-[11px] text-slate-600">
-                  Siège Central • Yaoundé, Cameroun • BP 1420
+                  {addressLine || 'Adresse à renseigner dans Paramètres'}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Tél : +237 699 00 00 00 • contact@espritvie.org
+                  {contactLine}
                 </p>
               </div>
             </div>

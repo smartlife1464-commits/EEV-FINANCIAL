@@ -1,28 +1,41 @@
+# ---------- Build ----------
 FROM node:24-alpine AS builder
-
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.18.1 --activate
 
+# Manifests de TOUT l'espace de travail (requis par pnpm --frozen-lockfile)
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
+COPY packages/shared-types/package.json packages/shared-types/
+COPY packages/business-rules/package.json packages/business-rules/
+COPY packages/shared-validation/package.json packages/shared-validation/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/mobile/package.json apps/mobile/
+
+RUN pnpm install --frozen-lockfile --filter "@eev/api..."
+
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @eev/shared-types build
-RUN pnpm --filter @eev/business-rules build
-RUN pnpm --filter @eev/shared-validation build
-RUN pnpm --filter @eev/api build
+RUN pnpm --filter @eev/shared-types build \
+ && pnpm --filter @eev/business-rules build \
+ && pnpm --filter @eev/shared-validation build \
+ && pnpm --filter @eev/api build
 
+# ---------- Runtime ----------
 FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-
-COPY --from=builder /app/package.json ./
+# L'arborescence complète est copiée : les dépendances pnpm sont des liens
+# vers node_modules/.pnpm et vers apps/api/node_modules (sinon « Cannot find module 'fastify' »)
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /app/package.json ./package.json
 
+USER node
 EXPOSE 4000
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -qO- http://127.0.0.1:4000/health || exit 1
 CMD ["node", "apps/api/dist/index.js"]
-

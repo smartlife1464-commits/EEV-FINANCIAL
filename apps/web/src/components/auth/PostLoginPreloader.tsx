@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Lottie } from 'lottie-react';
+import { normalizeLottie } from '../../utils/lottie';
 import { useTheme } from '../../context/ThemeContext';
 import { UserRole } from '@eev/shared-types';
 import {
@@ -34,7 +35,7 @@ export const PostLoginPreloader: React.FC<PostLoginPreloaderProps> = ({
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const meta = getRoleConfigMeta(user.role);
-  const lottieData = getRoleLottieAnimation(user.role);
+  const lottieData = React.useMemo(() => normalizeLottie(getRoleLottieAnimation(user.role)), [user.role]);
 
   const [elapsed, setElapsed] = useState<number>(0);
 
@@ -254,7 +255,7 @@ export const PostLoginPreloader: React.FC<PostLoginPreloaderProps> = ({
         <div className="w-full flex items-center justify-between pt-2 border-t border-slate-100 dark:border-[#16214A]/70 text-xs">
           <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>Chiffrement AES-256</span>
+            <span>Session authentifiée</span>
           </span>
 
           <button
@@ -271,3 +272,4 @@ export const PostLoginPreloader: React.FC<PostLoginPreloaderProps> = ({
     </div>
   );
 };
+

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { usePeriod } from '../context/PeriodContext';
-import { formatFCFA } from '../utils/formatters';
+import { formatFCFA, formatNumber, formatDate, timeAgo } from '../utils/formatters';
 import {
   Wallet,
   Users,
@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Sparkles,
   ArrowUpRight,
+  ArrowDownRight,
   Receipt,
   FileCheck,
 } from 'lucide-react';
@@ -31,35 +32,52 @@ import {
 import { Link } from 'react-router-dom';
 
 export const LeaderDashboard: React.FC = () => {
-  const { period, periodLabel } = usePeriod();
+  const { period, periodLabel, startDate, endDate } = usePeriod();
 
-  const { data: overview } = useQuery({
-    queryKey: ['dashboard-overview', period],
-    queryFn: () => api.getDashboardOverview(),
+  const { data: overview, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['dashboard-overview', period, startDate, endDate],
+    queryFn: () => api.getDashboardOverview(period, startDate, endDate),
   });
 
-  const { data: expenses = [] } = useQuery({
-    queryKey: ['expenses-list'],
-    queryFn: () => api.getExpenses(),
-  });
+  const att = overview?.attendance;
+  const fin = overview?.finance;
+  const treasury = overview?.treasury;
 
-  // Données de tendance pour la courbe dorée (inspirée du screenshot officiel)
-  const sparklineData = [
-    { name: '1 Mai', value: 800000 },
-    { name: '8 Mai', value: 1200000 },
-    { name: '15 Mai', value: 1750000 },
-    { name: '22 Mai', value: 2100000 },
-    { name: '31 Mai', value: 2500000 },
-  ];
+  // Courbe des recettes de la période (données réelles agrégées par jour / semaine / mois)
+  const sparklineData = (fin?.trend || []).map((t: any) => ({ name: t.label, value: t.revenues, expenses: t.expenses }));
+  const revenueDelta = (fin?.revenues || 0) - (fin?.previousRevenues || 0);
+  const peakRevenue = sparklineData.reduce((m: number, p: any) => Math.max(m, p.value), 0);
 
-  // Donut chart de répartition des cultes
-  const serviceDistribution = [
-    { name: 'Dimanche', value: 42, color: '#3B82F6' },
-    { name: 'Mardi', value: 25, color: '#FFBC00' },
-    { name: 'Jeudi', value: 15, color: '#8B5CF6' },
-    { name: 'Réunions spéciales', value: 10, color: '#06B6D4' },
-    { name: 'Autres', value: 8, color: '#64748B' },
-  ];
+  // Répartition réelle de la fréquentation par programme
+  const serviceDistribution = (att?.byServiceType || [])
+    .filter((t: any) => t.total > 0)
+    .map((t: any) => ({ name: t.type, value: t.percentage, total: t.total, count: t.count, color: t.color }));
+  const servicesCount = att?.servicesCount || 0;
+  const topType = att?.topServiceType;
+  const generalFundDelta = (fin?.generalFundPaid || 0) - (fin?.previousGeneralFundPaid || 0);
+
+  const signed = (n: number, suffix = '') => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatNumber(Math.abs(n))}${suffix}`;
+  const trendClass = (n: number, favorableWhenUp = true) =>
+    n === 0
+      ? 'text-slate-500 dark:text-slate-400'
+      : (n > 0) === favorableWhenUp
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : 'text-rose-500';
+
+  const activityIcon = (type: string) =>
+    type === 'entry' ? Coins : type === 'expense' ? Receipt : type === 'attendance' ? Users : FileCheck;
+
+  if (isError) {
+    return (
+      <div className="max-w-3xl mx-auto mt-10 p-8 rounded-3xl border border-rose-500/30 bg-rose-500/10 text-center space-y-3">
+        <p className="text-base font-black text-rose-600 dark:text-rose-300">Impossible de charger le tableau de bord</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">{(error as Error)?.message}</p>
+        <button onClick={() => refetch()} className="px-5 py-2.5 rounded-2xl bg-amber-400 text-slate-950 font-black text-sm cursor-pointer">
+          Réessayer
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
@@ -76,11 +94,13 @@ export const LeaderDashboard: React.FC = () => {
                 Revenus totaux • Caisse consolidée
               </span>
               <div className="text-3xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-                {formatFCFA(overview?.treasury?.consolidatedPhysicalBalance || 14750000)}
+                {isLoading ? '…' : formatFCFA(treasury?.consolidatedPhysicalBalance)}
               </div>
-              <div className="flex items-center gap-2 text-xs md:text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5" />
-                <span>+2 500 000 FCFA par rapport au mois dernier</span>
+              <div className={`flex items-center gap-2 text-xs md:text-sm font-extrabold ${trendClass(revenueDelta)}`}>
+                {revenueDelta >= 0 ? <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5" /> : <ArrowDownRight className="w-4 h-4 md:w-5 md:h-5" />}
+                <span>
+                  Recettes {periodLabel.toLowerCase()} : {formatFCFA(fin?.revenues)} ({signed(revenueDelta, ' FCFA')} vs période précédente)
+                </span>
               </div>
             </div>
           </div>
@@ -89,7 +109,7 @@ export const LeaderDashboard: React.FC = () => {
           <div className="flex-1 max-w-lg h-28 relative flex flex-col justify-end">
             <div className="absolute top-0 right-2 z-10">
               <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-slate-950 shadow-md">
-                +2 500 000 FCFA
+                {formatFCFA(fin?.revenues)}
               </span>
             </div>
             <div className="h-24 w-full">
@@ -126,13 +146,13 @@ export const LeaderDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                500
+                {formatNumber(att?.lastService?.totalAttendance)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
                 Fidèles (Dernier Culte)
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +35 ce mois
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-400 mt-1 truncate">
+                {att?.lastService ? `${att.lastService.name} • ${formatDate(att.lastService.date)}` : 'Aucune fiche saisie'}
               </p>
             </div>
           </div>
@@ -146,13 +166,13 @@ export const LeaderDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                32
+                {formatNumber(att?.newVisitors)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Nouveaux (30j)
+                Nouveaux visiteurs (période)
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +30 ce mois
+              <p className={`text-xs font-extrabold mt-1 ${trendClass((att?.newVisitors || 0) - (att?.previousNewVisitors || 0))}`}>
+                {signed((att?.newVisitors || 0) - (att?.previousNewVisitors || 0))} vs période précédente
               </p>
             </div>
           </div>
@@ -166,13 +186,13 @@ export const LeaderDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                120
+                {formatNumber(servicesCount)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Cultes & Générations
+                Cultes tenus (période)
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +120 ce mois
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-400 mt-1">
+                {formatNumber(att?.periodTotal)} participants • moy. {formatNumber(att?.averagePerService)}
               </p>
             </div>
           </div>
@@ -186,13 +206,13 @@ export const LeaderDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                112
+                {formatNumber(fin?.approvedCount)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Dépenses Autorisées
+                Dépenses autorisées
               </p>
               <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                93,3% de réussite
+                {(fin?.approvalRate || 0).toLocaleString('fr-FR')} % des arbitrages
               </p>
             </div>
           </div>
@@ -206,13 +226,14 @@ export const LeaderDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                8
+                {formatNumber(fin?.rejectedCount)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Échouées / Rejetées
+                Dépenses rejetées
               </p>
               <p className="text-xs font-extrabold text-rose-500 mt-1">
-                ↘ 6,7% d'échec
+                {(fin?.rejectionRate || 0).toLocaleString('fr-FR')} % des arbitrages
+                {overview?.pendingApprovalsCount ? ` • ${overview.pendingApprovalsCount} en attente` : ''}
               </p>
             </div>
           </div>
@@ -226,13 +247,13 @@ export const LeaderDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                600
+                {formatNumber(fin?.entriesCount)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
-                Dîmes & Dons Encaissés
+                Recettes encaissées
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +600 ce mois
+              <p className={`text-xs font-extrabold mt-1 ${trendClass((fin?.entriesCount || 0) - (fin?.previousEntriesCount || 0))}`}>
+                {signed((fin?.entriesCount || 0) - (fin?.previousEntriesCount || 0))} vs période précédente
               </p>
             </div>
           </div>
@@ -249,13 +270,13 @@ export const LeaderDashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                480 000 FCFA
+                {formatFCFA(fin?.generalFundPaid)}
               </div>
               <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mt-0.5">
                 Charges courantes payées (Fonds Général)
               </p>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +480 000 FCFA ce mois
+              <p className={`text-xs font-extrabold mt-1 ${trendClass(generalFundDelta, false)}`}>
+                {signed(generalFundDelta, ' FCFA')} vs période précédente
               </p>
             </div>
           </div>
@@ -272,10 +293,10 @@ export const LeaderDashboard: React.FC = () => {
                 Solde de trésorerie disponible
               </span>
               <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                {formatFCFA(overview?.treasury?.generalFundFreeBalance || 8150000)}
+                {formatFCFA(treasury?.generalFundFreeBalance)}
               </div>
-              <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                ↗ +2 500 000 FCFA ce mois
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-400 mt-1">
+                Fonds Général libre, après {formatFCFA(treasury?.pendingCommitmentsTotal)} d’engagements
               </p>
             </div>
           </div>
@@ -300,9 +321,14 @@ export const LeaderDashboard: React.FC = () => {
           <div className="h-72 md:h-80 w-full mt-2 relative">
             <div className="absolute top-2 right-4 z-10">
               <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-slate-950 shadow-md">
-                2 500 000 F
+                Pic : {formatFCFA(peakRevenue)}
               </span>
             </div>
+            {sparklineData.every((p: any) => !p.value) && (
+              <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-400 z-0">
+                Aucune recette enregistrée sur la période
+              </div>
+            )}
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sparklineData} margin={{ top: 20, right: 10, left: -15, bottom: 0 }}>
                 <defs>
@@ -316,7 +342,7 @@ export const LeaderDashboard: React.FC = () => {
                   stroke="#94A3B8"
                   fontSize={12}
                   tickLine={false}
-                  tickFormatter={(val) => `${val / 1000}k`}
+                  tickFormatter={(val) => (val >= 1_000_000 ? `${(val / 1_000_000).toLocaleString('fr-FR')}M` : `${val / 1000}k`)}
                 />
                 <Tooltip
                   formatter={(val: any) => [formatFCFA(Number(val)), 'Revenus']}
@@ -361,7 +387,7 @@ export const LeaderDashboard: React.FC = () => {
                     paddingAngle={4}
                     dataKey="value"
                   >
-                    {serviceDistribution.map((entry, index) => (
+                    {(serviceDistribution.length ? serviceDistribution : [{ name: 'Aucun', value: 100, color: '#334155' }]).map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -369,7 +395,7 @@ export const LeaderDashboard: React.FC = () => {
               </ResponsiveContainer>
               <div className="absolute text-center">
                 <span className="text-3xl font-black text-slate-900 dark:text-white block">
-                  120
+                  {servicesCount}
                 </span>
                 <span className="text-xs text-slate-400 uppercase font-black tracking-wider">
                   Cultes
@@ -379,7 +405,10 @@ export const LeaderDashboard: React.FC = () => {
 
             {/* Légende avec pourcentages */}
             <div className="flex-1 w-full space-y-2.5 text-sm">
-              {serviceDistribution.map((item, idx) => (
+              {serviceDistribution.length === 0 && (
+                <p className="text-xs text-slate-400 font-semibold">Aucune fiche de présence sur la période.</p>
+              )}
+              {serviceDistribution.map((item: any, idx: number) => (
                 <div key={idx} className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <span
@@ -406,77 +435,40 @@ export const LeaderDashboard: React.FC = () => {
           </h2>
 
           <div className="space-y-3.5">
-            {/* Activité 1 */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-amber-400/15 text-amber-500 flex items-center justify-center shrink-0">
-                  <Coins className="w-5 h-5" />
+            {(overview?.recentActivity || []).length === 0 && (
+              <p className="text-xs text-slate-400 font-semibold">Aucune activité récente.</p>
+            )}
+            {(overview?.recentActivity || []).map((a: any, idx: number) => {
+              const Icon = activityIcon(a.type);
+              const negative = ['Rejetée', 'Annulée'].includes(a.status);
+              return (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-amber-400/15 text-amber-500 flex items-center justify-center shrink-0">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 dark:text-white truncate" title={a.title}>
+                        {a.title}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {a.amount ? `${formatFCFA(a.amount)} • ` : ''}
+                        {timeAgo(a.at)}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-black shrink-0 ml-2 border ${
+                      negative
+                        ? 'bg-rose-500/15 text-rose-500 border-rose-500/25'
+                        : 'bg-emerald-500/15 text-emerald-500 border-emerald-500/25'
+                    }`}
+                  >
+                    {a.status}
+                  </span>
                 </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">
-                    Nouvelle recette 2 500 000 FCFA
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">Il y a 2 minutes</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 shrink-0 ml-2">
-                Réussi
-              </span>
-            </div>
-
-            {/* Activité 2 */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
-                  <Receipt className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">
-                    Dépense ajoutée 75 000 FCFA
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">Il y a 15 minutes</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 shrink-0 ml-2">
-                Réussi
-              </span>
-            </div>
-
-            {/* Activité 3 */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0">
-                  <Users className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">
-                    Nouveau culte ajouté
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">Il y a 32 minutes</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-500/15 text-blue-400 border border-blue-500/25 shrink-0 ml-2">
-                Nouveau
-              </span>
-            </div>
-
-            {/* Activité 4 */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-white/[0.03] text-sm">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-amber-400/15 text-amber-500 flex items-center justify-center shrink-0">
-                  <FileCheck className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">
-                    Dépense approuvée 50 000 FCFA
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">Il y a 1 heure</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 shrink-0 ml-2">
-                Réussi
-              </span>
-            </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -498,10 +490,12 @@ export const LeaderDashboard: React.FC = () => {
                 Programme le plus fréquenté
               </span>
               <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">
-                Culte Dominical
+                {topType && topType.total > 0 ? topType.type : '—'}
               </p>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                42% de la fréquentation globale du ministère
+                {topType && topType.total > 0
+                  ? `${topType.percentage}% de la fréquentation de la période (moy. ${formatNumber(topType.average)} / culte)`
+                  : 'Aucune donnée de fréquentation sur la période'}
               </p>
             </div>
           </div>
@@ -522,11 +516,20 @@ export const LeaderDashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-lg font-black text-slate-900 dark:text-white">
-                Félicitations !
+                {(fin?.netCashFlow || 0) >= 0 ? 'Flux de trésorerie positif' : 'Point de vigilance'}
               </p>
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                Vous avez atteint 14 750 000 FCFA de trésorerie consolidée ce mois-ci. Continuez comme ça, vous êtes sur la bonne voie ! 🎉
+                {periodLabel} : {formatFCFA(fin?.revenues)} encaissés pour {formatFCFA(fin?.expensesPaid)} décaissés, soit un
+                solde net de {formatFCFA(fin?.netCashFlow)}. Caisse consolidée : {formatFCFA(treasury?.consolidatedPhysicalBalance)}.
+                {overview?.pendingApprovalsCount
+                  ? ` ${overview.pendingApprovalsCount} dépense(s) (${formatFCFA(overview.pendingApprovalsTotalAmount)}) attendent votre arbitrage.`
+                  : ''}
               </p>
+              {overview?.pendingApprovalsCount ? (
+                <Link to="/finance/approvals" className="inline-block mt-3 px-4 py-2 rounded-xl bg-amber-400 text-slate-950 text-xs font-black">
+                  Arbitrer les dépenses
+                </Link>
+              ) : null}
             </div>
           </div>
 

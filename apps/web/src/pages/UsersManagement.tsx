@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '@eev/shared-types';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 export const UsersManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -45,7 +46,8 @@ export const UsersManagement: React.FC = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.createUser({ name, email, password, role, phone });
+      await api.createUser({ name, email: email.trim().toLowerCase(), password, role, phone: phone || undefined });
+      toast.success('Compte créé', { description: `${name} peut désormais se connecter.` });
       setShowModal(false);
       setName('');
       setEmail('');
@@ -55,7 +57,7 @@ export const UsersManagement: React.FC = () => {
       setTimeout(() => setActionSuccess(null), 4000);
       await refetch();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création de l’utilisateur');
+      toast.error(err.message || 'Erreur lors de la création de l’utilisateur');
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +77,7 @@ export const UsersManagement: React.FC = () => {
       setTimeout(() => setActionSuccess(null), 3500);
       await refetch();
     } catch (err: any) {
-      alert(err.message || 'Impossible de mettre à jour le statut.');
+      toast.error(err.message || 'Impossible de mettre à jour le statut.');
     }
   };
 
@@ -261,7 +263,7 @@ export const UsersManagement: React.FC = () => {
                         {u.email}
                       </td>
                       <td className="py-4 px-6 text-xs text-slate-500 dark:text-slate-300">
-                        {u.phone || '+237 6•• •• •• ••'}
+                        {u.phone || '—'}
                       </td>
                       <td className="py-4 px-6">{getRoleBadge(u.role)}</td>
                       <td className="py-4 px-6 text-center">

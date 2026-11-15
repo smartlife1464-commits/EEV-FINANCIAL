@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { calculateAttendanceTotal, checkAttendanceDuplicate } from '@eev/business-rules';
@@ -25,10 +25,13 @@ import {
   Save,
   Check,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const AttendanceForm: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const num = (key: string) => Math.max(0, parseInt(searchParams.get(key) || '0', 10) || 0);
 
   // 1. Récupération des 7 types officiels de services
   const { data: serviceTypes = [], isLoading: loadingTypes } = useQuery({
@@ -46,19 +49,20 @@ export const AttendanceForm: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Données du formulaire
-  const [selectedSlug, setSelectedSlug] = useState<string>('');
-  const [serviceDate, setServiceDate] = useState<string>('');
+  // Pré-remplissage depuis « Dupliquer » (liste des fiches) ou « Saisir fiche » (programme des cultes)
+  const [selectedSlug, setSelectedSlug] = useState<string>(searchParams.get('slug') || '');
+  const [serviceDate, setServiceDate] = useState<string>(searchParams.get('date') || '');
   const [startTime, setStartTime] = useState<string>('09:00');
   const [endTime, setEndTime] = useState<string>('12:00');
   const [responsibleName, setResponsibleName] = useState<string>(user?.name || 'Responsable Protocole');
   const [observations, setObservations] = useState<string>('');
 
   // Fréquentation
-  const [menCount, setMenCount] = useState<number>(0);
-  const [womenCount, setWomenCount] = useState<number>(0);
-  const [youthCount, setYouthCount] = useState<number>(0);
-  const [childrenCount, setChildrenCount] = useState<number>(0);
-  const [newVisitorsCount, setNewVisitorsCount] = useState<number>(0);
+  const [menCount, setMenCount] = useState<number>(num('men'));
+  const [womenCount, setWomenCount] = useState<number>(num('women'));
+  const [youthCount, setYouthCount] = useState<number>(num('youth'));
+  const [childrenCount, setChildrenCount] = useState<number>(num('children'));
+  const [newVisitorsCount, setNewVisitorsCount] = useState<number>(num('visitors'));
   const [salvationsCount, setSalvationsCount] = useState<number>(0);
 
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -125,7 +129,7 @@ export const AttendanceForm: React.FC = () => {
 
   const handleSave = async (isDraft: boolean) => {
     if (!selectedSlug || !serviceDate) {
-      alert('Veuillez renseigner le programme et la date.');
+      toast.error('Veuillez renseigner le programme et la date.');
       return;
     }
 
@@ -152,11 +156,12 @@ export const AttendanceForm: React.FC = () => {
         notes: observations,
         responsibleUserId: user?.id,
         isDraft,
+        allowDuplicate: Boolean(duplicateWarning),
       });
-
+      toast.success(isDraft ? 'Brouillon enregistré' : 'Fiche soumise au Responsable Protocole pour validation');
       navigate('/attendance');
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l’enregistrement de la fiche.');
+      toast.error(err.message || 'Erreur lors de l’enregistrement de la fiche.');
     } finally {
       setSubmitting(false);
     }

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   UserRole,
-  ServiceType,
   ServiceStatus,
   PaymentMethod,
   AllocationRule,
@@ -26,7 +25,7 @@ export const createUserSchema = z.object({
 // ==================== SERVICES & ATTENDANCE ====================
 export const createServiceSchema = z.object({
   name: z.string().min(3, 'Le titre du culte doit contenir au moins 3 caractères'),
-  serviceType: z.nativeEnum(ServiceType),
+  serviceType: z.string().min(1, 'Type de programme requis'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (AAAA-MM-JJ)'),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Format heure de début invalide (HH:MM)'),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, 'Format heure de fin invalide (HH:MM)'),
@@ -138,6 +137,8 @@ export const structuredAttendanceSchema = z.object({
   notes: z.string().optional(),
   responsibleUserId: z.string().optional(),
   isDraft: z.boolean().default(false),
+  /** Confirmation explicite d'une seconde fiche le même jour (culte dédoublé, session spéciale) */
+  allowDuplicate: z.boolean().optional(),
 });
 
 

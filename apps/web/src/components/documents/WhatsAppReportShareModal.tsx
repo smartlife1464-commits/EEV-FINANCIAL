@@ -12,17 +12,26 @@ import {
   ShieldAlert,
   Smartphone,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export interface WhatsAppServiceReportData {
   serviceName: string;
   serviceDate: string;
-  totalAttendance: number;
-  menCount: number;
-  womenCount: number;
-  youthCount: number;
-  childrenCount: number;
-  newVisitorsCount: number;
-  salvationsCount: number;
+  totalAttendance?: number;
+  menCount?: number;
+  womenCount?: number;
+  youthCount?: number;
+  childrenCount?: number;
+  newVisitorsCount?: number;
+  salvationsCount?: number;
+  /** Procès-verbal de clôture de caisse (partage financier sans données de fréquentation) */
+  cashClosing?: {
+    pvNumber: string;
+    theoreticalBalance: number;
+    countedBalance: number;
+    discrepancy: number;
+    statusLabel: string;
+  };
   capacityRate?: number;
   // Données financières (Strictement confidentielles)
   totalRevenues?: number;
@@ -37,12 +46,30 @@ interface WhatsAppReportShareModalProps {
   onClose: () => void;
 }
 
+const canIncludeFinanceRole = (role?: string) =>
+  ![UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT].includes(role as UserRole);
+
 export const WhatsAppReportShareModal: React.FC<WhatsAppReportShareModalProps> = ({
   data,
   onClose,
 }) => {
   const { user } = useAuth();
-  const [recipientPhone, setRecipientPhone] = useState('+237699000000'); // Numéro Pasteur ou Direction par défaut
+  // Dernier numéro utilisé mémorisé sur ce poste (aucun numéro fictif par défaut)
+  const [recipientPhone, setRecipientPhoneState] = useState(() => {
+    try {
+      return localStorage.getItem('eev_whatsapp_recipient') || '';
+    } catch {
+      return '';
+    }
+  });
+  const setRecipientPhone = (v: string) => {
+    setRecipientPhoneState(v);
+    try {
+      localStorage.setItem('eev_whatsapp_recipient', v);
+    } catch {
+      /* stockage indisponible */
+    }
+  };
   const [copied, setCopied] = useState(false);
 
   if (!data) return null;
@@ -52,17 +79,30 @@ export const WhatsAppReportShareModal: React.FC<WhatsAppReportShareModalProps> =
     ![UserRole.PROTOCOL_LEAD, UserRole.PROTOCOL_AGENT].includes(user?.role as UserRole) &&
     data.totalRevenues !== undefined;
 
-  const menPct = data.totalAttendance ? Math.round((data.menCount / data.totalAttendance) * 100) : 0;
-  const womenPct = data.totalAttendance ? Math.round((data.womenCount / data.totalAttendance) * 100) : 0;
-  const youthPct = data.totalAttendance ? Math.round((data.youthCount / data.totalAttendance) * 100) : 0;
-  const childrenPct = data.totalAttendance ? Math.round((data.childrenCount / data.totalAttendance) * 100) : 0;
+  const total = data.totalAttendance || 0;
+  const share = (n?: number) => (total ? Math.round(((n || 0) / total) * 100) : 0);
+  const menPct = share(data.menCount);
+  const womenPct = share(data.womenCount);
+  const youthPct = share(data.youthCount);
+  const childrenPct = share(data.childrenCount);
+  const hasAttendance = data.totalAttendance !== undefined;
 
   // Construction du message WhatsApp au format markdown officiel
   let message = `🏛️ *MINISTÈRE ESPRIT & VIE*\n`;
-  message += `📋 *BILAN OFFICIEL DU CULTE*\n\n`;
+  message += data.cashClosing ? `📋 *PROCÈS-VERBAL DE CLÔTURE DE CAISSE*\n\n` : `📋 *BILAN OFFICIEL DU CULTE*\n\n`;
   message += `📅 *Date* : ${formatDate(data.serviceDate)}\n`;
-  message += `🕊️ *Programme* : *${data.serviceName}*\n\n`;
+  message += `🕊️ *${data.cashClosing ? 'Caisse' : 'Programme'}* : *${data.serviceName}*\n\n`;
 
+  if (data.cashClosing && canIncludeFinanceRole(user?.role)) {
+    const c = data.cashClosing;
+    message += `🧾 *PV N°* : ${c.pvNumber}\n`;
+    message += `• Solde théorique : *${formatFCFA(c.theoreticalBalance)}*\n`;
+    message += `• Montant compté : *${formatFCFA(c.countedBalance)}*\n`;
+    message += `• Écart : *${c.discrepancy > 0 ? '+' : ''}${formatFCFA(c.discrepancy)}*\n`;
+    message += `• Statut : *${c.statusLabel}*\n`;
+  }
+
+  if (hasAttendance) {
   message += `👥 *FRÉQUENTATION & MOBILISATION*\n`;
   message += `• *Total Participants* : *${data.totalAttendance} fidèles*\n`;
   message += `  - Hommes : ${data.menCount} (${menPct}%)\n`;
@@ -76,6 +116,7 @@ export const WhatsAppReportShareModal: React.FC<WhatsAppReportShareModalProps> =
 
   if (data.capacityRate) {
     message += `🏛️ Taux de Remplissage Sanctuaire : *${data.capacityRate}%*\n`;
+  }
   }
 
   if (canIncludeFinance) {
@@ -101,7 +142,7 @@ export const WhatsAppReportShareModal: React.FC<WhatsAppReportShareModalProps> =
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     } catch {
-      alert('Impossible de copier automatiquement dans le presse-papiers.');
+      toast.error('Impossible de copier automatiquement dans le presse-papiers.');
     }
   };
 

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../context/AuthContext';
+import { CheckCircle2 as ValidateIcon, XCircle as RejectIcon } from 'lucide-react';
 import { api } from '../services/api';
 import { formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
@@ -22,14 +24,42 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useMinistry } from '../hooks/useMinistry';
+import { toast } from 'sonner';
 
 export const AttendanceList: React.FC = () => {
   const navigate = useNavigate();
+  const { ministry, letterheadLine } = useMinistry();
 
-  const { data: sheets = [], isLoading } = useQuery({
+  const { data: sheets = [], isLoading, refetch } = useQuery({
     queryKey: ['attendance-sheets'],
     queryFn: () => api.getAttendance(),
   });
+  const { user, hasPermission } = useAuth();
+  const queryClient = useQueryClient();
+  const canValidate = hasPermission('canValidateAttendance');
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Validation à 4 yeux : le Responsable Protocole valide ou renvoie une fiche soumise par un agent
+  const handleDecision = async (sheet: any, decision: 'validate' | 'reject') => {
+    let reason: string | undefined;
+    if (decision === 'reject') {
+      reason = window.prompt('Motif du rejet (communiqué à l’auteur de la fiche) :')?.trim();
+      if (!reason) return;
+    }
+    setProcessingId(sheet.id);
+    try {
+      await api.validateAttendance(sheet.id, decision, reason);
+      toast.success(decision === 'validate' ? 'Fiche validée et verrouillée' : 'Fiche renvoyée pour correction');
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-dashboard'] });
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || 'Action impossible');
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const { data: serviceTypes = [] } = useQuery({
     queryKey: ['service-types'],
@@ -63,7 +93,7 @@ export const AttendanceList: React.FC = () => {
       childrenCount: sheet.children_count || 0,
       newVisitorsCount: sheet.new_visitors_count || 0,
       salvationsCount: sheet.salvations_count || 0,
-      capacityRate: sheet.capacity_rate || 88,
+      capacityRate: sheet.capacity_rate || undefined,
       responsibleName: sheet.responsible_user?.name || sheet.expand?.responsible_user?.name,
     });
   };
@@ -143,6 +173,12 @@ export const AttendanceList: React.FC = () => {
             Brouillon
           </span>
         );
+      case 'rejected':
+        return (
+          <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-500/15 text-rose-500 border border-rose-500/30">
+            Rejetée
+          </span>
+        );
       default:
         return <Badge>{status}</Badge>;
     }
@@ -164,7 +200,7 @@ export const AttendanceList: React.FC = () => {
 
         <div className="flex items-center gap-3.5">
           <button
-            onClick={() => window.open('/api/analytics/export/csv?type=attendance', '_blank')}
+            onClick={() => api.exportAnalyticsCsv('attendance').catch((err) => toast.error('Export impossible', { description: err.message }))}
             className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-100 dark:bg-[#16214A] hover:bg-slate-200 dark:hover:bg-[#1e2c63] text-slate-800 dark:text-slate-200 font-bold text-sm transition-all cursor-pointer shadow-sm"
           >
             <Download className="w-4 h-4 text-amber-500" />
@@ -247,6 +283,7 @@ export const AttendanceList: React.FC = () => {
               <option value="validated">Validées</option>
               <option value="submitted">Soumises</option>
               <option value="draft">Brouillons</option>
+              <option value="rejected">Rejetées</option>
             </select>
           </div>
         </div>
@@ -329,6 +366,26 @@ export const AttendanceList: React.FC = () => {
                       <td className="py-4 px-6 whitespace-nowrap">{getStatusBadge(sheet.status)}</td>
                       <td className="py-4 px-6 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          {canValidate && sheet.status === 'submitted' && (sheet.submitted_by?.id || sheet.submitted_by) !== user?.id && (
+                            <>
+                              <button
+                                onClick={() => handleDecision(sheet, 'validate')}
+                                disabled={processingId === sheet.id}
+                                title="Valider et verrouiller la fiche"
+                                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer disabled:opacity-50"
+                              >
+                                <ValidateIcon className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDecision(sheet, 'reject')}
+                                disabled={processingId === sheet.id}
+                                title="Renvoyer la fiche pour correction"
+                                className="p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500 text-rose-600 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                              >
+                                <RejectIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                           <button
                             onClick={() => handleOpenWhatsApp(sheet)}
                             title="Partager le Bilan du Culte sur WhatsApp"
@@ -438,7 +495,7 @@ export const AttendanceList: React.FC = () => {
                       Direction du Protocole & Accueil • Suivi des Rassemblements
                     </p>
                     <p className="text-[11px] text-slate-600">
-                      Siège Central • Yaoundé, Cameroun • BP 1420 • Tél : +237 699 00 00 00
+                      {letterheadLine}
                     </p>
                   </div>
                 </div>

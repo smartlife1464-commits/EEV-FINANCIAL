@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { calculateEntryAllocations } from '@eev/business-rules';
 import { AllocationRule, FundAccountCode } from '@eev/shared-types';
-import { mobileApi } from '../../src/services/api';
+import { mobileApi, isNetworkError } from '../../src/services/api';
 import { OfflineSyncService } from '../../src/services/offlineSync';
 
 export default function FinanceMobile() {
@@ -20,6 +20,7 @@ export default function FinanceMobile() {
   const [submitting, setSubmitting] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [fixedExpenses, setFixedExpenses] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   const numAmount = parseInt(amount) || 0;
   const isOrdinary = category === 'ordinary';
@@ -33,6 +34,7 @@ export default function FinanceMobile() {
   useEffect(() => {
     checkPendingQueue();
     loadFixedExpenses();
+    mobileApi.getCategories().then(setCategories).catch(() => setCategories([]));
   }, []);
 
   const loadFixedExpenses = async () => {
@@ -40,13 +42,8 @@ export default function FinanceMobile() {
       const data = await mobileApi.getFixedExpenses();
       setFixedExpenses(data);
     } catch {
-      // Données de repli
-      setFixedExpenses([
-        { id: '1', name: 'Loyer', amount: 150000, frequency: 'MONTHLY', due_day: 5 },
-        { id: '2', name: 'Eau', amount: 15000, frequency: 'MONTHLY', due_day: 10 },
-        { id: '3', name: 'Électricité', amount: 35000, frequency: 'MONTHLY', due_day: 15 },
-        { id: '4', name: 'Internet', amount: 25000, frequency: 'MONTHLY', due_day: 20 },
-      ]);
+      // Aucune donnée fictive : liste vide si le serveur est injoignable
+      setFixedExpenses([]);
     }
   };
 
@@ -75,8 +72,10 @@ export default function FinanceMobile() {
     }
 
     setSubmitting(true);
-    const payload = {
-      categoryId: isOrdinary ? 'cat-tithe' : 'cat-build',
+    const categoryCode = isOrdinary ? 'tithes' : 'building';
+    const categoryId = categories.find((c: any) => c.code === categoryCode)?.id;
+    const payload: Record<string, any> = {
+      ...(categoryId ? { categoryId } : { categoryCode }),
       amount: numAmount,
       paymentMethod: 'cash',
       collectedAt: new Date().toISOString().split('T')[0],
@@ -84,9 +83,14 @@ export default function FinanceMobile() {
     };
 
     try {
+      if (!categoryId) throw Object.assign(new Error('offline'), {});
       await mobileApi.createEntry(payload);
       Alert.alert('Succès', `Recette de ${numAmount.toLocaleString('fr-FR')} FCFA comptabilisée.`);
-    } catch {
+    } catch (err: any) {
+      if (!isNetworkError(err)) {
+        Alert.alert('Recette refusée', err.message);
+        return;
+      }
       await OfflineSyncService.queueEntry(payload);
       await checkPendingQueue();
       Alert.alert(

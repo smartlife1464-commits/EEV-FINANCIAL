@@ -114,7 +114,8 @@ export const OfflineSyncService = {
     const remainingAttendances: QueuedItem[] = [];
     for (const item of attendances) {
       try {
-        await mobileApi.createAttendance(item.data);
+        // Les fiches mobiles utilisent le format structuré (programme + date), pas l'ancien format par culte
+        await mobileApi.createStructuredAttendance(item.data);
         result.syncedAttendances++;
       } catch (err: any) {
         remainingAttendances.push(item);
@@ -128,7 +129,14 @@ export const OfflineSyncService = {
     const remainingEntries: QueuedItem[] = [];
     for (const item of entries) {
       try {
-        await mobileApi.createEntry(item.data);
+        const data = { ...item.data };
+        // Résolution différée de la catégorie (saisie hors-ligne sans référentiel chargé)
+        if (!data.categoryId && data.categoryCode) {
+          const categories = await mobileApi.getCategories();
+          data.categoryId = categories.find((c: any) => c.code === data.categoryCode)?.id;
+          delete data.categoryCode;
+        }
+        await mobileApi.createEntry(data);
         result.syncedEntries++;
       } catch (err: any) {
         remainingEntries.push(item);

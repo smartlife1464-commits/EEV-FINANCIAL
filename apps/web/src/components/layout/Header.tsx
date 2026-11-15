@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../hooks/useNotifications';
 import { useTheme } from '../../context/ThemeContext';
 import { usePeriod } from '../../context/PeriodContext';
 import { PeriodSelector } from '../analytics/PeriodSelector';
@@ -70,6 +71,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding, onOpenPreloade
     }
   };
 
+  const { unreadCount } = useNotifications();
+
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
@@ -90,16 +93,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding, onOpenPreloade
 
       {/* Barre d'outils et Profil */}
       <div className="flex flex-wrap items-center gap-3.5">
-        {/* Bouton Notifications avec Badge Gold 3 */}
+        {/* Bouton Notifications avec compteur réel des alertes non lues */}
         <Link
           to="/notifications"
           className="relative p-3 rounded-2xl bg-white dark:bg-[#0F1A3A] border border-slate-200 dark:border-[#1C2B58] text-slate-700 dark:text-slate-300 hover:scale-105 transition-all shadow-sm cursor-pointer"
-          title="3 notifications en attente"
+          title={unreadCount > 0 ? `${unreadCount} notification(s) non lue(s)` : 'Aucune nouvelle notification'}
+          aria-label="Notifications"
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shadow-md">
-            3
-          </span>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center shadow-md">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </Link>
 
         {/* Sélecteur de date global unifié */}

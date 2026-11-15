@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Lottie } from 'lottie-react';
-import {
-  welcomeLottie,
-  roleLottie,
-  analyticsLottie,
-  securityLottie,
-  workflowLottie,
-  celebrationLottie,
-} from './lottieAnimations';
+import * as rawAnimations from './lottieAnimations';
+import { normalizeLottie } from '../../utils/lottie';
+
+// Animations normalisées une seule fois (calques visibles + interpolations valides)
+const welcomeLottie = normalizeLottie(rawAnimations.welcomeLottie);
+const roleLottie = normalizeLottie(rawAnimations.roleLottie);
+const analyticsLottie = normalizeLottie(rawAnimations.analyticsLottie);
+const securityLottie = normalizeLottie(rawAnimations.securityLottie);
+const workflowLottie = normalizeLottie(rawAnimations.workflowLottie);
+const celebrationLottie = normalizeLottie(rawAnimations.celebrationLottie);
 import { useAuth } from '../../context/AuthContext';
 import { UserRole } from '@eev/shared-types';
 import {
@@ -60,7 +62,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
           mission:
             'Garant de l’intégrité technique, du provisionnement des comptes collaborateurs et du paramétrage des règles de l’église.',
           dashboardText:
-            'Vue globale sur les utilisateurs, la configuration des services de culte, le journal d’audit inviolable et les alertes d’anomalies.',
+            'Vue globale sur les utilisateurs, la configuration des services de culte, le journal d’audit en lecture seule et les alertes d’anomalies.',
           workflowText:
             'Création et suspension des comptes d’accès, attribution des rôles stricts et maintenance de la base de données.',
           keyFeature: 'Gestion sécurisée des utilisateurs et paramétrage des 7 types de cultes.',
@@ -96,7 +98,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
           mission:
             'Coordination de l’accueil, comptabilisation rigoureuse de l’assemblée et suivi pastoral des nouveaux arrivants.',
           dashboardText:
-            'Tableau de bord exclusif Protocole : affluence du dernier culte (500 fidèles), taux de remplissage du sanctuaire (83,3%) et répartition démographique. Aucune donnée financière ne pollue votre écran.',
+            'Tableau de bord exclusif Protocole : affluence du dernier culte, taux de remplissage du sanctuaire (83,3%) et répartition démographique. Aucune donnée financière ne pollue votre écran.',
           workflowText:
             'Supervision des agents de comptage, vérification des fiches de présence et certification avant archivage officiel.',
           keyFeature: 'Parcours guidé en 5 étapes avec détection automatique des fiches en doublon.',
@@ -124,7 +126,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
             'Accès complet en lecture seule à tous les modules : trésorerie, pièces justificatives, procès-verbaux et rapports statistiques.',
           workflowText:
             'Audit en continu des flux monétaires, traçabilité des modifications et certification de l’honnêteté des comptes.',
-          keyFeature: 'Consultation du journal d’audit inviolable horodaté.',
+          keyFeature: 'Consultation du journal d’audit en lecture seule horodaté.',
         };
     }
   };

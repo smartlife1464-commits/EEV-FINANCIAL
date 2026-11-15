@@ -16,13 +16,20 @@ import {
   Bell,
   LogOut,
   Sparkles,
+  CalendarRange,
+  FileCheck2,
+  ArrowLeftRight,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../hooks/useNotifications';
 import { UserRole } from '@eev/shared-types';
 
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const role = user?.role || UserRole.PROTOCOL_AGENT;
+  const { unreadCount } = useNotifications();
+  const FINANCE_ROLES = [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR];
 
   // Configuration des éléments du menu inspirée du design de référence
   const navItems = [
@@ -46,9 +53,16 @@ export const Sidebar: React.FC = () => {
       show: true,
     },
     {
+      to: '/services',
+      label: 'Programme des cultes',
+      icon: CalendarRange,
+      show: true,
+    },
+    {
       to: '/finance',
       label: 'Finances',
       icon: Wallet,
+      exact: true,
       show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
     },
     {
@@ -62,6 +76,24 @@ export const Sidebar: React.FC = () => {
       label: 'Dépenses',
       icon: ArrowUpCircle,
       show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.AUDITOR].includes(role),
+    },
+    {
+      to: '/finance/approvals',
+      label: 'Approbations',
+      icon: FileCheck2,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.AUDITOR].includes(role),
+    },
+    {
+      to: '/finance/transfers',
+      label: 'Transferts internes',
+      icon: ArrowLeftRight,
+      show: [UserRole.LEAD_PASTOR, UserRole.ADMIN, UserRole.FINANCE_LEAD].includes(role),
+    },
+    {
+      to: '/finance/transactions',
+      label: 'Grand livre',
+      icon: BookOpen,
+      show: FINANCE_ROLES.includes(role),
     },
     {
       to: '/finance/treasury',
@@ -104,7 +136,7 @@ export const Sidebar: React.FC = () => {
       label: 'Notifications',
       icon: Bell,
       show: true,
-      badge: '3',
+      badge: unreadCount > 0 ? String(unreadCount > 99 ? '99+' : unreadCount) : undefined,
     },
   ];
 
@@ -160,7 +192,7 @@ export const Sidebar: React.FC = () => {
                     </div>
                     {item.badge && (
                       <span
-                        className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center ${
+                        className={`text-xs font-black min-w-6 h-6 px-1 rounded-full flex items-center justify-center ${
                           isActive
                             ? 'bg-slate-950 text-amber-400'
                             : 'bg-amber-400 text-slate-950'

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
@@ -6,6 +6,7 @@ import { FundAccountCode } from '@eev/shared-types';
 import { formatFCFA } from '../utils/formatters';
 import { ArrowUpCircle, CheckCircle2, ArrowLeft, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const ExpenseForm: React.FC = () => {
   const navigate = useNavigate();
@@ -15,39 +16,54 @@ export const ExpenseForm: React.FC = () => {
     queryFn: () => api.getFunds(),
   });
 
-  const { data: expenseCategories = [] } = useQuery({
+  const { data: categories = [] } = useQuery({
     queryKey: ['expense-categories'],
     queryFn: () => api.getExpenseCategories(),
   });
 
-  const [categoryId, setCategoryId] = useState('expcat-elec');
-  const [fundAccountId, setFundAccountId] = useState('fnd-gen');
-  const [amount, setAmount] = useState<number>(50000);
+  const [categoryId, setCategoryId] = useState('');
+  const [fundAccountId, setFundAccountId] = useState('');
+  const [amount, setAmount] = useState<number>(0);
   const [beneficiary, setBeneficiary] = useState('');
   const [purpose, setPurpose] = useState('');
   const [receiptUrl, setReceiptUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Valeurs par défaut réelles : Fonds Général et première catégorie variable
+  useEffect(() => {
+    if (!fundAccountId && funds.length) {
+      const general = funds.find((f: any) => f.code === 'GENERAL' && f.is_active !== false);
+      setFundAccountId((general || funds[0]).id);
+    }
+  }, [funds, fundAccountId]);
+  useEffect(() => {
+    if (!categoryId && categories.length) {
+      const variable = categories.find((c: any) => c.type === 'variable' && c.is_active !== false);
+      setCategoryId((variable || categories[0]).id);
+    }
+  }, [categories, categoryId]);
+
   // Solde disponible dans le fonds sélectionné
-  const selectedFund = funds.find((f: any) => f.id === fundAccountId) || {
-    name: 'Fonds Général (80%)',
-    current_balance: 8500000,
-  };
+  const selectedFund: any = funds.find((f: any) => f.id === fundAccountId) || { name: '—', current_balance: 0 };
 
   const isFundRestricted = selectedFund.code && selectedFund.code !== 'GENERAL';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || amount <= 0) {
-      alert('Veuillez saisir un montant strictement supérieur à 0 FCFA.');
+    if (!amount || amount <= 0 || !Number.isInteger(amount)) {
+      toast.error('Veuillez saisir un montant entier strictement supérieur à 0 FCFA.');
+      return;
+    }
+    if (!categoryId || !fundAccountId) {
+      toast.error('Veuillez choisir une catégorie et un compartiment de fonds.');
       return;
     }
     if (!beneficiary.trim() || !purpose.trim()) {
-      alert('Le bénéficiaire et le motif sont obligatoires.');
+      toast.error('Le bénéficiaire et le motif sont obligatoires.');
       return;
     }
     if (amount > (selectedFund.current_balance || 0)) {
-      alert(`Le montant demandé (${formatFCFA(amount)}) dépasse le solde disponible dans le fonds (${formatFCFA(selectedFund.current_balance || 0)}).`);
+      toast.error(`Le montant demandé (${formatFCFA(amount)}) dépasse le solde disponible dans le fonds (${formatFCFA(selectedFund.current_balance || 0)}).`);
       return;
     }
 
@@ -61,9 +77,10 @@ export const ExpenseForm: React.FC = () => {
         purpose,
         receiptUrl: receiptUrl || undefined,
       });
+      toast.success('Demande de dépense soumise', { description: 'En attente de l’autorisation du Leader Principal.' });
       navigate('/finance/expenses');
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création de la dépense.');
+      toast.error(err.message || 'Erreur lors de la création de la dépense.');
     } finally {
       setSubmitting(false);
     }
@@ -158,12 +175,20 @@ export const ExpenseForm: React.FC = () => {
                 required
                 className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
               >
-                <option value="expcat-elec">Électricité & Énergie</option>
-                <option value="expcat-water">Eau & Assainissement</option>
-                <option value="expcat-trans">Transport & Logistique</option>
-                <option value="expcat-comm">Communication & Médias</option>
-                <option value="expcat-rep">Entretien & Réparations</option>
-                <option value="expcat-mat">Matériel & Sonorisation</option>
+                {categories.length === 0 && <option value="">Chargement…</option>}
+                {['variable', 'fixed'].map((type) => {
+                  const list = categories.filter((c: any) => (c.type || 'variable') === type && c.is_active !== false);
+                  if (!list.length) return null;
+                  return (
+                    <optgroup key={type} label={type === 'fixed' ? 'Charges régulières' : 'Dépenses variables'}>
+                      {list.map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
               </select>
             </div>
 

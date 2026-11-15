@@ -4,6 +4,7 @@ import { formatFCFA, formatDate } from '../../utils/formatters';
 import { numberToWordsFCFA } from '../../utils/numberToWords';
 import { exportElementToPdf } from '../../utils/exportToPdf';
 import { X, Printer, ShieldCheck, CheckCircle2, Download } from 'lucide-react';
+import { useMinistry } from '../../hooks/useMinistry';
 
 export interface DonationReceiptData {
   id: string;
@@ -26,6 +27,7 @@ interface DonationReceiptModalProps {
 
 export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ receipt, onClose }) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const { ministry, addressLine, contactLine } = useMinistry();
 
   if (!receipt) return null;
 
@@ -134,10 +136,10 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
                   Direction Générale • Caisse Centrale
                 </p>
                 <p className="text-[11px] text-slate-600 mt-0.5">
-                  Siège Central • Yaoundé, Cameroun • BP 1420
+                  {addressLine || 'Adresse à renseigner dans Paramètres'}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Tél : +237 699 00 00 00 • Email : contact@espritvie.org
+                  {contactLine}
                 </p>
               </div>
             </div>

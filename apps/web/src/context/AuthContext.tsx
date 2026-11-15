@@ -48,6 +48,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
+  // Déconnexion automatique si l'API signale une session expirée / un compte désactivé
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    window.addEventListener('eev:session-expired', onExpired);
+    return () => window.removeEventListener('eev:session-expired', onExpired);
+  }, []);
+
+  // Vérification du jeton au démarrage (un jeton expiré ne doit pas laisser une session « fantôme »)
+  useEffect(() => {
+    const token = localStorage.getItem('eev_token');
+    if (!token) return;
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem('eev_token');
+          localStorage.removeItem('eev_user');
+          setUser(null);
+        }
+      })
+      .catch(() => {
+        /* API momentanément injoignable : on conserve la session locale */
+      });
+  }, []);
+
   const login = (token: string, userData: UserSession) => {
     localStorage.setItem('eev_token', token);
     localStorage.setItem('eev_user', JSON.stringify(userData));

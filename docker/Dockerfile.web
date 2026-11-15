@@ -1,22 +1,29 @@
+# ---------- Build ----------
 FROM node:24-alpine AS builder
-
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.18.1 --activate
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
+COPY packages/shared-types/package.json packages/shared-types/
+COPY packages/business-rules/package.json packages/business-rules/
+COPY packages/shared-validation/package.json packages/shared-validation/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/mobile/package.json apps/mobile/
+
+RUN pnpm install --frozen-lockfile --filter "@eev/web..."
+
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @eev/shared-types build
-RUN pnpm --filter @eev/business-rules build
-RUN pnpm --filter @eev/shared-validation build
-RUN pnpm --filter @eev/web build
+RUN pnpm --filter @eev/shared-types build \
+ && pnpm --filter @eev/business-rules build \
+ && pnpm --filter @eev/shared-validation build \
+ && pnpm --filter @eev/web build
 
-FROM nginx:alpine AS runner
+# ---------- Runtime ----------
+FROM nginx:1.27-alpine AS runner
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
-

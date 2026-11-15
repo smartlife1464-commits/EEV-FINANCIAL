@@ -33,13 +33,16 @@ export const Login: React.FC = () => {
     user: any;
   } | null>(null);
 
-  // Si l'utilisateur est déjà authentifié et aucun préchargement n'est en cours, redirection vers le dashboard
-  if (isAuthenticated && user && !pendingAuth) {
-    return <Navigate to="/" replace />;
-  }
-
-  const [email, setEmail] = useState('leader@espritvie.org');
-  const [password, setPassword] = useState('Leader2026!');
+  // Identifiants pré-remplis et accès rapide de démonstration : UNIQUEMENT en développement local
+  const isDevBuild = import.meta.env.DEV;
+  const [email, setEmail] = useState(() => {
+    try {
+      return localStorage.getItem('eev_last_email') || (isDevBuild ? 'leader@espritvie.org' : '');
+    } catch {
+      return isDevBuild ? 'leader@espritvie.org' : '';
+    }
+  });
+  const [password, setPassword] = useState(isDevBuild ? 'Leader2026!' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,13 +52,25 @@ export const Login: React.FC = () => {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showDemoSelector, setShowDemoSelector] = useState(false);
 
+  // Si l'utilisateur est déjà authentifié et aucun préchargement n'est en cours, redirection vers le dashboard
+  // (placé APRÈS tous les hooks : un retour anticipé avant des hooks provoquait une erreur React après connexion)
+  if (isAuthenticated && user && !pendingAuth) {
+    return <Navigate to="/" replace />;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      const res = await api.login({ email, password });
+      const res = await api.login({ email: email.trim().toLowerCase(), password });
+      try {
+        if (rememberMe) localStorage.setItem('eev_last_email', email.trim().toLowerCase());
+        else localStorage.removeItem('eev_last_email');
+      } catch {
+        /* stockage indisponible */
+      }
       // Déclenchement de l'animation Lottie de préchargement en 5 secondes
       setPendingAuth({
         token: res.token,
@@ -277,7 +292,8 @@ export const Login: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Access Roles Selector (Pour Démonstration et Déploiement) */}
+          {/* Quick Access Roles Selector (développement local uniquement) */}
+          {isDevBuild && (
           <div className="pt-4 border-t border-slate-100 dark:border-[#16214A]">
             <button
               type="button"
@@ -357,6 +373,7 @@ export const Login: React.FC = () => {
               </div>
             )}
           </div>
+          )}
         </div>
       </main>
 

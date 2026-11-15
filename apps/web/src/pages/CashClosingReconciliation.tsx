@@ -24,8 +24,11 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { exportElementToPdf } from '../utils/exportToPdf';
+import { useMinistry } from '../hooks/useMinistry';
+import { toast } from 'sonner';
 
 export const CashClosingReconciliation: React.FC = () => {
+  const { ministry, letterheadLine } = useMinistry();
   const { data: treasury } = useQuery({
     queryKey: ['treasury-overview'],
     queryFn: () => api.getTreasuryOverview(),
@@ -41,7 +44,7 @@ export const CashClosingReconciliation: React.FC = () => {
     queryFn: () => api.getCashClosings(),
   });
 
-  const theoreticalBalance = treasury?.consolidatedPhysicalBalance || 14750000;
+  const theoreticalBalance = treasury?.consolidatedPhysicalBalance ?? 0;
 
   // Billetage state
   const [b10000, setB10000] = useState<number>(0);
@@ -81,20 +84,17 @@ export const CashClosingReconciliation: React.FC = () => {
   };
 
   const handleShareClosingWhatsApp = (closing: any) => {
+    // Partage strictement financier : aucune donnée de fréquentation inventée
     setWhatsAppReportData({
-      serviceName: closing.service_name || 'Culte Dominical',
+      serviceName: closing.service_name || 'Caisse Générale',
       serviceDate: closing.date || closing.created || new Date().toISOString(),
-      totalAttendance: 500,
-      menCount: 145,
-      womenCount: 198,
-      youthCount: 92,
-      childrenCount: 65,
-      newVisitorsCount: 32,
-      salvationsCount: 4,
-      totalRevenues: closing.counted_balance || 14750000,
-      tithesAmount: Math.round((closing.counted_balance || 14750000) * 0.55),
-      offeringsAmount: Math.round((closing.counted_balance || 14750000) * 0.35),
-      specialOfferingsAmount: Math.round((closing.counted_balance || 14750000) * 0.1),
+      cashClosing: {
+        pvNumber: closing.closing_number,
+        theoreticalBalance: closing.theoretical_balance || 0,
+        countedBalance: closing.counted_balance || 0,
+        discrepancy: closing.discrepancy || 0,
+        statusLabel: closing.status_label || closing.status,
+      },
       responsibleName: closing.closed_by_name || 'Caissier Principal',
     });
   };
@@ -135,7 +135,7 @@ export const CashClosingReconciliation: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (reconciliation.grandTotalCounted === 0) {
-      alert('Veuillez renseigner au moins une coupure de billet ou de pièce.');
+      toast.error('Veuillez renseigner au moins une coupure de billet ou de pièce.');
       return;
     }
 
@@ -153,9 +153,9 @@ export const CashClosingReconciliation: React.FC = () => {
 
       await refetchClosings();
       setSelectedPV(record);
-      alert('Procès-Verbal de clôture scellé et enregistré avec succès !');
+      toast.success('Procès-Verbal de clôture scellé et enregistré avec succès !');
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l’enregistrement de la clôture.');
+      toast.error(err.message || 'Erreur lors de l’enregistrement de la clôture.');
     } finally {
       setSubmitting(false);
     }
@@ -602,7 +602,7 @@ export const CashClosingReconciliation: React.FC = () => {
                       Département des Finances & Contrôle Interne
                     </p>
                     <p className="text-[11px] text-slate-600">
-                      Siège Central • Yaoundé, Cameroun • BP 1420 • Tél : +237 699 00 00 00
+                      {letterheadLine}
                     </p>
                   </div>
                 </div>

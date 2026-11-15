@@ -9,6 +9,8 @@ import { financeRoutes } from './routes/finance.routes.js';
 import { dashboardRoutes } from './routes/dashboard.routes.js';
 import { reportRoutes } from './routes/reports.routes.js';
 import { analyticsRoutes } from './routes/analytics.routes.js';
+import { notificationRoutes } from './routes/notifications.routes.js';
+import { settingsRoutes } from './routes/settings.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
@@ -19,7 +21,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // CORS
   await app.register(cors, {
-    origin: true,
+    origin: config.corsOrigin.includes('*') ? true : config.corsOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   });
@@ -73,6 +75,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(dashboardRoutes);
   await app.register(reportRoutes);
   await app.register(analyticsRoutes);
+  await app.register(notificationRoutes);
+  await app.register(settingsRoutes);
 
   return app;
 }

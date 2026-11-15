@@ -12,31 +12,18 @@ import { authenticateRequest, requirePermission, requireRoles } from '../middlew
 import { UserRole, AttendanceSheetStatus, ServiceStatus } from '@eev/shared-types';
 import { pb, ensureAdminAuth } from '../services/pocketbase.js';
 import { createAuditLog } from '../services/audit.js';
+import { sendServiceError, pbString, withRelationsList } from '../utils/http.js';
 
 export async function serviceRoutes(app: FastifyInstance) {
   // 1. LES 7 TYPES OFFICIELS DE SERVICES DU MINISTÈRE
   app.get('/api/service-types', { preHandler: authenticateRequest }, async (request, reply) => {
     try {
       await ensureAdminAuth();
-      const list = await pb.collection('service_types').getFullList({
-        sort: 'display_order',
-      });
-      if (list.length > 0) {
-        return reply.send(list);
-      }
-    } catch {
-      // repli gracieux
+      const list = await pb.collection('service_types').getFullList({ sort: 'display_order' });
+      return reply.send(list.filter((t: any) => t.is_active !== false));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les types de programmes.');
     }
-
-    return reply.send([
-      { id: 'st-tuesday', name: 'Culte de Mardi', slug: 'tuesday_service', description: 'Culte d’enseignement biblique et de prière du mardi', is_active: true, display_order: 1 },
-      { id: 'st-thursday', name: 'Culte de Jeudi', slug: 'thursday_service', description: 'Culte d’intercession, délivrance et témoignages du jeudi', is_active: true, display_order: 2 },
-      { id: 'st-sun1', name: '1er Service Dimanche', slug: 'sunday_service_1', description: 'Premier culte dominical d’adoration et louange', is_active: true, display_order: 3 },
-      { id: 'st-sun2', name: '2ème Service Dimanche', slug: 'sunday_service_2', description: 'Deuxième culte dominical de célébration', is_active: true, display_order: 4 },
-      { id: 'st-camp-miss', name: 'Camp Missionnaire', slug: 'mission_camp', description: 'Rassemblement et retraite missionnaire', is_active: true, display_order: 5 },
-      { id: 'st-camp-berg', name: 'Camp des Bergers', slug: 'shepherds_camp', description: 'Retraite de formation spirituelle et leadership pastoral', is_active: true, display_order: 6 },
-      { id: 'st-special', name: 'Programmes Spéciaux', slug: 'special_programs', description: 'Veillées, conférences, croisades et événements exceptionnels', is_active: true, display_order: 7 },
-    ]);
   });
 
   // Liste des services / cultes
@@ -47,37 +34,9 @@ export async function serviceRoutes(app: FastifyInstance) {
         sort: '-date',
         expand: 'service_type_ref,protocol_leader',
       });
-      return reply.send(list);
-    } catch {
-      return reply.send([
-        {
-          id: 'srv-1',
-          name: 'Culte de Célébration et d’Adoration',
-          service_type: 'sunday_service_1',
-          date: '2026-11-01',
-          start_time: '09:00',
-          end_time: '12:00',
-          status: ServiceStatus.COMPLETED,
-        },
-        {
-          id: 'srv-2',
-          name: 'Programme d’Enseignement et Prière',
-          service_type: 'tuesday_service',
-          date: '2026-11-03',
-          start_time: '18:00',
-          end_time: '20:30',
-          status: ServiceStatus.COMPLETED,
-        },
-        {
-          id: 'srv-3',
-          name: 'Prière d’Intercession & Délivrance',
-          service_type: 'thursday_service',
-          date: '2026-11-05',
-          start_time: '18:00',
-          end_time: '20:30',
-          status: ServiceStatus.COMPLETED,
-        },
-      ]);
+      return reply.send(withRelationsList(list));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les cultes.');
     }
   });
 
@@ -93,9 +52,14 @@ export async function serviceRoutes(app: FastifyInstance) {
 
       try {
         await ensureAdminAuth();
+        const typeRef = await pb
+          .collection('service_types')
+          .getFirstListItem(`slug = "${pbString(parsed.data.serviceType)}"`)
+          .catch(() => null);
         const record = await pb.collection('services').create({
           name: parsed.data.name,
           service_type: parsed.data.serviceType,
+          service_type_ref: typeRef?.id || '',
           date: parsed.data.date,
           start_time: parsed.data.startTime,
           end_time: parsed.data.endTime,
@@ -113,8 +77,8 @@ export async function serviceRoutes(app: FastifyInstance) {
         });
 
         return reply.status(201).send(record);
-      } catch (err: any) {
-        return reply.status(500).send({ error: err?.message || 'Erreur lors de la création du service.' });
+      } catch (err) {
+        return sendServiceError(reply, err, 'Erreur lors de la création du culte.');
       }
     }
   );
@@ -124,43 +88,12 @@ export async function serviceRoutes(app: FastifyInstance) {
     try {
       await ensureAdminAuth();
       const list = await pb.collection('attendance_sheets').getFullList({
-        sort: '-service_date',
-        expand: 'service,service_type,submitted_by,responsible_user',
+        sort: '-service_date,-created',
+        expand: 'service,service_type,submitted_by,responsible_user,validated_by',
       });
-      return reply.send(list);
-    } catch {
-      return reply.send([
-        {
-          id: 'att-1',
-          service_type_slug: 'sunday_service_1',
-          service_date: '2026-11-01',
-          start_time: '09:00',
-          end_time: '12:00',
-          men_count: 145,
-          women_count: 198,
-          youth_count: 92,
-          children_count: 65,
-          total_attendance: 500, // 145 + 198 + 92 + 65 = 500
-          new_visitors_count: 32,
-          salvations_count: 14,
-          status: AttendanceSheetStatus.VALIDATED,
-        },
-        {
-          id: 'att-2',
-          service_type_slug: 'tuesday_service',
-          service_date: '2026-11-03',
-          start_time: '18:00',
-          end_time: '20:30',
-          men_count: 65,
-          women_count: 110,
-          youth_count: 45,
-          children_count: 20,
-          total_attendance: 240, // 65 + 110 + 45 + 20 = 240
-          new_visitors_count: 8,
-          salvations_count: 3,
-          status: AttendanceSheetStatus.VALIDATED,
-        },
-      ]);
+      return reply.send(withRelationsList(list));
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de charger les fiches de présence.');
     }
   });
 
@@ -179,7 +112,7 @@ export async function serviceRoutes(app: FastifyInstance) {
       // 1. Détection de doublons (même programme et même date)
       try {
         const existingSheets = await pb.collection('attendance_sheets').getFullList({
-          filter: `service_date = "${parsed.data.serviceDate}"`,
+          filter: `service_date = "${pbString(parsed.data.serviceDate)}"`,
         });
 
         const dupCheck = checkAttendanceDuplicate(
@@ -193,14 +126,14 @@ export async function serviceRoutes(app: FastifyInstance) {
           }
         );
 
-        if (dupCheck.isDuplicate) {
+        if (dupCheck.isDuplicate && !parsed.data.allowDuplicate) {
           return reply.status(409).send({
             error: dupCheck.message || 'Une fiche existe déjà pour ce programme à cette date.',
             isDuplicate: true,
           });
         }
-      } catch (err: any) {
-        // En cas d'erreur de requête pocketbase, continuer
+      } catch (err) {
+        return sendServiceError(reply, err, 'Impossible de vérifier les doublons de fiche.');
       }
 
       // 2. Calcul certifié par le moteur de règles : TOTAL = HOMMES + FEMMES + JEUNES + ENFANTS
@@ -216,7 +149,7 @@ export async function serviceRoutes(app: FastifyInstance) {
       // 3. Récupérer le service_type correspondant
       let serviceTypeId = '';
       try {
-        const st = await pb.collection('service_types').getFirstListItem(`slug = "${parsed.data.serviceTypeSlug}"`);
+        const st = await pb.collection('service_types').getFirstListItem(`slug = "${pbString(parsed.data.serviceTypeSlug)}"`);
         serviceTypeId = st.id;
       } catch {
         // Optionnel
@@ -224,17 +157,8 @@ export async function serviceRoutes(app: FastifyInstance) {
 
       const initialStatus = parsed.data.isDraft ? AttendanceSheetStatus.DRAFT : AttendanceSheetStatus.SUBMITTED;
 
-      // Résolution défensive d'un ID d'utilisateur PocketBase valide (15 chars) pour les relations
-      let submitterId = request.user?.id || '900286e90az8m1k';
-      if (submitterId.startsWith('dev-')) {
-        const found = await pb.collection('users').getFirstListItem(`email = "${request.user?.email || 'admin@espritvie.org'}"`).catch(() => null);
-        submitterId = found ? found.id : '900286e90az8m1k';
-      }
-
-      let respUserId = parsed.data.responsibleUserId || submitterId;
-      if (respUserId.startsWith('dev-')) {
-        respUserId = submitterId;
-      }
+      const submitterId = request.user!.id;
+      const respUserId = parsed.data.responsibleUserId || submitterId;
 
       try {
         const record = await pb.collection('attendance_sheets').create({
@@ -323,7 +247,7 @@ export async function serviceRoutes(app: FastifyInstance) {
     }
   );
 
-  // Modification d'une fiche de fréquentation
+  // Modification d'une fiche de fréquentation (brouillon, soumise ou rejetée)
   app.put('/api/attendance/:id', { preHandler: requirePermission('canSubmitAttendance') }, async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = structuredAttendanceSchema.partial().safeParse(request.body);
@@ -335,22 +259,47 @@ export async function serviceRoutes(app: FastifyInstance) {
       await ensureAdminAuth();
       const existing = await pb.collection('attendance_sheets').getOne(id);
 
-      const updateData: any = { ...parsed.data };
-      if (
-        parsed.data.menCount !== undefined ||
-        parsed.data.womenCount !== undefined ||
-        parsed.data.youthCount !== undefined ||
-        parsed.data.childrenCount !== undefined
-      ) {
-        const stats = calculateAttendanceTotal({
-          menCount: parsed.data.menCount ?? existing.men_count,
-          womenCount: parsed.data.womenCount ?? existing.women_count,
-          youthCount: parsed.data.youthCount ?? existing.youth_count,
-          childrenCount: parsed.data.childrenCount ?? existing.children_count,
-          newVisitorsCount: parsed.data.newVisitorsCount ?? existing.new_visitors_count,
-          salvationsCount: parsed.data.salvationsCount ?? existing.salvations_count,
-        });
-        updateData.total_attendance = stats.totalAttendance;
+      if (existing.status === AttendanceSheetStatus.VALIDATED) {
+        return reply.status(400).send({ error: 'Une fiche validée est verrouillée et ne peut plus être modifiée.' });
+      }
+
+      const d = parsed.data;
+      const men = d.menCount ?? existing.men_count;
+      const women = d.womenCount ?? existing.women_count;
+      const youth = d.youthCount ?? existing.youth_count;
+      const children = d.childrenCount ?? existing.children_count;
+      const stats = calculateAttendanceTotal({
+        menCount: men,
+        womenCount: women,
+        youthCount: youth,
+        childrenCount: children,
+        newVisitorsCount: d.newVisitorsCount ?? existing.new_visitors_count,
+        salvationsCount: d.salvationsCount ?? existing.salvations_count,
+      });
+
+      // Correspondance camelCase → snake_case : auparavant les effectifs modifiés étaient ignorés
+      const fieldMap: Record<string, unknown> = {
+        service_type_slug: d.serviceTypeSlug,
+        service_date: d.serviceDate,
+        start_time: d.startTime,
+        end_time: d.endTime,
+        men_count: d.menCount,
+        women_count: d.womenCount,
+        youth_count: d.youthCount,
+        children_count: d.childrenCount,
+        new_visitors_count: d.newVisitorsCount,
+        salvations_count: d.salvationsCount,
+        notes: d.notes,
+        responsible_user: d.responsibleUserId,
+      };
+      const updateData: Record<string, unknown> = Object.fromEntries(
+        Object.entries(fieldMap).filter(([, v]) => v !== undefined)
+      );
+      updateData.total_attendance = stats.totalAttendance;
+      if (d.isDraft !== undefined) {
+        updateData.status = d.isDraft ? AttendanceSheetStatus.DRAFT : AttendanceSheetStatus.SUBMITTED;
+      } else if (existing.status === AttendanceSheetStatus.REJECTED) {
+        updateData.status = AttendanceSheetStatus.SUBMITTED;
       }
 
       const updated = await pb.collection('attendance_sheets').update(id, updateData);
@@ -360,13 +309,59 @@ export async function serviceRoutes(app: FastifyInstance) {
         action: 'update_attendance',
         collectionName: 'attendance_sheets',
         recordId: id,
-        oldValues: existing,
-        newValues: updated,
+        oldValues: { men: existing.men_count, women: existing.women_count, youth: existing.youth_count, children: existing.children_count, total: existing.total_attendance, status: existing.status },
+        newValues: updateData,
       });
 
       return reply.send(updated);
-    } catch (err: any) {
-      return reply.status(500).send({ error: err?.message || 'Erreur lors de la mise à jour de la fiche.' });
+    } catch (err) {
+      return sendServiceError(reply, err, 'Erreur lors de la mise à jour de la fiche.');
     }
   });
+
+  // Validation / rejet d'une fiche par le Responsable Protocole (ou la Direction)
+  app.post(
+    '/api/attendance/:id/validate',
+    { preHandler: requirePermission('canValidateAttendance') },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const { decision = 'validate', reason } = (request.body as { decision?: 'validate' | 'reject'; reason?: string }) || {};
+
+      try {
+        await ensureAdminAuth();
+        const sheet = await pb.collection('attendance_sheets').getOne(id);
+        if (sheet.status !== AttendanceSheetStatus.SUBMITTED) {
+          return reply.status(400).send({ error: `Seule une fiche soumise peut être validée (statut actuel : ${sheet.status}).` });
+        }
+        if (decision === 'reject' && !reason?.trim()) {
+          return reply.status(400).send({ error: 'Le motif du rejet est obligatoire.' });
+        }
+        // Contrôle à 4 yeux : l'auteur d'une fiche ne la valide pas lui-même
+        if (sheet.submitted_by === request.user?.id) {
+          return reply.status(403).send({ error: 'Contrôle à 4 yeux : vous ne pouvez pas valider une fiche que vous avez saisie.' });
+        }
+
+        const newStatus = decision === 'reject' ? AttendanceSheetStatus.REJECTED : AttendanceSheetStatus.VALIDATED;
+        const updated = await pb.collection('attendance_sheets').update(id, {
+          status: newStatus,
+          validated_by: request.user!.id,
+          notes: decision === 'reject' ? `${sheet.notes ? sheet.notes + '\n' : ''}[Rejet] ${reason}` : sheet.notes,
+        });
+
+        await createAuditLog({
+          userId: request.user!.id,
+          action: decision === 'reject' ? 'reject_attendance' : 'validate_attendance',
+          collectionName: 'attendance_sheets',
+          recordId: id,
+          oldValues: { status: sheet.status },
+          newValues: { status: newStatus },
+          reason,
+        });
+
+        return reply.send(updated);
+      } catch (err) {
+        return sendServiceError(reply, err, 'Erreur lors de la validation de la fiche.');
+      }
+    }
+  );
 }

@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { mobileApi } from '../../src/services/api';
+import { mobileApi, isNetworkError } from '../../src/services/api';
 import { OfflineSyncService } from '../../src/services/offlineSync';
 
 const OFFICIAL_PROGRAMS = [
@@ -85,6 +85,11 @@ export default function AttendanceMobile() {
       await mobileApi.createStructuredAttendance(payload);
       Alert.alert('Succès', 'Fiche de présence officielle transmise avec succès.');
     } catch (err: any) {
+      // Refus métier (doublon, validation…) : afficher l'erreur au lieu de mettre en file
+      if (!isNetworkError(err)) {
+        Alert.alert('Fiche refusée', err.message);
+        return;
+      }
       // Sauvegarde dans la file locale hors-ligne
       await OfflineSyncService.queueAttendance(payload);
       await checkPendingQueue();

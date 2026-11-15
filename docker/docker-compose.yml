@@ -1,16 +1,23 @@
+# Lancer depuis le dossier docker/ :  docker compose --env-file ../.env up -d --build
+# Les chemins des volumes sont relatifs à CE fichier (docker/), d'où le préfixe « ../ ».
 services:
   pocketbase:
-    image: ghcr.io/muchobien/pocketbase:latest
+    # Version figée : identique au binaire local (bin/pocketbase 0.25.9) et à la syntaxe des migrations
+    image: ghcr.io/muchobien/pocketbase:0.25.9
     container_name: eev-pocketbase
     restart: unless-stopped
+    command:
+      - --encryptionEnv
+      - POCKETBASE_ENCRYPTION_KEY
     volumes:
-      - ./pocketbase/pb_data:/pb_data
-      - ./pocketbase/pb_migrations:/pb_migrations
-      - ./pocketbase/pb_hooks:/pb_hooks
+      - ../pocketbase/pb_data:/pb_data
+      - ../pocketbase/pb_migrations:/pb_migrations
+      - ../pocketbase/pb_hooks:/pb_hooks
     environment:
-      - POCKETBASE_ENCRYPTION_KEY=${POCKETBASE_ENCRYPTION_KEY:-eev-secure-db-key-2026}
-    ports:
-      - "127.0.0.1:8090:8090"
+      # Clé de 32 caractères OBLIGATOIRE en production (chiffrement des réglages PocketBase)
+      - POCKETBASE_ENCRYPTION_KEY=${POCKETBASE_ENCRYPTION_KEY:?Définir POCKETBASE_ENCRYPTION_KEY (32 caractères)}
+    expose:
+      - "8090"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
       interval: 10s
@@ -28,13 +35,16 @@ services:
         condition: service_healthy
     environment:
       - PORT=4000
+      - HOST=0.0.0.0
       - NODE_ENV=production
       - POCKETBASE_URL=http://pocketbase:8090
-      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:-admin@espritvie.org}
-      - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD:-AdminEspritVie2026!}
-      - CORS_ORIGIN=*
-    ports:
-      - "127.0.0.1:4000:4000"
+      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:?Définir POCKETBASE_ADMIN_EMAIL}
+      - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD:?Définir POCKETBASE_ADMIN_PASSWORD}
+      # L'interface est servie par le même domaine (proxy Nginx) : aucune origine externe à autoriser
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - VENUE_CAPACITY=${VENUE_CAPACITY:-0}
+    expose:
+      - "4000"
 
   web:
     build:
@@ -46,4 +56,3 @@ services:
       - api
     ports:
       - "80:80"
-

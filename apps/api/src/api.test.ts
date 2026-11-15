@@ -49,12 +49,18 @@ describe('API EEV-FINANCIAL Endpoints', () => {
         authorization: 'Bearer dev-token-leader',
       },
     });
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body);
-    expect(body.treasury).toBeDefined();
-    expect(body.treasury.consolidatedPhysicalBalance).toBeGreaterThan(0);
-    expect(body.attendance.lastService.totalAttendance).toBe(500);
-    expect(body.attendance.lastService.newVisitorsCount).toBe(32);
+    // 200 si PocketBase est démarré, 503 explicite sinon (plus jamais de données fictives)
+    expect([200, 503]).toContain(res.statusCode);
+    if (res.statusCode === 200) {
+      const body = JSON.parse(res.body);
+      expect(body.treasury).toBeDefined();
+      expect(body.finance).toBeDefined();
+      expect(Array.isArray(body.attendance.byServiceType)).toBe(true);
+      const last = body.attendance.lastService;
+      if (last) {
+        expect(last.totalAttendance).toBe(last.menCount + last.womenCount + last.youthCount + last.childrenCount);
+      }
+    }
   });
 
   it('GET /api/finance/overview renvoie la trésorerie consolidée et le détail analytique', async () => {
@@ -65,10 +71,21 @@ describe('API EEV-FINANCIAL Endpoints', () => {
         authorization: 'Bearer dev-token-leader',
       },
     });
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body);
-    expect(body.consolidatedPhysicalBalance).toBeDefined();
-    expect(Array.isArray(body.funds)).toBe(true);
+    expect([200, 503]).toContain(res.statusCode);
+    if (res.statusCode === 200) {
+      const body = JSON.parse(res.body);
+      expect(body.consolidatedPhysicalBalance).toBeDefined();
+      expect(Array.isArray(body.funds)).toBe(true);
+    }
+  });
+
+  it('Interdit toute donnée financière au rôle Protocole', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/finance/overview',
+      headers: { authorization: 'Bearer dev-token-protocol' },
+    });
+    expect(res.statusCode).toBe(403);
   });
 
   it('Refuse l’accès aux endpoints protégés sans token', async () => {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
+import { toast } from 'sonner';
 import { formatFCFA } from '../../utils/formatters';
 import { PeriodSelector } from '../../components/analytics/PeriodSelector';
 import { MetricCard } from '../../components/analytics/MetricCard';
@@ -62,7 +63,9 @@ export const AnalyticsOverview: React.FC = () => {
 
   const handleExportCSV = (type: 'attendance' | 'finance') => {
     const finalType = canViewFinance ? type : 'attendance';
-    window.open(`/api/analytics/export/csv?type=${finalType}`, '_blank');
+    api
+      .exportAnalyticsCsv(finalType, period, customStart, customEnd)
+      .catch((err) => toast.error('Export impossible', { description: err.message }));
   };
 
   const attKpis = overview?.kpis?.attendance;
@@ -204,7 +207,7 @@ export const AnalyticsOverview: React.FC = () => {
             iconColor="text-blue-500"
             iconBg="bg-blue-500/15 border-blue-500/30"
             title="Total Participants"
-            value={attKpis?.total?.current?.toLocaleString('fr-FR') || 1945}
+            value={attKpis?.total?.current?.toLocaleString('fr-FR') ?? 0}
             variation={attKpis?.total}
           />
 
@@ -213,7 +216,7 @@ export const AnalyticsOverview: React.FC = () => {
             iconColor="text-amber-500"
             iconBg="bg-amber-500/15 border-amber-500/30"
             title="Moyenne par Culte Validé"
-            value={attKpis?.averagePerService?.current || 486}
+            value={attKpis?.averagePerService?.current ?? 0}
             unit="fidèles / service"
             variation={attKpis?.averagePerService}
           />
@@ -223,7 +226,7 @@ export const AnalyticsOverview: React.FC = () => {
             iconColor="text-emerald-500"
             iconBg="bg-emerald-500/15 border-emerald-500/30"
             title="Nouveaux Visiteurs"
-            value={attKpis?.newVisitors?.current || 118}
+            value={attKpis?.newVisitors?.current ?? 0}
             unit="accueillis"
             variation={attKpis?.newVisitors}
           />
@@ -233,7 +236,7 @@ export const AnalyticsOverview: React.FC = () => {
             iconColor="text-purple-500"
             iconBg="bg-purple-500/15 border-purple-500/30"
             title="Meilleure Fréquentation"
-            value={attKpis?.bestAttendanceService?.total || 500}
+            value={attKpis?.bestAttendanceService?.total ?? 0}
             unit="participants"
             subtext={`${attKpis?.bestAttendanceService?.name} (${attKpis?.bestAttendanceService?.date})`}
           />
@@ -262,7 +265,7 @@ export const AnalyticsOverview: React.FC = () => {
               iconColor="text-emerald-500"
               iconBg="bg-emerald-500/15 border-emerald-500/30"
               title="Recettes Brutes Encaissées"
-              value={formatFCFA(finKpis?.totalRevenues?.current || 3500000)}
+              value={formatFCFA(finKpis?.totalRevenues?.current ?? 0)}
               variation={finKpis?.totalRevenues}
             />
 
@@ -271,7 +274,7 @@ export const AnalyticsOverview: React.FC = () => {
               iconColor="text-rose-500"
               iconBg="bg-rose-500/15 border-rose-500/30"
               title="Dépenses Payées (Décaissements)"
-              value={formatFCFA(finKpis?.paidExpenses?.current || 480000)}
+              value={formatFCFA(finKpis?.paidExpenses?.current ?? 0)}
               variation={finKpis?.paidExpenses}
             />
 
@@ -280,7 +283,7 @@ export const AnalyticsOverview: React.FC = () => {
               iconColor="text-amber-500"
               iconBg="bg-amber-500/15 border-amber-500/30"
               title="Moyenne Recette par Culte"
-              value={formatFCFA(finKpis?.averageRevenuePerService?.current || 875000)}
+              value={formatFCFA(finKpis?.averageRevenuePerService?.current ?? 0)}
               variation={finKpis?.averageRevenuePerService}
             />
 
@@ -289,8 +292,8 @@ export const AnalyticsOverview: React.FC = () => {
               iconColor="text-indigo-500"
               iconBg="bg-indigo-500/15 border-indigo-500/30"
               title="Solde Physique Consolidé"
-              value={formatFCFA(finKpis?.consolidatedPhysicalBalance || 14750000)}
-              subtext={`Dont ${formatFCFA(finKpis?.generalFundFreeBalance || 8150000)} libre dans le Fonds Général`}
+              value={formatFCFA(finKpis?.consolidatedPhysicalBalance ?? 0)}
+              subtext={`Dont ${formatFCFA(finKpis?.generalFundFreeBalance ?? 0)} libre dans le Fonds Général`}
             />
           </div>
         </div>
@@ -382,13 +385,11 @@ export const AnalyticsOverview: React.FC = () => {
             <div className="h-80 md:h-96 w-full pt-2">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={[
-                    { name: '11 Oct', total: 420, newVisitors: 18 },
-                    { name: '18 Oct', total: 445, newVisitors: 24 },
-                    { name: '25 Oct', total: 480, newVisitors: 28 },
-                    { name: '01 Nov', total: 500, newVisitors: 32 },
-                    { name: '08 Nov', total: 525, newVisitors: 35 },
-                  ]}
+                  data={(attendanceData?.servicesList || []).map((r: any) => ({
+                    name: r.date ? r.date.slice(8, 10) + '/' + r.date.slice(5, 7) : '',
+                    total: r.total,
+                    newVisitors: r.newVisitors,
+                  }))}
                   margin={{ top: 15, right: 15, left: -5, bottom: 0 }}
                 >
                   <defs>
@@ -454,7 +455,7 @@ export const AnalyticsOverview: React.FC = () => {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-3xl font-black text-slate-900 dark:text-white">
-                {attendanceData?.summary?.grandTotal || 1485}
+                {attendanceData?.summary?.grandTotal ?? 0}
               </span>
               <span className="text-xs font-black uppercase tracking-wider text-slate-400">
                 Fidèles

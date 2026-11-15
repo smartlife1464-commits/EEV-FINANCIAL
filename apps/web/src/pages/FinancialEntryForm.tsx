@@ -19,12 +19,13 @@ import {
   Calendar,
   Clock,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const FinancialEntryForm: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryServiceId = searchParams.get('serviceId') || '';
-  const queryCategoryId = searchParams.get('categoryId') || 'cat-tithe';
+  const queryCategoryId = searchParams.get('categoryId') || '';
 
   const { data: services = [] } = useQuery({
     queryKey: ['services'],
@@ -50,18 +51,26 @@ export const FinancialEntryForm: React.FC = () => {
     if (queryServiceId && !serviceId) {
       setServiceId(queryServiceId);
     }
-    if (queryCategoryId && categoryId === 'cat-tithe') {
-      setCategoryId(queryCategoryId);
+  }, [queryServiceId]);
+
+  // Sélection par défaut : catégorie « Dîmes » réelle (identifiant PocketBase) dès le chargement
+  useEffect(() => {
+    if (categories.length === 0) return;
+    const exists = categories.some((c: any) => c.id === categoryId);
+    if (!exists) {
+      const byCode = queryCategoryId ? categories.find((c: any) => c.code === queryCategoryId || c.id === queryCategoryId) : null;
+      const tithes = categories.find((c: any) => c.code === 'tithes');
+      setCategoryId((byCode || tithes || categories[0]).id);
     }
-  }, [queryServiceId, queryCategoryId]);
+  }, [categories, categoryId, queryCategoryId]);
 
   const selectedService = services.find((s: any) => s.id === serviceId);
 
   // Déterminer la règle de la catégorie sélectionnée
-  const selectedCat = categories.find((c: any) => c.id === categoryId) || {
+  const selectedCat: any = categories.find((c: any) => c.id === categoryId) || {
     allocation_rule: AllocationRule.STANDARD_SPLIT_80_10_10,
-    target_fund_code: FundAccountCode.BUILDING,
   };
+  const targetFundCode = selectedCat.expand?.target_fund?.code || FundAccountCode.OTHER_DESIGNATED;
 
   const rule = (selectedCat.allocation_rule as AllocationRule) || AllocationRule.STANDARD_SPLIT_80_10_10;
   const isStandardSplit = rule === AllocationRule.STANDARD_SPLIT_80_10_10;
@@ -70,13 +79,17 @@ export const FinancialEntryForm: React.FC = () => {
   const splitResult = calculateEntryAllocations(
     amount || 0,
     rule,
-    selectedCat.target_fund_code || FundAccountCode.BUILDING
+    targetFundCode
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || amount <= 0) {
-      alert('Veuillez saisir un montant strictement supérieur à 0 FCFA.');
+    if (!amount || amount <= 0 || !Number.isInteger(amount)) {
+      toast.error('Veuillez saisir un montant entier strictement supérieur à 0 FCFA.');
+      return;
+    }
+    if (!categoryId) {
+      toast.error('Veuillez choisir une catégorie de recette.');
       return;
     }
 
@@ -92,9 +105,10 @@ export const FinancialEntryForm: React.FC = () => {
         notes: notes || undefined,
         collectedAt,
       });
+      toast.success('Recette enregistrée', { description: 'Ventilation analytique appliquée et inscrite au grand livre.' });
       navigate('/finance/entries');
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l’enregistrement de la recette.');
+      toast.error(err.message || 'Erreur lors de l’enregistrement de la recette.');
     } finally {
       setSubmitting(false);
     }
@@ -157,11 +171,14 @@ export const FinancialEntryForm: React.FC = () => {
                 required
                 className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
               >
-                <option value="cat-tithe">Dîmes (Répartition 80/10/10)</option>
-                <option value="cat-offering">Offrandes Ordinaires (Répartition 80/10/10)</option>
-                <option value="cat-build">Don Construction Auditorium (100% Affecté)</option>
-                <option value="cat-friends">Don Amis de Jésus (100% Affecté)</option>
-                <option value="cat-special">Offrande Spéciale Affectée (100% Affecté)</option>
+                {categories.length === 0 && <option value="">Chargement des catégories…</option>}
+                {categories
+                  .filter((c: any) => c.is_active !== false)
+                  .map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.allocation_rule === AllocationRule.STANDARD_SPLIT_80_10_10 ? '(Répartition 80/10/10)' : '(100% Affecté)'}
+                    </option>
+                  ))}
               </select>
             </div>
 

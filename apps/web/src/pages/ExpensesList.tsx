@@ -38,12 +38,14 @@ import {
   FileText,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const ExpensesList: React.FC = () => {
-  const { user } = useAuth();
-  const canApprove = [UserRole.LEAD_PASTOR, UserRole.ADMIN].includes(user?.role as UserRole);
-  const canPay = [UserRole.FINANCE_LEAD, UserRole.CASHIER, UserRole.ADMIN].includes(user?.role as UserRole);
-  const canCreate = [UserRole.FINANCE_LEAD, UserRole.ADMIN, UserRole.CASHIER].includes(user?.role as UserRole);
+  const { user, hasPermission } = useAuth();
+  // Droits alignés sur la matrice de permissions appliquée par l'API (séparation des pouvoirs)
+  const canApprove = hasPermission('canApproveExpense');
+  const canPay = hasPermission('canPayExpense');
+  const canCreate = hasPermission('canCreateExpense');
 
   // Onglet principal : 'fixed' (Charges fixes) | 'variable' (Dépenses variables) | 'projections' (Prévisions)
   const [activeTab, setActiveTab] = useState<'fixed' | 'variable' | 'projections'>('fixed');
@@ -83,6 +85,14 @@ export const ExpensesList: React.FC = () => {
     queryKey: ['funds'],
     queryFn: () => api.getFunds(),
   });
+
+  const { data: expenseCategories = [] } = useQuery({
+    queryKey: ['expense-categories'],
+    queryFn: () => api.getExpenseCategories(),
+  });
+
+  // Règle d'or : les charges courantes sont financées par le Fonds Général (80%)
+  const generalFundId = (funds.find((f: any) => f.code === 'GENERAL') || funds[0])?.id || '';
 
   // Filtres et recherche
   const [searchTerm, setSearchTerm] = useState('');
@@ -140,17 +150,17 @@ export const ExpensesList: React.FC = () => {
       await refetchFixed();
       await refetchOccurrences();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors du changement de statut');
+      toast.error(err.message || 'Erreur lors du changement de statut');
     }
   };
 
   const handleGenerateOccurrences = async () => {
     try {
       const res = await api.generateFixedExpenseOccurrences();
-      alert(res.message || 'Échéances générées avec succès sans doublon.');
+      toast.success(res.message || 'Échéances générées avec succès sans doublon.');
       await refetchOccurrences();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la génération.');
+      toast.error(err.message || 'Erreur lors de la génération.');
     }
   };
 
@@ -159,7 +169,7 @@ export const ExpensesList: React.FC = () => {
       await api.approveFixedExpenseOccurrence(occId, decision);
       await refetchOccurrences();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors du traitement.');
+      toast.error(err.message || 'Erreur lors du traitement.');
     }
   };
 
@@ -222,7 +232,7 @@ export const ExpensesList: React.FC = () => {
         paidBy: user?.name || 'Caissier Principal',
       });
     } catch (err: any) {
-      alert(err.message || 'Erreur lors du décaissement.');
+      toast.error(err.message || 'Erreur lors du décaissement.');
     } finally {
       setSubmittingPayment(false);
     }
@@ -231,7 +241,7 @@ export const ExpensesList: React.FC = () => {
   const handleCreateFixed = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFixedName || newFixedAmount <= 0) {
-      alert('Veuillez renseigner un nom et un montant valide.');
+      toast.error('Veuillez renseigner un nom et un montant valide.');
       return;
     }
     setSubmittingFixed(true);
@@ -244,17 +254,18 @@ export const ExpensesList: React.FC = () => {
         frequency: newFixedFrequency,
         dueDay: newFixedDueDay,
         startDate: newFixedStartDate,
-        fundAccountId: newFixedFundId || funds[0]?.id,
+        fundAccountId: newFixedFundId || generalFundId,
         beneficiary: newFixedBeneficiary || 'Fournisseur désigné',
         notes: newFixedNotes,
         status: 'active',
       });
+      toast.success('Charge fixe créée', { description: 'Les échéances des 3 prochains mois ont été générées.' });
       setShowFixedModal(false);
       setNewFixedName('');
       await refetchFixed();
       await refetchOccurrences();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création.');
+      toast.error(err.message || 'Erreur lors de la création.');
     } finally {
       setSubmittingFixed(false);
     }
@@ -263,26 +274,33 @@ export const ExpensesList: React.FC = () => {
   const handleCreateVariable = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newVarAmount <= 0 || !newVarBeneficiary || !newVarPurpose) {
-      alert('Veuillez renseigner un montant, un bénéficiaire et un motif.');
+      toast.error('Veuillez renseigner un montant, un bénéficiaire et un motif.');
       return;
     }
     setSubmittingVar(true);
     try {
+      const category = expenseCategories.find(
+        (c: any) => (c.name || '').toLowerCase() === newVarCategory.toLowerCase()
+      );
+      if (!category) {
+        toast.error(`Catégorie « ${newVarCategory} » introuvable dans le référentiel des dépenses.`);
+        return;
+      }
       await api.createExpense({
-        categoryId: 'expcat-variable',
-        category_name: newVarCategory,
-        fundAccountId: newVarFundId || funds[0]?.id,
+        categoryId: category.id,
+        fundAccountId: newVarFundId || generalFundId,
         amount: newVarAmount,
         beneficiary: newVarBeneficiary,
         purpose: `${newVarTitle ? newVarTitle + ' : ' : ''}${newVarPurpose}`,
       });
+      toast.success('Dépense soumise à l’autorisation du Leader Principal');
       setShowVariableModal(false);
       setNewVarTitle('');
       setNewVarBeneficiary('');
       setNewVarPurpose('');
       await refetchExpenses();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création de la dépense.');
+      toast.error(err.message || 'Erreur lors de la création de la dépense.');
     } finally {
       setSubmittingVar(false);
     }
@@ -294,7 +312,8 @@ export const ExpensesList: React.FC = () => {
     try {
       const now = new Date();
       const pStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      const pEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-28`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const pEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       await api.createExpenseBudget({
         category: budgetCat,
         amount: budgetAmount,
@@ -304,10 +323,11 @@ export const ExpensesList: React.FC = () => {
         alertThreshold: budgetThreshold,
         status: 'active',
       });
+      toast.success('Budget enregistré');
       setShowBudgetModal(false);
       await refetchBudgets();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l’enregistrement du budget.');
+      toast.error(err.message || 'Erreur lors de l’enregistrement du budget.');
     } finally {
       setSubmittingBudget(false);
     }
@@ -500,7 +520,7 @@ export const ExpensesList: React.FC = () => {
                 Total Charges Fixes / Mois
               </span>
               <div className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-                {formatFCFA(fixedSummary?.totalMonthlyFixed || 225000)}
+                {formatFCFA(fixedSummary?.totalMonthlyFixed ?? 0)}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
                 Loyer, électricité, eau, internet & récurrents
@@ -512,7 +532,7 @@ export const ExpensesList: React.FC = () => {
                 Provision Mensuelle Équivalente
               </span>
               <div className="text-3xl font-black text-amber-500 mt-1">
-                {formatFCFA(fixedSummary?.monthlyEquivalentProvision || 225000)}
+                {formatFCFA(fixedSummary?.monthlyEquivalentProvision ?? 0)}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
                 Trimestre/3 + Semestre/6 + Année/12
@@ -524,7 +544,7 @@ export const ExpensesList: React.FC = () => {
                 Échéances à Venir (Horizon)
               </span>
               <div className="text-3xl font-black text-slate-900 dark:text-white mt-1">
-                {formatFCFA(fixedSummary?.upcomingOccurrencesTotal || 225000)}
+                {formatFCFA(fixedSummary?.upcomingOccurrencesTotal ?? 0)}
               </div>
               <p className="text-xs text-blue-400 font-bold mt-1">
                 {occurrences.filter((o: any) => o.status !== 'paid').length} échéance(s) prévues
@@ -536,7 +556,7 @@ export const ExpensesList: React.FC = () => {
                 Taux de Couverture des Charges
               </span>
               <div className="text-3xl font-black text-emerald-500 mt-1">
-                {fixedSummary?.coverageRate || 100}%
+                {fixedSummary?.coverageRate ?? 0}%
               </div>
               <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-1">
                 Capacité financière vérifiée sur 80% Général
@@ -911,7 +931,7 @@ export const ExpensesList: React.FC = () => {
                 Projections Prudentielles à 30, 60 et 90 Jours
               </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Distinction nette : Solde physique réel ({formatFCFA(projections?.currentPhysicalCash || 14750000)}) vs Engagements analytiques ({formatFCFA(projections?.currentPendingCommitments || 350000)}) vs Solde projeté.
+                Distinction nette : Solde physique réel ({formatFCFA(projections?.currentPhysicalCash ?? 0)}) vs Engagements analytiques ({formatFCFA(projections?.currentPendingCommitments ?? 0)}) vs Solde projeté.
               </p>
             </div>
 
