@@ -211,3 +211,136 @@ class ProgressBar extends StatelessWidget {
     );
   }
 }
+
+/// Anneau de progression animé (objectif d'une quête)
+class ProgressRing extends StatelessWidget {
+  final double value;
+  final double size;
+  final double stroke;
+  final Color color;
+  final Color? trackColor;
+  final Widget? center;
+  const ProgressRing({super.key, required this.value, this.size = 120, this.stroke = 12, this.color = AppColors.gold, this.trackColor, this.center});
+
+  @override
+  Widget build(BuildContext context) {
+    final track = trackColor ?? Palette.of(context).border.withValues(alpha: 0.6);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: value.clamp(0, 1)),
+        duration: const Duration(milliseconds: 1200),
+        curve: Curves.easeOutCubic,
+        builder: (context, v, child) => CustomPaint(
+          painter: _RingPainter(v, stroke, color, track),
+          child: Center(child: child),
+        ),
+        child: center,
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double value;
+  final double stroke;
+  final Color color;
+  final Color track;
+  _RingPainter(this.value, this.stroke, this.color, this.track);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset(stroke / 2, stroke / 2) & Size(size.width - stroke, size.height - stroke);
+    final base = Paint()
+      ..color = track
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, 0, 6.283185, false, base);
+    if (value <= 0) return;
+    final arc = Paint()
+      ..shader = SweepGradient(
+        startAngle: -1.5708,
+        endAngle: 4.7124,
+        colors: [color.withValues(alpha: 0.55), color],
+        transform: const GradientRotation(-1.5708),
+      ).createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(rect, -1.5708, 6.283185 * value, false, arc);
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) => old.value != value || old.color != color || old.track != track;
+}
+
+/// Histogramme à deux séries (entrées / sorties mensuelles)
+class DualBarChart extends StatelessWidget {
+  final List<TrendPoint> points;
+  final Color colorA;
+  final Color colorB;
+  final double height;
+  const DualBarChart({super.key, required this.points, this.colorA = AppColors.success, this.colorB = AppColors.danger, this.height = 170});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final maxY = points.fold<double>(0, (m, e) => [m, e.a, e.b].reduce((x, y) => x > y ? x : y));
+    if (maxY == 0) {
+      return SizedBox(
+        height: height,
+        child: Center(child: Text('Aucun mouvement sur 6 mois', style: TextStyle(color: p.textFaint, fontWeight: FontWeight.w600))),
+      );
+    }
+    return SizedBox(
+      height: height,
+      child: BarChart(
+        BarChartData(
+          maxY: maxY * 1.2,
+          alignment: BarChartAlignment.spaceAround,
+          gridData: FlGridData(
+            drawVerticalLine: false,
+            horizontalInterval: maxY * 1.2 / 4,
+            getDrawingHorizontalLine: (_) => FlLine(color: p.text.withValues(alpha: 0.06), strokeWidth: 1),
+          ),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 24,
+                getTitlesWidget: (v, meta) => Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(points[v.toInt()].label, style: TextStyle(fontSize: 11, color: p.textFaint, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ),
+          ),
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => AppColors.navy.withValues(alpha: 0.95),
+              tooltipBorderRadius: BorderRadius.circular(12),
+              getTooltipItem: (group, _, rod, rodIndex) => BarTooltipItem(
+                '${rodIndex == 0 ? 'Entrées' : 'Sorties'}\n${Fmt.fcfaCompact(rod.toY)}',
+                TextStyle(color: rod.color, fontWeight: FontWeight.w800, fontSize: 12),
+              ),
+            ),
+          ),
+          barGroups: [
+            for (var i = 0; i < points.length; i++)
+              BarChartGroupData(x: i, barsSpace: 4, barRods: [
+                BarChartRodData(toY: points[i].a, color: colorA, width: 10, borderRadius: BorderRadius.circular(4)),
+                BarChartRodData(toY: points[i].b, color: colorB, width: 10, borderRadius: BorderRadius.circular(4)),
+              ]),
+          ],
+        ),
+        duration: const Duration(milliseconds: 600),
+      ),
+    );
+  }
+}

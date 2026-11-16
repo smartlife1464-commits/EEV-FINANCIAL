@@ -14,7 +14,9 @@ import '../../kit/kit.dart';
 
 /// Saisie d'une recette : montant en grand, catégorie, ventilation 80/10/10 calculée en direct.
 class EntryFormScreen extends StatefulWidget {
-  const EntryFormScreen({super.key});
+  /// Catégorie présélectionnée (ex. depuis la fiche d'une quête ou d'un compartiment)
+  final String? initialCategoryId;
+  const EntryFormScreen({super.key, this.initialCategoryId});
 
   @override
   State<EntryFormScreen> createState() => _EntryFormScreenState();
@@ -87,7 +89,10 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
               return i < 0 ? order.length : i;
             }
             final active = cats.where((c) => c['is_active'] != false).toList()..sort((a, b) => rank(a).compareTo(rank(b)));
-            _category ??= active.firstWhere((c) => c.s('code') == 'tithes', orElse: () => active.isEmpty ? <String, dynamic>{} : active.first);
+            _category ??= active.firstWhere(
+              (c) => widget.initialCategoryId != null ? c.s('id') == widget.initialCategoryId : c.s('code') == 'tithes',
+              orElse: () => active.isEmpty ? <String, dynamic>{} : active.first,
+            );
             if (_category!.isEmpty) _category = null;
             return _form(context, active);
           },

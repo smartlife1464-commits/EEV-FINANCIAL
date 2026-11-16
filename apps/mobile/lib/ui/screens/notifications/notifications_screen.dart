@@ -10,6 +10,7 @@ import '../../kit/kit.dart';
 import '../attendance/attendance_form_screen.dart';
 import '../attendance/attendance_screen.dart';
 import '../finance/approvals_screen.dart';
+import '../finance/fund_detail_screen.dart';
 import '../shell/home_shell.dart';
 
 /// Centre d'alertes opérationnelles, groupées par priorité.
@@ -32,6 +33,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (link == '/finance/approvals' && perms.approveExpense) page = const ApprovalsScreen();
     if (link == '/attendance/new' && perms.submitAttendance) page = const AttendanceFormScreen();
     if (link == '/attendance') page = const AttendanceScreen(standalone: true, initialFilter: 'submitted');
+    if (link.startsWith('/finance/funds/')) page = FundDetailScreen(fundId: link.split('/').last);
     if (page != null) {
       pushPage(context, page);
     } else {

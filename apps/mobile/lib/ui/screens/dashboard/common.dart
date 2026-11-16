@@ -9,6 +9,8 @@ import '../../../state/notifications.dart';
 import '../../../state/session.dart';
 import '../../kit/kit.dart';
 import '../notifications/notifications_screen.dart';
+import '../finance/fund_detail_screen.dart';
+import '../finance/fund_style.dart';
 import '../shell/home_shell.dart';
 
 /// En-tête personnalisé des tableaux de bord : salutation, rôle, accès aux alertes.
@@ -97,25 +99,7 @@ class FundsCarousel extends StatelessWidget {
   final List<Map<String, dynamic>> funds;
   const FundsCarousel({super.key, required this.funds});
 
-  static const _colors = {
-    'GENERAL': AppColors.info,
-    'TITHE_OF_TITHES': AppColors.gold,
-    'WELFARE_AID': AppColors.success,
-    'BUILDING': AppColors.violet,
-    'FRIENDS_OF_JESUS': AppColors.pink,
-    'SPECIAL_OFFERING': AppColors.cyan,
-  };
-
-  static const _icons = {
-    'GENERAL': LucideIcons.landmark,
-    'TITHE_OF_TITHES': LucideIcons.crown,
-    'WELFARE_AID': LucideIcons.handHeart,
-    'BUILDING': LucideIcons.building2,
-    'FRIENDS_OF_JESUS': LucideIcons.heartHandshake,
-    'SPECIAL_OFFERING': LucideIcons.gift,
-  };
-
-  static IconData iconFor(String code) => _icons[code] ?? LucideIcons.piggyBank;
+  static IconData iconFor(String code) => FundStyle.of(code: code).icon;
 
   @override
   Widget build(BuildContext context) {
@@ -132,17 +116,22 @@ class FundsCarousel extends StatelessWidget {
         itemBuilder: (context, i) {
           final f = funds[i];
           final account = f.obj('account');
-          final code = account.s('code');
-          final color = _colors[code] ?? AppColors.chart[i % AppColors.chart.length];
+          final style = FundStyle.ofTreasury(f);
+          final color = style.color;
+          final campaign = f['campaign'] is Map ? f.obj('campaign') : null;
           return SizedBox(
             width: 200,
             child: AppCard(
+              onTap: account.s('id').isEmpty ? null : () => pushPage(context, FundDetailScreen(fundId: account.s('id'))),
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  IconChip(_icons[code] ?? LucideIcons.piggyBank, color: color, size: 36),
+                  IconChip(style.icon, color: color, size: 36),
                   const Spacer(),
-                  if (account.b('isRestricted')) Icon(LucideIcons.lock, size: 14, color: p.textFaint),
+                  if (campaign != null)
+                    Text(Fmt.percent(campaign.n('percentage')), style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 12))
+                  else if (account.b('isRestricted'))
+                    Icon(LucideIcons.lock, size: 14, color: p.textFaint),
                 ]),
                 const Spacer(),
                 Text(account.s('name'), maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -151,7 +140,7 @@ class FundsCarousel extends StatelessWidget {
                 Text(Fmt.fcfa(f.n('balance')), maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: p.text, fontWeight: FontWeight.w900, fontSize: 16)),
                 const SizedBox(height: 10),
-                ProgressBar(value: f.n('percentageOfTotal') / 100, color: color, height: 6),
+                ProgressBar(value: campaign != null ? campaign.n('percentage') / 100 : f.n('percentageOfTotal') / 100, color: color, height: 6),
               ]),
             ),
           ).entrance(i);

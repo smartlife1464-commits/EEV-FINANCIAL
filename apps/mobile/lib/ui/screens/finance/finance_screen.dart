@@ -8,8 +8,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/api.dart';
 import '../../../state/session.dart';
 import '../../kit/kit.dart';
-import '../dashboard/common.dart';
 import '../../../state/data_bus.dart';
+import 'fund_detail_screen.dart';
+import 'fund_form_screen.dart';
+import 'fund_style.dart';
+import '../shell/home_shell.dart';
 import 'expense_actions.dart';
 
 /// Espace Finances : trésorerie, journal des recettes, suivi des dépenses.
@@ -125,13 +128,56 @@ class _Segmented extends StatelessWidget {
 class _TreasuryTab extends StatelessWidget {
   const _TreasuryTab();
 
+  void _create(BuildContext context) {
+    showAppSheet<void>(context, builder: (ctx) {
+      final p = Palette.of(ctx);
+      Widget option(IconData icon, Color color, String title, String subtitle, String kind) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: AppCard(
+              padding: const EdgeInsets.all(14),
+              onTap: () {
+                Navigator.pop(ctx);
+                pushPage(context, FundFormScreen(initialKind: kind));
+              },
+              child: Row(children: [
+                IconChip(icon, color: color, size: 48),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(title, style: TextStyle(fontWeight: FontWeight.w800, color: p.text, fontSize: 15.5)),
+                    Text(subtitle, style: TextStyle(color: p.textMuted, fontSize: 12.5)),
+                  ]),
+                ),
+                Icon(LucideIcons.chevronRight, color: p.textFaint),
+              ]),
+            ),
+          );
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('Ajouter à la caisse', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: p.text)),
+          const SizedBox(height: 14),
+          option(LucideIcons.target, const Color(0xFFF97316), 'Quête spontanée', 'Temporaire : somme à atteindre et délai', 'campaign'),
+          option(LucideIcons.piggyBank, AppColors.cyan, 'Compartiment de caisse', 'Fonds durable (ministère, projet, département)', 'permanent'),
+        ]),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.read<Session>().user!;
     return Loader<Map<String, dynamic>>(
       load: Api.treasury,
       builder: (context, t, reload) {
         final p = Palette.of(context);
-        final funds = t.list('funds');
+        final all = t.list('funds');
+        final campaigns = all.where((f) => f.obj('account').s('kind') == 'campaign').toList();
+        final running = campaigns.where((f) => f.obj('account').s('status') != 'closed').toList();
+        final ended = campaigns.where((f) => f.obj('account').s('status') == 'closed').toList();
+        final permanent = all.where((f) => f.obj('account').s('kind') != 'campaign').toList();
+        void open(Map<String, dynamic> f) => pushPage(context, FundDetailScreen(fundId: f.obj('account').s('id')));
+
         return RefreshIndicator(
           onRefresh: reload,
           color: AppColors.navy,
@@ -147,37 +193,129 @@ class _TreasuryTab extends StatelessWidget {
                 style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, height: 1.5, fontSize: 13),
               ),
             ),
-            const SectionTitle('Compartiments analytiques'),
-            for (final (i, f) in funds.indexed)
+            if (user.canManageFunds)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: SecondaryButton(
+                  label: 'Ajouter un compartiment ou une quête',
+                  icon: LucideIcons.plus,
+                  color: AppColors.gold,
+                  onPressed: () => _create(context),
+                ),
+              ),
+            SectionTitle(running.isEmpty ? 'Quêtes spontanées' : 'Quêtes en cours (${running.length})'),
+            if (running.isEmpty)
               Gutter(
-                vertical: 5,
                 child: AppCard(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(children: [
-                    Row(children: [
-                      IconChip(FundsCarousel.iconFor(f.obj('account').s('code')), color: AppColors.chart[i % 8], size: 42),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(f.obj('account').s('name'), style: TextStyle(fontWeight: FontWeight.w800, color: p.text)),
-                          Text(f.obj('account').b('isRestricted') ? 'Fonds affecté • usage réservé' : 'Charges courantes',
-                              style: TextStyle(color: p.textMuted, fontSize: 12)),
-                        ]),
+                  onTap: user.canManageFunds ? () => pushPage(context, const FundFormScreen()) : null,
+                  child: Row(children: [
+                    const IconChip(LucideIcons.target, color: Color(0xFFF97316), size: 46),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        user.canManageFunds
+                            ? 'Aucune quête en cours. Lancez une collecte avec un objectif et une date limite.'
+                            : 'Aucune quête en cours pour le moment.',
+                        style: TextStyle(color: p.textMuted, height: 1.4),
                       ),
-                      Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                        Text(Fmt.fcfaCompact(f.n('balance')), style: TextStyle(fontWeight: FontWeight.w900, color: p.text, fontSize: 16)),
-                        Text(Fmt.percent(f.n('percentageOfTotal')), style: TextStyle(color: p.textFaint, fontSize: 12, fontWeight: FontWeight.w700)),
-                      ]),
-                    ]),
-                    const SizedBox(height: 12),
-                    ProgressBar(value: f.n('percentageOfTotal') / 100, color: AppColors.chart[i % 8]),
+                    ),
                   ]),
                 ),
-              ).entrance(i),
+              ),
+            for (final (i, f) in running.indexed) _CampaignTile(fund: f, onTap: () => open(f)).entrance(i),
+            const SectionTitle('Compartiments analytiques'),
+            for (final (i, f) in permanent.indexed)
+              Builder(builder: (context) {
+                final style = FundStyle.ofTreasury(f);
+                final a = f.obj('account');
+                return Gutter(
+                  vertical: 5,
+                  child: AppCard(
+                    onTap: () => open(f),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(children: [
+                      Row(children: [
+                        IconChip(style.icon, color: style.color, size: 42),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(a.s('name'), style: TextStyle(fontWeight: FontWeight.w800, color: p.text)),
+                            Text(a.b('isRestricted') ? 'Fonds affecté • usage réservé' : 'Charges courantes',
+                                style: TextStyle(color: p.textMuted, fontSize: 12)),
+                          ]),
+                        ),
+                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                          Text(Fmt.fcfaCompact(f.n('balance')), style: TextStyle(fontWeight: FontWeight.w900, color: p.text, fontSize: 16)),
+                          Text(Fmt.percent(f.n('percentageOfTotal')), style: TextStyle(color: p.textFaint, fontSize: 12, fontWeight: FontWeight.w700)),
+                        ]),
+                        const SizedBox(width: 6),
+                        Icon(LucideIcons.chevronRight, size: 18, color: p.textFaint),
+                      ]),
+                      const SizedBox(height: 12),
+                      ProgressBar(value: f.n('percentageOfTotal') / 100, color: style.color),
+                    ]),
+                  ),
+                ).entrance(i);
+              }),
+            if (ended.isNotEmpty) ...[
+              SectionTitle('Quêtes clôturées (${ended.length})'),
+              for (final (i, f) in ended.indexed) Opacity(opacity: 0.75, child: _CampaignTile(fund: f, onTap: () => open(f))).entrance(i),
+            ],
             const SizedBox(height: 130),
           ]),
         );
       },
+    );
+  }
+}
+
+/// Carte d'une quête : anneau de progression, montant collecté, délai restant
+class _CampaignTile extends StatelessWidget {
+  final Map<String, dynamic> fund;
+  final VoidCallback onTap;
+  const _CampaignTile({required this.fund, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final a = fund.obj('account');
+    final c = fund.obj('campaign');
+    final style = FundStyle.ofTreasury(fund);
+    final (label, stateColor, stateIcon) = campaignStateStyle(c.s('state'));
+    final daysLeft = c['daysLeft'];
+    return Gutter(
+      vertical: 5,
+      child: AppCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(16),
+        borderColor: style.color.withValues(alpha: 0.35),
+        child: Row(children: [
+          ProgressRing(
+            value: c.n('percentage') / 100,
+            size: 68,
+            stroke: 8,
+            color: c.s('state') == 'reached' ? AppColors.success : style.color,
+            center: Text('${c.n('percentage').round()}%', style: TextStyle(fontWeight: FontWeight.w900, color: p.text, fontSize: 14)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(a.s('name'), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w900, color: p.text, fontSize: 15)),
+              const SizedBox(height: 3),
+              Text('${Fmt.fcfa(c.n('collected'))} sur ${Fmt.fcfaCompact(c.n('target'))}',
+                  style: TextStyle(color: p.textMuted, fontWeight: FontWeight.w600, fontSize: 12.5)),
+              const SizedBox(height: 8),
+              Row(children: [
+                StatusPill(label, color: stateColor, icon: stateIcon),
+                const SizedBox(width: 8),
+                if (daysLeft != null && c.s('state') == 'active')
+                  Text(daysLeft == 0 ? 'Dernier jour' : 'J-$daysLeft', style: TextStyle(color: p.textFaint, fontWeight: FontWeight.w800, fontSize: 12)),
+              ]),
+            ]),
+          ),
+          Icon(LucideIcons.chevronRight, size: 18, color: p.textFaint),
+        ]),
+      ),
     );
   }
 }

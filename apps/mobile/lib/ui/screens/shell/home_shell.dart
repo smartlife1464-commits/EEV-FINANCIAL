@@ -19,6 +19,7 @@ import '../finance/entry_form_screen.dart';
 import '../finance/expense_form_screen.dart';
 import '../finance/finance_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../finance/fund_form_screen.dart';
 import '../profile/profile_screen.dart';
 
 class _Tab {
@@ -92,6 +93,9 @@ class _HomeShellState extends State<HomeShell> {
       if (p.approveExpense)
         _QuickAction(LucideIcons.badgeCheck, 'Arbitrer les dépenses', 'Approuver ou rejeter', AppColors.gold,
             () => const ApprovalsScreen()),
+      if (user.canManageFunds)
+        _QuickAction(LucideIcons.target, 'Lancer une quête', 'Objectif à atteindre avant une date', const Color(0xFFF97316),
+            () => const FundFormScreen()),
     ];
   }
 

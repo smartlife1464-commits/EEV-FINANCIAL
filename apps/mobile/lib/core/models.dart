@@ -128,6 +128,9 @@ class AppUser {
       };
 
   String get firstName => name.split(' ').first;
+
+  /// Structuration de la caisse (créer un compartiment, lancer / clôturer une quête)
+  bool get canManageFunds => role == UserRole.admin || role == UserRole.leadPastor || role == UserRole.financeLead;
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return '?';

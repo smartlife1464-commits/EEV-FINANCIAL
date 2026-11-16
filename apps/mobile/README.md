@@ -48,6 +48,18 @@ lib/
 
 Les droits affichés suivent la matrice de permissions renvoyée par l'API ; le serveur reste l'autorité finale.
 
+## Compartiments de caisse & quêtes spontanées
+
+- **Fiche d'un compartiment** (Finances → Trésorerie, ou cartes des tableaux de bord) : solde, entrées et sorties
+  cumulées, histogramme sur 6 mois, historique du grand livre, recettes reçues, dépenses imputées,
+  **meilleurs donateurs** (classement), informations (code, usage, catégorie de recette, solde d'ouverture).
+- **Ajouter un compartiment** permanent ou lancer une **quête spontanée** (somme à atteindre + date limite) :
+  rôles Admin, Pasteur Principal et Responsable Finances. Une catégorie de recette dédiée est créée
+  automatiquement (dons affectés à 100 %, sans prélèvement 80/10/10).
+- **Suivi des quêtes** : anneau de progression, montant restant, jours restants, état (en cours, objectif atteint,
+  délai dépassé, clôturée), bouton « Collecter » qui ouvre le formulaire de recette sur la bonne catégorie,
+  clôture / réouverture / prolongation. Alertes automatiques : échéance à J-3, objectif atteint, délai dépassé.
+
 ## Points clés
 
 - **Aucune donnée fictive** : chaque chiffre vient de l'API ; une erreur réseau affiche un état « Réessayer ».

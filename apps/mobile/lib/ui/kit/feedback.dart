@@ -94,7 +94,9 @@ class SkeletonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // Défilement neutralisé : le squelette ne déborde jamais, quelle que soit la hauteur disponible
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Column(children: [
         if (hero) ...[const Skeleton(height: 190, radius: 30), const SizedBox(height: 16)],

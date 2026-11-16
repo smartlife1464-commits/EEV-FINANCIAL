@@ -14,6 +14,7 @@ import {
   FinancialEntryStatus,
 } from '@eev/shared-types';
 import { createAuditLog } from './audit.js';
+import { campaignProgress } from '../routes/funds.routes.js';
 
 export interface CreateFinancialEntryInput {
   serviceId?: string;
@@ -461,11 +462,20 @@ export class LedgerService {
     const generalFundBalance = generalFund ? generalFund.current_balance : 0;
     const generalFundFreeBalance = generalFundBalance - pendingCommitmentsTotal;
 
+    // Cumul des entrées par compartiment (progression des quêtes vers leur objectif)
+    const credits = await pb
+      .collection('fund_transactions')
+      .getFullList({ filter: "direction = 'credit'", fields: 'fund_account,amount' })
+      .catch(() => [] as any[]);
+    const collectedByFund = new Map<string, number>();
+    for (const t of credits) collectedByFund.set(t.fund_account, (collectedByFund.get(t.fund_account) || 0) + (t.amount || 0));
+
     const fundsBreakdown = funds.map((f) => {
       const balance = f.current_balance || 0;
       const percentageOfTotal = consolidatedPhysicalBalance > 0
         ? Math.round((balance / consolidatedPhysicalBalance) * 1000) / 10
         : 0;
+      const collected = collectedByFund.get(f.id) || 0;
       return {
         account: {
           id: f.id,
@@ -475,11 +485,20 @@ export class LedgerService {
           currentBalance: balance,
           isRestricted: f.is_restricted,
           isActive: f.is_active,
+          kind: (f.kind || 'permanent') as 'permanent' | 'campaign',
+          status: f.status || 'active',
+          color: f.color || '',
+          targetAmount: f.target_amount || 0,
+          startDate: f.start_date || '',
+          endDate: f.end_date || '',
+          revenueCategoryId: f.revenue_category || '',
           created: f.created,
           updated: f.updated,
         },
         balance,
         percentageOfTotal,
+        collected,
+        campaign: campaignProgress(f, collected),
       };
     });
 

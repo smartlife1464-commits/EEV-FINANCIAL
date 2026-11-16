@@ -129,6 +129,10 @@ class Api {
   // ---------------------------------------------------------------- Finances
   static Future<Map<String, dynamic>> treasury() => _map('GET', '/finance/overview');
   static Future<List<Map<String, dynamic>>> funds() => _list('/finance/funds');
+  static Future<Map<String, dynamic>> fundDetail(String id) => _map('GET', '/finance/funds/$id');
+  static Future<Map<String, dynamic>> createFund(Map<String, dynamic> data) => _map('POST', '/finance/funds', body: data);
+  static Future<Map<String, dynamic>> updateFund(String id, Map<String, dynamic> data) =>
+      _map('PATCH', '/finance/funds/$id', body: data);
   static Future<List<Map<String, dynamic>>> revenueCategories() => _list('/finance/categories');
   static Future<List<Map<String, dynamic>>> expenseCategories() => _list('/finance/expense-categories');
   static Future<List<Map<String, dynamic>>> entries() => _list('/finance/entries');

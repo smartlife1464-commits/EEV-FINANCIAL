@@ -4,6 +4,7 @@ import { UserRole } from '@eev/shared-types';
 import { authenticateRequest } from '../middleware/auth.js';
 import { pb, ensureAdminAuth } from '../services/pocketbase.js';
 import { isProtocolRole, sendServiceError } from '../utils/http.js';
+import { campaignProgress } from './funds.routes.js';
 
 export interface AppNotification {
   id: string;
@@ -201,7 +202,34 @@ export async function notificationRoutes(app: FastifyInstance) {
         }
       }
 
-      // 7. Clôture de caisse hebdomadaire (Finances / Caisse)
+      // 7. Quêtes spontanées : échéance proche, objectif atteint, délai dépassé
+      if (finance) {
+        const campaigns = await pb.collection('fund_accounts').getFullList({ filter: `kind = "campaign" && status = "active"` });
+        if (campaigns.length) {
+          const credits = await pb.collection('fund_transactions').getFullList({ filter: `direction = "credit"`, fields: 'fund_account,amount' });
+          for (const c of campaigns) {
+            const collected = credits.filter((t) => t.fund_account === c.id).reduce((acc, t) => acc + (t.amount || 0), 0);
+            const progress = campaignProgress(c, collected);
+            if (!progress) continue;
+            const base = { category: 'finances' as const, link: `/finance/funds/${c.id}`, at: c.end_date ? `${c.end_date} 23:00:00.000Z` : c.created };
+            if (progress.state === 'reached') {
+              items.push({ ...base, id: `campaign-reached-${c.id}`, severity: 'info', badge: 'Quête',
+                title: `Objectif atteint : ${c.name} 🎉`,
+                description: `${fcfa(collected)} collectés sur ${fcfa(progress.target)}. Vous pouvez clôturer la quête.` });
+            } else if (progress.state === 'expired') {
+              items.push({ ...base, id: `campaign-expired-${c.id}`, severity: 'warning', badge: 'Quête',
+                title: `Délai dépassé : ${c.name}`,
+                description: `${fcfa(collected)} collectés (${progress.percentage} %). Clôturez ou prolongez la quête.` });
+            } else if (progress.daysLeft !== null && progress.daysLeft <= 3) {
+              items.push({ ...base, id: `campaign-soon-${c.id}-${progress.daysLeft}`, severity: 'action', badge: 'Quête',
+                title: `Plus que ${progress.daysLeft} jour(s) : ${c.name}`,
+                description: `Encore ${fcfa(progress.remaining)} à collecter (${progress.percentage} % atteint).` });
+            }
+          }
+        }
+      }
+
+      // 8. Clôture de caisse hebdomadaire (Finances / Caisse)
       if (finance && perms.canPayExpense) {
         const since = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
         const closings = await pb.collection('cash_closings').getList(1, 1, { filter: `closing_date >= "${since}"` });
