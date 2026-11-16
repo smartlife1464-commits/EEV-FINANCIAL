@@ -114,6 +114,21 @@ export const api = {
       body: JSON.stringify(credentials),
     }),
   getMe: () => request<{ user: any }>('/auth/me'),
+  requestPasswordReset: (email: string) =>
+    request<{ success: boolean; message: string; devOtp?: string }>('/auth/request-password-reset', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  verifyOtp: (email: string, otp: string) =>
+    request<{ success: boolean; message: string; resetToken: string }>('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    }),
+  resetPassword: (data: { email: string; resetToken: string; newPassword: string }) =>
+    request<{ success: boolean; message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   getUsers: () => request<any[]>('/users'),
   createUser: (data: any) =>
     request<any>('/users', {
