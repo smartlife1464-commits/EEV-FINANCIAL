@@ -11,6 +11,7 @@ import { reportRoutes } from './routes/reports.routes.js';
 import { analyticsRoutes } from './routes/analytics.routes.js';
 import { notificationRoutes } from './routes/notifications.routes.js';
 import { settingsRoutes } from './routes/settings.routes.js';
+import { fundRoutes } from './routes/funds.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
@@ -77,6 +78,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(analyticsRoutes);
   await app.register(notificationRoutes);
   await app.register(settingsRoutes);
+  await app.register(fundRoutes);
 
   return app;
 }

@@ -52,7 +52,7 @@ EEV-FINANCIAL/
 ├── apps/
 │   ├── web/                     # Application React 19 / Vite / Tailwind / Recharts
 │   ├── api/                     # Backend Fastify / OpenAPI / Zod / PocketBase SDK
-│   └── mobile/                  # Application React Native / Expo Router / SecureStore
+│   └── mobile/                  # Application Flutter / Provider / SharedPreferences / OfflineSync
 ├── packages/
 │   ├── shared-types/            # Définitions TypeScript (Enums, DTOs, Modèles)
 │   ├── business-rules/          # Logique financière & arithmétique exacte FCFA
@@ -94,8 +94,8 @@ pnpm dev:api
 # Terminal 3 : Application Web React (Port 5173)
 pnpm dev:web
 
-# Terminal 4 : Application Mobile Expo (iOS / Android)
-cd apps/mobile && npx expo start
+# Terminal 4 : Application Mobile Flutter (Android / iOS / Web / macOS)
+cd apps/mobile && flutter run
 ```
 
 Documentation Swagger interactive disponible sur : `http://localhost:4000/docs`.

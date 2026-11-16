@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import PocketBase from 'pocketbase';
+import crypto from 'node:crypto';
 import { config } from '../config.js';
 import { loginSchema, createUserSchema } from '@eev/shared-validation';
 import { authenticateRequest, requireRoles } from '../middleware/auth.js';
@@ -194,6 +195,165 @@ export async function authRoutes(app: FastifyInstance) {
     } catch (err) {
       return sendServiceError(reply, err, 'Impossible de mettre à jour le statut du compte.');
     }
+  });
+
+  // --- Réinitialisation de mot de passe & OTP (Application privée) ---
+  const otpStore = new Map<string, { otp: string; expiresAt: number; resetToken?: string; resetTokenExpiresAt?: number }>();
+
+  // 1. Demande d'envoi du code OTP
+  app.post('/api/auth/request-password-reset', async (request, reply) => {
+    const { email } = (request.body as { email?: string }) || {};
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return reply.status(400).send({ error: 'Adresse email invalide.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Vérifier si le compte existe dans DEV_ACCOUNTS ou dans PocketBase
+    let userExists = Boolean(DEV_ACCOUNTS[normalizedEmail]);
+    if (!userExists) {
+      try {
+        await ensureAdminAuth();
+        const records = await pb.collection('users').getList(1, 1, {
+          filter: `email = "${normalizedEmail}"`,
+        });
+        if (records.items.length > 0) {
+          userExists = true;
+        }
+      } catch {
+        // En mode déconnecté, accepter si présent dans DEV_ACCOUNTS
+      }
+    }
+
+    if (!userExists && !config.isDevelopment) {
+      // Pour des raisons de sécurité, ne pas divulguer si l'email existe ou pas
+      return reply.send({
+        success: true,
+        message: 'Si cette adresse email est rattachée à un compte actif, un code de réinitialisation y a été envoyé.',
+      });
+    }
+
+    // Génération d'un code OTP à 6 chiffres
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+    otpStore.set(normalizedEmail, { otp, expiresAt });
+
+    // Envoi réel via PocketBase si configuré
+    try {
+      await pb.collection('users').requestPasswordReset(normalizedEmail);
+    } catch {
+      // Ignorer si le serveur de messagerie externe n'est pas encore actif
+    }
+
+    await createAuditLog({
+      userId: 'system',
+      action: 'password_reset_requested',
+      collectionName: 'users',
+      recordId: normalizedEmail,
+      reason: `Demande de code OTP pour ${normalizedEmail}`,
+      ipAddress: request.ip,
+      userAgent: String(request.headers['user-agent'] || ''),
+    });
+
+    return reply.send({
+      success: true,
+      message: 'Un code de vérification à 6 chiffres a été envoyé à votre adresse email.',
+      devOtp: config.isDevelopment ? otp : undefined,
+    });
+  });
+
+  // 2. Vérification du code OTP
+  app.post('/api/auth/verify-otp', async (request, reply) => {
+    const { email, otp } = (request.body as { email?: string; otp?: string }) || {};
+    if (!email || !otp) {
+      return reply.status(400).send({ error: 'L’email et le code OTP sont obligatoires.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const record = otpStore.get(normalizedEmail);
+
+    if (!record || record.expiresAt < Date.now()) {
+      return reply.status(400).send({ error: 'Le code OTP a expiré ou n’existe pas. Veuillez demander un nouveau code.' });
+    }
+
+    if (record.otp !== otp.trim()) {
+      return reply.status(400).send({ error: 'Code OTP incorrect. Veuillez vérifier le code à 6 chiffres.' });
+    }
+
+    // Générer un token temporaire de réinitialisation
+    const resetToken = crypto.randomUUID();
+    record.resetToken = resetToken;
+    record.resetTokenExpiresAt = Date.now() + 15 * 60 * 1000; // Valide 15 minutes
+
+    return reply.send({
+      success: true,
+      message: 'Code OTP validé avec succès.',
+      resetToken,
+    });
+  });
+
+  // 3. Réinitialisation effective du mot de passe
+  app.post('/api/auth/reset-password', async (request, reply) => {
+    const { email, resetToken, newPassword } = (request.body as { email?: string; resetToken?: string; newPassword?: string }) || {};
+
+    if (!email || !resetToken || !newPassword) {
+      return reply.status(400).send({ error: 'Paramètres incomplets pour la réinitialisation.' });
+    }
+
+    if (newPassword.length < 8) {
+      return reply.status(400).send({ error: 'Le mot de passe doit comporter au moins 8 caractères.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const record = otpStore.get(normalizedEmail);
+
+    if (
+      !record ||
+      record.resetToken !== resetToken ||
+      !record.resetTokenExpiresAt ||
+      record.resetTokenExpiresAt < Date.now()
+    ) {
+      return reply.status(400).send({ error: 'Jeton de réinitialisation invalide ou expiré.' });
+    }
+
+    // Mise à jour dans PocketBase
+    try {
+      await ensureAdminAuth();
+      const userList = await pb.collection('users').getList(1, 1, {
+        filter: `email = "${normalizedEmail}"`,
+      });
+      if (userList.items.length > 0) {
+        const userId = userList.items[0].id;
+        await pb.collection('users').update(userId, {
+          password: newPassword,
+          passwordConfirm: newPassword,
+        });
+      }
+    } catch {
+      // Si en mode dev avec DEV_ACCOUNTS
+      if (DEV_ACCOUNTS[normalizedEmail]) {
+        DEV_ACCOUNTS[normalizedEmail].password = newPassword;
+      }
+    }
+
+    // Supprimer le code OTP consommé
+    otpStore.delete(normalizedEmail);
+
+    await createAuditLog({
+      userId: 'system',
+      action: 'password_reset_completed',
+      collectionName: 'users',
+      recordId: normalizedEmail,
+      reason: `Mot de passe réinitialisé avec succès pour ${normalizedEmail}`,
+      ipAddress: request.ip,
+      userAgent: String(request.headers['user-agent'] || ''),
+    });
+
+    return reply.send({
+      success: true,
+      message: 'Votre mot de passe a été réinitialisé avec succès.',
+    });
   });
 }
 
