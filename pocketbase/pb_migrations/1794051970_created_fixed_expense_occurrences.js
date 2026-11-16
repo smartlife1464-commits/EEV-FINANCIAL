@@ -216,6 +216,16 @@ migrate((app) => {
     "viewRule": ""
   });
 
+  // Installation neuve : ce fichier s'exécute AVANT celui qui crée « fixed_expenses » (même horodatage,
+  // ordre alphabétique). La relation est alors retirée ici et rétablie par 1794200004_fixed_expense_relation.js.
+  // (Sans effet sur les bases existantes, où cette migration est déjà appliquée.)
+  try {
+    app.findCollectionByNameOrId("pbc_1019204502");
+  } catch (_) {
+    const relation = collection.fields.getByName("fixed_expense");
+    if (relation) collection.fields.removeById(relation.id);
+  }
+
   return app.save(collection);
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_3791929718");
