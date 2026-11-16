@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { formatFCFA } from '../../utils/formatters';
 import { PeriodSelector } from '../../components/analytics/PeriodSelector';
+import { usePeriod } from '../../context/PeriodContext';
 import {
   Wallet,
   ArrowDownCircle,
@@ -35,25 +36,18 @@ import {
   Legend,
 } from 'recharts';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const FinancialAnalytics: React.FC = () => {
-  const [period, setPeriod] = useState<string>('this_month');
-  const [customStart, setCustomStart] = useState<string | undefined>();
-  const [customEnd, setCustomEnd] = useState<string | undefined>();
+  const { period, startDate: customStart, endDate: customEnd, setPeriod: handlePeriodChange } = usePeriod();
 
   const { data: finData, isLoading } = useQuery({
     queryKey: ['financial-analytics', period, customStart, customEnd],
     queryFn: () => api.getFinancialAnalytics(period, customStart, customEnd),
   });
 
-  const handlePeriodChange = (newPeriod: string, start?: string, end?: string) => {
-    setPeriod(newPeriod);
-    setCustomStart(start);
-    setCustomEnd(end);
-  };
-
   const handleExportCSV = () => {
-    window.open('/api/analytics/export/csv?type=finance', '_blank');
+    api.exportAnalyticsCsv('finance', period, customStart, customEnd).catch((err) => toast.error('Export impossible', { description: err.message }));
   };
 
   const revenues = finData?.revenues;
@@ -142,7 +136,7 @@ export const FinancialAnalytics: React.FC = () => {
             <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
           </div>
           <div className="text-2xl font-black text-slate-900 dark:text-white">
-            {formatFCFA(revenues?.totalGross || 3500000)}
+            {formatFCFA(revenues?.totalGross ?? 0)}
           </div>
           <p className="text-[11px] text-slate-400">
             Dîmes, offrandes et dons affectés
@@ -157,7 +151,7 @@ export const FinancialAnalytics: React.FC = () => {
             <Coins className="w-5 h-5 text-amber-500" />
           </div>
           <div className="text-2xl font-black text-amber-500">
-            {formatFCFA(revenues?.ordinaryCombined || 2800000)}
+            {formatFCFA(revenues?.ordinaryCombined ?? 0)}
           </div>
           <p className="text-[11px] text-slate-400">
             Base exacte de la répartition 80/10/10
@@ -172,7 +166,7 @@ export const FinancialAnalytics: React.FC = () => {
             <ArrowUpCircle className="w-5 h-5 text-rose-500" />
           </div>
           <div className="text-2xl font-black text-rose-600 dark:text-rose-400">
-            {formatFCFA(expenses?.paid || 480000)}
+            {formatFCFA(expenses?.paid ?? 0)}
           </div>
           <p className="text-[11px] text-slate-400">
             Seules sorties réelles de liquidités
@@ -187,7 +181,7 @@ export const FinancialAnalytics: React.FC = () => {
             <Building2 className="w-5 h-5 text-blue-500" />
           </div>
           <div className="text-2xl font-black text-blue-500">
-            {formatFCFA(revenues?.designated?.buildingAuditorium || 525000)}
+            {formatFCFA(revenues?.designated?.buildingAuditorium ?? 0)}
           </div>
           <p className="text-[11px] text-emerald-500 font-bold">
             100% alloué (0% de prélèvement)
@@ -206,7 +200,7 @@ export const FinancialAnalytics: React.FC = () => {
                 <span>Ventilation Automatique 80 / 10 / 10</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Calculée sur les recettes ordinaires ({formatFCFA(revenues?.ordinaryCombined || 2800000)}).
+                Calculée sur les recettes ordinaires ({formatFCFA(revenues?.ordinaryCombined ?? 0)}).
               </p>
             </div>
             <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-500 border border-amber-400/30">
@@ -253,7 +247,7 @@ export const FinancialAnalytics: React.FC = () => {
               </p>
             </div>
             <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/25">
-              Total : {formatFCFA(expenses?.paid || 480000)}
+              Total : {formatFCFA(expenses?.paid ?? 0)}
             </span>
           </div>
 

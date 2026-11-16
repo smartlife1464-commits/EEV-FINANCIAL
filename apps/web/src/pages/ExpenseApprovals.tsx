@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { formatFCFA, formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import {
@@ -14,8 +15,12 @@ import {
   X,
   Send,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const ExpenseApprovals: React.FC = () => {
+  const { user, hasPermission } = useAuth();
+  const canDecide = hasPermission('canApproveExpense');
+  const queryClient = useQueryClient();
   const { data: expenses = [], isLoading, refetch } = useQuery({
     queryKey: ['expenses'],
     queryFn: () => api.getExpenses(),
@@ -39,9 +44,11 @@ export const ExpenseApprovals: React.FC = () => {
     setProcessingId(id);
     try {
       await api.approveExpense(id, 'approve');
+      toast.success('Dépense approuvée', { description: 'Elle peut désormais être payée par la caisse.' });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       await refetch();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l’approbation');
+      toast.error(err.message || 'Erreur lors de l’approbation');
     } finally {
       setProcessingId(null);
     }
@@ -56,9 +63,11 @@ export const ExpenseApprovals: React.FC = () => {
       await api.approveExpense(rejectingExpense.id, 'reject', rejectionReason.trim());
       setRejectingExpense(null);
       setRejectionReason('');
+      toast.success('Dépense rejetée', { description: 'Le motif a été notifié et archivé dans la piste d’audit.' });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       await refetch();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors du rejet');
+      toast.error(err.message || 'Erreur lors du rejet');
     } finally {
       setProcessingId(null);
     }
@@ -98,7 +107,7 @@ export const ExpenseApprovals: React.FC = () => {
               Solde Libre du Fonds Général (80%)
             </span>
             <span className="text-xl font-black text-white">
-              {formatFCFA(treasury?.generalFundFreeBalance || 8150000)}
+              {formatFCFA(treasury?.generalFundFreeBalance ?? 0)}
             </span>
           </div>
         </div>
@@ -128,13 +137,14 @@ export const ExpenseApprovals: React.FC = () => {
               <div className="space-y-2.5 flex-1">
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-xs font-black px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#070D22] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#16214A]">
-                    {expense.expense_number || 'DEP-2026-00001'}
+                    {expense.expense_number || '—'}
                   </span>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/25">
                     En attente d'accord
                   </span>
                   <span className="text-xs text-slate-400">
                     Soumise le {formatDate(expense.created)}
+                    {expense.requested_by?.name ? ` par ${expense.requested_by.name}` : ''}
                   </span>
                 </div>
 
@@ -176,6 +186,19 @@ export const ExpenseApprovals: React.FC = () => {
                   </span>
                 </div>
 
+                {(() => {
+                  const ownRequest = expense.requested_by === user?.id || expense.requested_by?.id === user?.id;
+                  if (!canDecide) {
+                    return <span className="text-xs font-bold text-slate-400">Consultation seule</span>;
+                  }
+                  if (ownRequest) {
+                    return (
+                      <span className="max-w-[220px] text-xs font-bold text-amber-600 dark:text-amber-400 text-right">
+                        Vous êtes l’auteur de cette demande : l’auto-approbation est interdite.
+                      </span>
+                    );
+                  }
+                  return (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setRejectingExpense(expense)}
@@ -194,6 +217,8 @@ export const ExpenseApprovals: React.FC = () => {
                     <span>{processingId === expense.id ? 'Validation...' : 'Approuver le Paiement'}</span>
                   </button>
                 </div>
+                  );
+                })()}
               </div>
             </div>
           ))}

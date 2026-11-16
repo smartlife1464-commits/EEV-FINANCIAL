@@ -19,10 +19,12 @@ import {
   isWithinInterval,
   differenceInDays,
 } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { pb, ensureAdminAuth } from './pocketbase.js';
 import { LedgerService } from './ledger.js';
 import { calculateEntryAllocations } from '@eev/business-rules';
-import { AllocationRule, FundAccountCode } from '@eev/shared-types';
+import { AllocationRule, ConsolidatedTreasury } from '@eev/shared-types';
+import { config } from '../config.js';
 
 export type PeriodKey =
   | 'today'
@@ -156,8 +158,8 @@ export function resolvePeriodDateRange(
       endDate = endOfMonth(now);
       previousStartDate = startOfMonth(subMonths(now, 1));
       previousEndDate = endOfMonth(subMonths(now, 1));
-      label = `Ce mois-ci (${format(startDate, 'MMMM yyyy')})`;
-      previousLabel = `Mois précédent (${format(previousStartDate, 'MMMM yyyy')})`;
+      label = `Ce mois-ci (${format(startDate, 'MMMM yyyy', { locale: fr })})`;
+      previousLabel = `Mois précédent (${format(previousStartDate, 'MMMM yyyy', { locale: fr })})`;
       break;
 
     case 'last_month':
@@ -165,8 +167,8 @@ export function resolvePeriodDateRange(
       endDate = endOfMonth(subMonths(now, 1));
       previousStartDate = startOfMonth(subMonths(now, 2));
       previousEndDate = endOfMonth(subMonths(now, 2));
-      label = `Mois dernier (${format(startDate, 'MMMM yyyy')})`;
-      previousLabel = `Mois M-2 (${format(previousStartDate, 'MMMM yyyy')})`;
+      label = `Mois dernier (${format(startDate, 'MMMM yyyy', { locale: fr })})`;
+      previousLabel = `Mois M-2 (${format(previousStartDate, 'MMMM yyyy', { locale: fr })})`;
       break;
 
     case 'this_quarter':
@@ -282,8 +284,8 @@ export function resolvePeriodDateRange(
         endDate = endOfMonth(now);
         previousStartDate = startOfMonth(subMonths(now, 1));
         previousEndDate = endOfMonth(subMonths(now, 1));
-        label = `Ce mois-ci (${format(startDate, 'MMMM yyyy')})`;
-        previousLabel = `Mois précédent (${format(previousStartDate, 'MMMM yyyy')})`;
+        label = `Ce mois-ci (${format(startDate, 'MMMM yyyy', { locale: fr })})`;
+        previousLabel = `Mois précédent (${format(previousStartDate, 'MMMM yyyy', { locale: fr })})`;
       }
       break;
   }
@@ -298,157 +300,675 @@ export function resolvePeriodDateRange(
   };
 }
 
+
+// =============================================================================
+// MOTEUR STATISTIQUE — calculs exclusivement à partir des données réelles
+// (aucune donnée de démonstration : une base vide produit des indicateurs à zéro)
+// =============================================================================
+
+
+const PALETTE = ['#FFBC00', '#3B82F6', '#10B981', '#EC4899', '#8B5CF6', '#06B6D4', '#F97316', '#64748B'];
+
+/** Libellés de repli des programmes (si la collection service_types est vide) */
+const DEFAULT_SERVICE_TYPE_NAMES: Record<string, string> = {
+  tuesday_service: 'Culte de Mardi',
+  thursday_service: 'Culte de Jeudi',
+  sunday_service_1: '1er Service Dimanche',
+  sunday_service_2: '2ème Service Dimanche',
+  mission_camp: 'Camp Missionnaire',
+  shepherds_camp: 'Camp des Bergers',
+  special_programs: 'Programmes Spéciaux',
+};
+
+/** Fiches non comptabilisées dans les statistiques officielles */
+const EXCLUDED_SHEET_STATUSES = ['draft', 'rejected', 'cancelled'];
+
+export interface Snapshot {
+  entries: any[];
+  expenses: any[];
+  sheets: any[];
+  serviceTypes: any[];
+  treasury: ConsolidatedTreasury;
+}
+
+/** Extrait la partie AAAA-MM-JJ d'une date PocketBase ("2026-11-06 22:41:31.218Z") ou ISO */
+export function dayOf(value?: string | null): string {
+  return (value || '').slice(0, 10);
+}
+
+function toDate(day: string): Date | null {
+  if (!day || day.length < 10) return null;
+  const d = parseISO(day);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function inRange(value: string | undefined | null, start: Date, end: Date): boolean {
+  const d = toDate(dayOf(value));
+  return !!d && d >= startOfDay(start) && d <= end;
+}
+
+const sum = <T>(list: T[], pick: (x: T) => number) => list.reduce((acc, x) => acc + (Number(pick(x)) || 0), 0);
+const pct = (part: number, total: number, decimals = 0) => {
+  if (!total) return 0;
+  const f = Math.pow(10, decimals);
+  return Math.round((part / total) * 100 * f) / f;
+};
+
+export const entryDay = (e: any) => dayOf(e.collected_at || e.created);
+export const sheetDay = (s: any) => dayOf(s.service_date || s.expand?.service?.date || s.created);
+/** Date de décaissement pour une dépense payée, date d'engagement sinon */
+export const expenseDay = (x: any) =>
+  dayOf(x.status === 'paid' ? x.paid_at || x.expense_date || x.created : x.expense_date || x.created);
+
+export const entryCategoryCode = (e: any): string => e.expand?.category?.code || '';
+export const isOrdinaryEntry = (e: any): boolean =>
+  e.expand?.category?.allocation_rule === AllocationRule.STANDARD_SPLIT_80_10_10 ||
+  ['tithes', 'offerings'].includes(entryCategoryCode(e));
+
+export const expenseCategoryName = (x: any): string =>
+  x.expand?.category?.name || x.category_name || 'Autres dépenses';
+
+/**
+ * Charge en une fois les données nécessaires aux statistiques.
+ * Lève une erreur explicite si PocketBase est indisponible (pas de repli silencieux).
+ */
+export async function loadSnapshot(options: { finance?: boolean } = {}): Promise<Snapshot> {
+  const withFinance = options.finance !== false;
+  await ensureAdminAuth();
+
+  const [sheets, serviceTypes, entries, expenses, treasury] = await Promise.all([
+    pb.collection('attendance_sheets').getFullList({ sort: '-service_date', expand: 'service,service_type' }),
+    pb.collection('service_types').getFullList({ sort: 'display_order' }),
+    withFinance
+      ? pb.collection('financial_entries').getFullList({ sort: '-collected_at', expand: 'category' })
+      : Promise.resolve([] as any[]),
+    withFinance
+      ? pb.collection('expenses').getFullList({ sort: '-created', expand: 'category,fund_account' })
+      : Promise.resolve([] as any[]),
+    withFinance
+      ? LedgerService.getConsolidatedTreasury()
+      : Promise.resolve({
+          consolidatedPhysicalBalance: 0,
+          funds: [],
+          pendingCommitmentsTotal: 0,
+          generalFundFreeBalance: 0,
+        } as ConsolidatedTreasury),
+  ]);
+
+  return {
+    sheets: sheets.filter((s: any) => !EXCLUDED_SHEET_STATUSES.includes(s.status)),
+    serviceTypes,
+    entries: entries.filter((e: any) => e.status !== 'cancelled'),
+    expenses,
+    treasury,
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Découpage temporel
+// -----------------------------------------------------------------------------
+export interface Bucket {
+  key: string;
+  label: string;
+  start: Date;
+  end: Date;
+}
+
+export function buildBuckets(start: Date, end: Date): Bucket[] {
+  const days = Math.max(1, differenceInDays(end, start) + 1);
+  const buckets: Bucket[] = [];
+
+  if (days <= 14) {
+    for (let i = 0; i < days; i++) {
+      const d = startOfDay(new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+      buckets.push({ key: format(d, 'yyyy-MM-dd'), label: format(d, 'dd/MM'), start: d, end: endOfDay(d) });
+    }
+    return buckets;
+  }
+
+  if (days <= 100) {
+    let cursor = startOfWeek(start, { weekStartsOn: 1 });
+    while (cursor <= end) {
+      const wEnd = endOfWeek(cursor, { weekStartsOn: 1 });
+      const bStart = cursor < start ? start : cursor;
+      buckets.push({ key: format(cursor, 'yyyy-MM-dd'), label: format(bStart, 'dd/MM'), start: bStart, end: wEnd > end ? end : wEnd });
+      cursor = startOfDay(new Date(wEnd.getTime() + 1));
+    }
+    return buckets;
+  }
+
+  let cursor = startOfMonth(start);
+  while (cursor <= end) {
+    const mEnd = endOfMonth(cursor);
+    buckets.push({
+      key: format(cursor, 'yyyy-MM'),
+      label: format(cursor, 'MMM yy', { locale: fr }),
+      start: cursor < start ? start : cursor,
+      end: mEnd > end ? end : mEnd,
+    });
+    cursor = startOfMonth(new Date(mEnd.getTime() + 1));
+  }
+  return buckets;
+}
+
+// -----------------------------------------------------------------------------
+// Fréquentation
+// -----------------------------------------------------------------------------
+function serviceTypeName(snapshot: Snapshot, slug: string): string {
+  const st = snapshot.serviceTypes.find((t: any) => t.slug === slug);
+  return st?.name || DEFAULT_SERVICE_TYPE_NAMES[slug] || slug || 'Culte';
+}
+
+export function sheetToRecord(snapshot: Snapshot, s: any) {
+  const slug = s.service_type_slug || s.expand?.service_type?.slug || s.expand?.service?.service_type || '';
+  const men = s.men_count || 0;
+  const women = s.women_count || 0;
+  const youth = s.youth_count || 0;
+  const children = s.children_count || 0;
+  const date = sheetDay(s);
+  const typeName = s.expand?.service?.name || serviceTypeName(snapshot, slug);
+  return {
+    id: s.id,
+    serviceName: date ? `${typeName} (${format(parseISO(date), 'dd/MM')})` : typeName,
+    serviceTypeName: serviceTypeName(snapshot, slug),
+    serviceType: slug,
+    date,
+    status: s.status,
+    men,
+    women,
+    youth,
+    children,
+    // Règle d'or : TOTAL = H + F + J + E (les nouveaux visiteurs ne sont JAMAIS additionnés)
+    total: men + women + youth + children,
+    newVisitors: s.new_visitors_count || 0,
+    salvations: s.salvations_count || 0,
+  };
+}
+
+export function summarizeAttendance(snapshot: Snapshot, start: Date, end: Date) {
+  const records = snapshot.sheets
+    .filter((s) => inRange(sheetDay(s), start, end))
+    .map((s) => sheetToRecord(snapshot, s))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const totalMen = sum(records, (r) => r.men);
+  const totalWomen = sum(records, (r) => r.women);
+  const totalYouth = sum(records, (r) => r.youth);
+  const totalChildren = sum(records, (r) => r.children);
+  const grandTotal = totalMen + totalWomen + totalYouth + totalChildren;
+  const totalNewVisitors = sum(records, (r) => r.newVisitors);
+  const totalSalvations = sum(records, (r) => r.salvations);
+  const servicesCount = records.length;
+
+  // Comparaison dynamique par programme (à partir des types officiels configurés)
+  const slugs = Array.from(
+    new Set([...snapshot.serviceTypes.map((t: any) => t.slug), ...records.map((r) => r.serviceType)].filter(Boolean))
+  );
+  const byType = slugs
+    .map((slug, i) => {
+      const list = records.filter((r) => r.serviceType === slug);
+      const total = sum(list, (r) => r.total);
+      return {
+        type: serviceTypeName(snapshot, slug),
+        code: slug,
+        count: list.length,
+        total,
+        average: list.length ? Math.round(total / list.length) : 0,
+        percentage: pct(total, grandTotal),
+        color: PALETTE[i % PALETTE.length],
+      };
+    })
+    .filter((t) => t.count > 0 || snapshot.serviceTypes.some((st: any) => st.slug === t.code && st.is_active !== false));
+
+  const best = records.reduce<any>((b, r) => (!b || r.total > b.total ? r : b), null);
+  const lowest = records.reduce<any>((l, r) => (!l || r.total < l.total ? r : l), null);
+
+  return {
+    records,
+    servicesCount,
+    grandTotal,
+    totalMen,
+    totalWomen,
+    totalYouth,
+    totalChildren,
+    totalNewVisitors,
+    totalSalvations,
+    averagePerService: servicesCount ? Math.round(grandTotal / servicesCount) : 0,
+    averageVisitorsPerService: servicesCount ? Math.round((totalNewVisitors / servicesCount) * 10) / 10 : 0,
+    visitorRate: pct(totalNewVisitors, grandTotal, 1),
+    byType,
+    best,
+    lowest,
+    demographics: [
+      { name: 'Femmes', count: totalWomen, percentage: pct(totalWomen, grandTotal), color: '#EC4899' },
+      { name: 'Hommes', count: totalMen, percentage: pct(totalMen, grandTotal), color: '#3B82F6' },
+      { name: 'Jeunes', count: totalYouth, percentage: pct(totalYouth, grandTotal), color: '#FFBC00' },
+      { name: 'Enfants', count: totalChildren, percentage: pct(totalChildren, grandTotal), color: '#10B981' },
+    ],
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Finances
+// -----------------------------------------------------------------------------
+export function summarizeFinance(snapshot: Snapshot, start: Date, end: Date) {
+  const entries = snapshot.entries.filter((e) => inRange(entryDay(e), start, end));
+  const expenses = snapshot.expenses.filter((x) => inRange(expenseDay(x), start, end));
+
+  const byCode = (code: string) => sum(entries.filter((e) => entryCategoryCode(e) === code), (e) => e.amount);
+  const tithes = byCode('tithes');
+  const ordinaryOfferings = byCode('offerings');
+  const ordinaryEntries = entries.filter(isOrdinaryEntry);
+  const ordinaryCombined = sum(ordinaryEntries, (e) => e.amount);
+
+  // Ventilation 80/10/10 recalculée écriture par écriture (arithmétique entière exacte)
+  let generalFund = 0;
+  let titheOfTithes = 0;
+  let welfareAid = 0;
+  for (const e of ordinaryEntries) {
+    const split = calculateEntryAllocations(e.amount || 0, AllocationRule.STANDARD_SPLIT_80_10_10);
+    for (const a of split.allocations) {
+      if (a.fundCode === 'GENERAL') generalFund += a.amount;
+      if (a.fundCode === 'TITHE_OF_TITHES') titheOfTithes += a.amount;
+      if (a.fundCode === 'WELFARE_AID') welfareAid += a.amount;
+    }
+  }
+
+  const buildingAuditorium = byCode('building');
+  const friendsOfJesus = byCode('friends_of_jesus');
+  const totalGross = sum(entries, (e) => e.amount);
+  const otherDesignated = totalGross - ordinaryCombined - buildingAuditorium - friendsOfJesus;
+
+  const byStatus = (status: string) => expenses.filter((x) => x.status === status);
+  const paidList = byStatus('paid');
+  const paid = sum(paidList, (x) => x.amount);
+  const approved = sum(byStatus('approved'), (x) => x.amount);
+  const pending = sum(byStatus('pending_approval'), (x) => x.amount);
+  const rejected = sum(byStatus('rejected'), (x) => x.amount);
+
+  const generalFundPaid = sum(
+    paidList.filter((x) => x.expand?.fund_account?.code === 'GENERAL'),
+    (x) => x.amount
+  );
+
+  const categoryTotals = new Map<string, number>();
+  for (const x of paidList) {
+    const name = expenseCategoryName(x);
+    categoryTotals.set(name, (categoryTotals.get(name) || 0) + (x.amount || 0));
+  }
+  const byCategory = Array.from(categoryTotals.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, amount], i) => ({ name, amount, percentage: pct(amount, paid), color: PALETTE[i % PALETTE.length] }));
+
+  const revenueCategoryTotals = new Map<string, { name: string; amount: number }>();
+  for (const e of entries) {
+    const code = entryCategoryCode(e) || 'other';
+    const name = e.expand?.category?.name || 'Autres recettes';
+    const cur = revenueCategoryTotals.get(code) || { name, amount: 0 };
+    cur.amount += e.amount || 0;
+    revenueCategoryTotals.set(code, cur);
+  }
+  const revenueByCategory = Array.from(revenueCategoryTotals.entries())
+    .sort((a, b) => b[1].amount - a[1].amount)
+    .map(([code, v], i) => ({ code, name: v.name, amount: v.amount, percentage: pct(v.amount, totalGross), color: PALETTE[i % PALETTE.length] }));
+
+  const decided = expenses.filter((x) => ['approved', 'paid', 'rejected'].includes(x.status));
+  const approvedOrPaidCount = decided.filter((x) => x.status !== 'rejected').length;
+  const rejectedCount = decided.length - approvedOrPaidCount;
+
+  return {
+    entries,
+    expenses,
+    entriesCount: entries.length,
+    totalGross,
+    tithes,
+    ordinaryOfferings,
+    ordinaryCombined,
+    split80_10_10: { generalFund, titheOfTithes, welfareAid },
+    designated: {
+      buildingAuditorium,
+      friendsOfJesus,
+      other: otherDesignated,
+      total: buildingAuditorium + friendsOfJesus + otherDesignated,
+    },
+    revenueByCategory,
+    expensesPaid: paid,
+    expensesApproved: approved,
+    expensesPending: pending,
+    expensesRejected: rejected,
+    generalFundPaid,
+    byCategory,
+    approvedCount: approvedOrPaidCount,
+    rejectedCount,
+    pendingCount: byStatus('pending_approval').length,
+    approvalRate: pct(approvedOrPaidCount, decided.length, 1),
+    rejectionRate: pct(rejectedCount, decided.length, 1),
+  };
+}
+
+/** Tendances mensuelles sur les N derniers mois se terminant au mois de `end` */
+export function monthlyFinanceTrends(snapshot: Snapshot, end: Date, months = 6) {
+  const result = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const mStart = startOfMonth(subMonths(end, i));
+    const mEnd = endOfMonth(mStart);
+    const f = summarizeFinance(snapshot, mStart, mEnd);
+    result.push({
+      month: format(mStart, 'MMM yy', { locale: fr }),
+      key: format(mStart, 'yyyy-MM'),
+      tithes: f.tithes,
+      offerings: f.ordinaryOfferings,
+      building: f.designated.buildingAuditorium,
+      friendsOfJesus: f.designated.friendsOfJesus,
+      revenues: f.totalGross,
+      paidExpenses: f.expensesPaid,
+      expenses: f.expensesPaid,
+      netFlow: f.totalGross - f.expensesPaid,
+    });
+  }
+  return result;
+}
+
+// -----------------------------------------------------------------------------
+// Activité récente (fil d'actualité du tableau de bord)
+// -----------------------------------------------------------------------------
+export function recentActivity(snapshot: Snapshot, includeFinance: boolean, limit = 6) {
+  const items: { type: string; title: string; amount?: number; at: string; status: string }[] = [];
+
+  for (const s of snapshot.sheets.slice(0, 20)) {
+    const r = sheetToRecord(snapshot, s);
+    items.push({
+      type: 'attendance',
+      title: `Fiche de présence : ${r.serviceTypeName} — ${r.total} participants`,
+      at: s.created || s.service_date,
+      status: s.status === 'validated' ? 'Validée' : 'Soumise',
+    });
+  }
+
+  if (includeFinance) {
+    for (const e of snapshot.entries.slice(0, 20)) {
+      items.push({
+        type: 'entry',
+        title: `Recette ${e.entry_number || ''} — ${e.expand?.category?.name || 'Encaissement'}`,
+        amount: e.amount,
+        at: e.created || e.collected_at,
+        status: 'Encaissée',
+      });
+    }
+    const labels: Record<string, string> = {
+      pending_approval: 'En attente',
+      approved: 'Approuvée',
+      rejected: 'Rejetée',
+      paid: 'Payée',
+      cancelled: 'Annulée',
+    };
+    for (const x of snapshot.expenses.slice(0, 20)) {
+      items.push({
+        type: 'expense',
+        title: `Dépense ${x.expense_number || ''} — ${x.beneficiary || expenseCategoryName(x)}`,
+        amount: x.amount,
+        at: x.paid_at || x.approved_at || x.created,
+        status: labels[x.status] || x.status,
+      });
+    }
+  }
+
+  return items
+    .filter((i) => i.at)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .slice(0, limit);
+}
+
+// -----------------------------------------------------------------------------
+// Service principal
+// -----------------------------------------------------------------------------
 export class AnalyticsService {
+  /** Tableau de bord exécutif (Leader, Admin, Auditeur) et vue Protocole sans finances */
+  static async getDashboard(period: PeriodKey = 'this_month', customStart?: string, customEnd?: string, includeFinance = true) {
+    const range = resolvePeriodDateRange(period, customStart, customEnd);
+    const snapshot = await loadSnapshot({ finance: includeFinance });
+
+    const att = summarizeAttendance(snapshot, range.startDate, range.endDate);
+    const prevAtt = summarizeAttendance(snapshot, range.previousStartDate, range.previousEndDate);
+    const lastSheet = snapshot.sheets[0] ? sheetToRecord(snapshot, snapshot.sheets[0]) : null;
+    const buckets = buildBuckets(range.startDate, range.endDate);
+
+    const attendance = {
+      lastService: lastSheet
+        ? {
+            name: lastSheet.serviceTypeName,
+            date: lastSheet.date,
+            totalAttendance: lastSheet.total,
+            menCount: lastSheet.men,
+            womenCount: lastSheet.women,
+            youthCount: lastSheet.youth,
+            childrenCount: lastSheet.children,
+            newVisitorsCount: lastSheet.newVisitors,
+            salvationsCount: lastSheet.salvations,
+          }
+        : null,
+      periodTotal: att.grandTotal,
+      previousPeriodTotal: prevAtt.grandTotal,
+      totalVariation: calculateMetricVariation(att.grandTotal, prevAtt.grandTotal),
+      servicesCount: att.servicesCount,
+      previousServicesCount: prevAtt.servicesCount,
+      averagePerService: att.averagePerService,
+      newVisitors: att.totalNewVisitors,
+      previousNewVisitors: prevAtt.totalNewVisitors,
+      salvations: att.totalSalvations,
+      byServiceType: att.byType,
+      bestService: att.best ? { name: att.best.serviceTypeName, date: att.best.date, total: att.best.total } : null,
+      topServiceType: [...att.byType].sort((a, b) => b.total - a.total)[0] || null,
+      recentServices: snapshot.sheets
+        .slice(0, 8)
+        .map((s) => sheetToRecord(snapshot, s))
+        .reverse()
+        .map((r) => ({ date: r.date, label: r.date ? format(parseISO(r.date), 'dd/MM') : '', total: r.total, newVisitors: r.newVisitors })),
+      trend: buckets.map((b) => {
+        const a = summarizeAttendance(snapshot, b.start, b.end);
+        return { label: b.label, total: a.grandTotal, newVisitors: a.totalNewVisitors, services: a.servicesCount };
+      }),
+    };
+
+    const base = {
+      period,
+      range: {
+        start: format(range.startDate, 'yyyy-MM-dd'),
+        end: format(range.endDate, 'yyyy-MM-dd'),
+        label: range.label,
+        previousLabel: range.previousLabel,
+      },
+      attendance,
+      recentActivity: recentActivity(snapshot, includeFinance),
+    };
+
+    if (!includeFinance) return base;
+
+    const fin = summarizeFinance(snapshot, range.startDate, range.endDate);
+    const prevFin = summarizeFinance(snapshot, range.previousStartDate, range.previousEndDate);
+    const pendingAll = snapshot.expenses.filter((x) => x.status === 'pending_approval');
+
+    return {
+      ...base,
+      treasury: snapshot.treasury,
+      finance: {
+        revenues: fin.totalGross,
+        previousRevenues: prevFin.totalGross,
+        revenuesVariation: calculateMetricVariation(fin.totalGross, prevFin.totalGross),
+        entriesCount: fin.entriesCount,
+        previousEntriesCount: prevFin.entriesCount,
+        expensesPaid: fin.expensesPaid,
+        previousExpensesPaid: prevFin.expensesPaid,
+        generalFundPaid: fin.generalFundPaid,
+        previousGeneralFundPaid: prevFin.generalFundPaid,
+        netCashFlow: fin.totalGross - fin.expensesPaid,
+        previousNetCashFlow: prevFin.totalGross - prevFin.expensesPaid,
+        approvedCount: fin.approvedCount,
+        rejectedCount: fin.rejectedCount,
+        approvalRate: fin.approvalRate,
+        rejectionRate: fin.rejectionRate,
+        revenueByCategory: fin.revenueByCategory,
+        trend: buckets.map((b) => {
+          const f = summarizeFinance(snapshot, b.start, b.end);
+          return { label: b.label, revenues: f.totalGross, expenses: f.expensesPaid };
+        }),
+      },
+      pendingApprovalsCount: pendingAll.length,
+      pendingApprovalsTotalAmount: sum(pendingAll, (x) => x.amount),
+    };
+  }
+
+  /** Tableau de bord Finances / Caisse */
+  static async getFinanceDashboard(period: PeriodKey = 'this_month', customStart?: string, customEnd?: string) {
+    const range = resolvePeriodDateRange(period, customStart, customEnd);
+    const snapshot = await loadSnapshot();
+    const fin = summarizeFinance(snapshot, range.startDate, range.endDate);
+    const prevFin = summarizeFinance(snapshot, range.previousStartDate, range.previousEndDate);
+    const fundBalance = (code: string) => snapshot.treasury.funds.find((f) => f.account.code === code)?.balance || 0;
+    const buckets = buildBuckets(range.startDate, range.endDate);
+
+    return {
+      period,
+      range: { start: format(range.startDate, 'yyyy-MM-dd'), end: format(range.endDate, 'yyyy-MM-dd'), label: range.label, previousLabel: range.previousLabel },
+      totalRevenueMonth: fin.totalGross,
+      previousRevenue: prevFin.totalGross,
+      revenueVariation: calculateMetricVariation(fin.totalGross, prevFin.totalGross),
+      totalExpensesMonth: fin.expensesPaid,
+      previousExpenses: prevFin.expensesPaid,
+      expensesVariation: calculateMetricVariation(fin.expensesPaid, prevFin.expensesPaid, false),
+      netCashFlow: fin.totalGross - fin.expensesPaid,
+      consolidatedCash: snapshot.treasury.consolidatedPhysicalBalance,
+      generalFundAvailable: snapshot.treasury.generalFundFreeBalance,
+      pendingCommitments: snapshot.treasury.pendingCommitmentsTotal,
+      tithesSplitTotal: fin.split80_10_10.titheOfTithes,
+      welfareAidTotal: fundBalance('WELFARE_AID'),
+      buildingFundTotal: fundBalance('BUILDING'),
+      split80_10_10: fin.split80_10_10,
+      revenueByCategory: fin.revenueByCategory,
+      expensesByCategory: fin.byCategory,
+      entriesCount: fin.entriesCount,
+      pendingApprovalCount: fin.pendingCount,
+      trend: buckets.map((b) => {
+        const f = summarizeFinance(snapshot, b.start, b.end);
+        return { label: b.label, revenues: f.totalGross, expenses: f.expensesPaid };
+      }),
+      funds: snapshot.treasury.funds,
+    };
+  }
+
+  /** Tableau de bord Protocole (aucune donnée financière) */
+  static async getAttendanceDashboard(period: PeriodKey = 'this_month', customStart?: string, customEnd?: string) {
+    const range = resolvePeriodDateRange(period, customStart, customEnd);
+    const snapshot = await loadSnapshot({ finance: false });
+    const att = summarizeAttendance(snapshot, range.startDate, range.endDate);
+    const prevAtt = summarizeAttendance(snapshot, range.previousStartDate, range.previousEndDate);
+    const last = snapshot.sheets[0] ? sheetToRecord(snapshot, snapshot.sheets[0]) : null;
+    const { getMinistrySettings } = await import('../routes/settings.routes.js');
+    const capacity = (await getMinistrySettings().catch(() => null))?.venueCapacity || config.venueCapacity;
+    const buckets = buildBuckets(range.startDate, range.endDate);
+
+    return {
+      period,
+      range: { start: format(range.startDate, 'yyyy-MM-dd'), end: format(range.endDate, 'yyyy-MM-dd'), label: range.label, previousLabel: range.previousLabel },
+      lastService: last,
+      lastServiceTotal: last?.total || 0,
+      men: last?.men || 0,
+      women: last?.women || 0,
+      youth: last?.youth || 0,
+      children: last?.children || 0,
+      newVisitors: last?.newVisitors || 0,
+      salvations: last?.salvations || 0,
+      venueCapacity: capacity || null,
+      occupancyRate: capacity && last ? pct(last.total, capacity) : null,
+      period_summary: {
+        servicesCount: att.servicesCount,
+        grandTotal: att.grandTotal,
+        averagePerService: att.averagePerService,
+        totalNewVisitors: att.totalNewVisitors,
+        totalSalvations: att.totalSalvations,
+        totalVariation: calculateMetricVariation(att.grandTotal, prevAtt.grandTotal),
+        visitorsVariation: calculateMetricVariation(att.totalNewVisitors, prevAtt.totalNewVisitors),
+      },
+      demographics: att.demographics,
+      byServiceType: att.byType,
+      trend: buckets.map((b) => {
+        const a = summarizeAttendance(snapshot, b.start, b.end);
+        return { label: b.label, total: a.grandTotal, newVisitors: a.totalNewVisitors, salvations: a.totalSalvations };
+      }),
+      pendingValidationCount: snapshot.sheets.filter((s) => s.status === 'submitted').length,
+    };
+  }
+
   /**
    * Synthèse globale des indicateurs KPI Fréquentation + Finances avec variations
    */
-  static async getOverview(period: PeriodKey = 'this_month', customStart?: string, customEnd?: string) {
+  static async getOverview(period: PeriodKey = 'this_month', customStart?: string, customEnd?: string, includeFinance = true) {
     const range = resolvePeriodDateRange(period, customStart, customEnd);
-    await ensureAdminAuth().catch(() => {});
+    const snapshot = await loadSnapshot({ finance: includeFinance });
 
-    // 1. Récupération des fiches de présence et services
-    let attendanceSheets: any[] = [];
-    let entries: any[] = [];
-    let expenses: any[] = [];
-    let treasuryOverview: any = null;
+    const att = summarizeAttendance(snapshot, range.startDate, range.endDate);
+    const prevAtt = summarizeAttendance(snapshot, range.previousStartDate, range.previousEndDate);
+    const fin = summarizeFinance(snapshot, range.startDate, range.endDate);
+    const prevFin = summarizeFinance(snapshot, range.previousStartDate, range.previousEndDate);
 
-    try {
-      attendanceSheets = await pb.collection('attendance_sheets').getFullList({
-        filter: "status != 'draft' && status != 'cancelled'",
-        expand: 'service',
-        sort: '-created',
+    const attendanceVar = calculateMetricVariation(att.grandTotal, prevAtt.grandTotal, true);
+    const visitorsVar = calculateMetricVariation(att.totalNewVisitors, prevAtt.totalNewVisitors, true);
+    const revenueVar = calculateMetricVariation(fin.totalGross, prevFin.totalGross, true);
+    const expensesVar = calculateMetricVariation(fin.expensesPaid, prevFin.expensesPaid, false);
+
+    const avgRevenue = att.servicesCount ? Math.round(fin.totalGross / att.servicesCount) : 0;
+    const prevAvgRevenue = prevAtt.servicesCount ? Math.round(prevFin.totalGross / prevAtt.servicesCount) : 0;
+
+    const insights: { id: string; type: string; category: string; title: string; description: string }[] = [];
+
+    if (att.servicesCount === 0) {
+      insights.push({
+        id: 'ins-att-empty',
+        type: 'info',
+        category: 'attendance',
+        title: 'Aucune fiche de présence sur la période',
+        description: 'Saisissez les fiches de fréquentation après chaque culte pour alimenter les statistiques.',
       });
-    } catch {
-      attendanceSheets = [];
-    }
-
-    try {
-      entries = await pb.collection('financial_entries').getFullList({
-        expand: 'category,service',
-        sort: '-collected_at',
+    } else {
+      insights.push({
+        id: 'ins-att',
+        type: attendanceVar.isFavorable ? 'success' : 'warning',
+        category: 'attendance',
+        title: `Évolution de la fréquentation : ${attendanceVar.percentage >= 0 ? '+' : ''}${attendanceVar.percentage}%`,
+        description: `La participation est passée de ${prevAtt.grandTotal.toLocaleString('fr-FR')} à ${att.grandTotal.toLocaleString('fr-FR')} participants (${att.servicesCount} culte(s)).`,
       });
-    } catch {
-      entries = [];
+      const top = [...att.byType].sort((a, b) => b.average - a.average)[0];
+      if (top && top.count > 0) {
+        insights.push({
+          id: 'ins-top',
+          type: 'info',
+          category: 'attendance',
+          title: 'Programme le plus fréquenté',
+          description: `${top.type} enregistre la plus forte affluence moyenne avec ${top.average} participants par réunion.`,
+        });
+      }
     }
 
-    try {
-      expenses = await pb.collection('expenses').getFullList({
-        expand: 'category,fund_account',
-        sort: '-created',
+    if (includeFinance) {
+      insights.push({
+        id: 'ins-rev',
+        type: revenueVar.isFavorable ? 'success' : 'neutral',
+        category: 'finance',
+        title: `Recettes brutes : ${revenueVar.percentage >= 0 ? '+' : ''}${revenueVar.percentage}%`,
+        description: `Total de ${fin.totalGross.toLocaleString('fr-FR')} FCFA encaissé (${fin.entriesCount} recette(s)), ventilation 80/10/10 appliquée aux recettes ordinaires.`,
       });
-    } catch {
-      expenses = [];
+      const pendingAll = snapshot.expenses.filter((x) => x.status === 'pending_approval');
+      insights.push({
+        id: 'ins-pending',
+        type: pendingAll.length > 0 ? 'warning' : 'success',
+        category: 'finance',
+        title: pendingAll.length > 0 ? 'Dépenses en attente d’arbitrage' : 'Aucune dépense en attente',
+        description:
+          pendingAll.length > 0
+            ? `${pendingAll.length} engagement(s) (${sum(pendingAll, (x) => x.amount).toLocaleString('fr-FR')} FCFA) attendent la décision du Leader Principal.`
+            : 'Toutes les demandes de dépenses ont été arbitrées.',
+      });
     }
-
-    try {
-      treasuryOverview = await LedgerService.getConsolidatedTreasury();
-    } catch {
-      treasuryOverview = {
-        consolidatedPhysicalBalance: 14750000,
-        pendingCommitmentsTotal: 350000,
-        generalFundFreeBalance: 8150000,
-        funds: [],
-      };
-    }
-
-    // Filtrage sur la période courante et sur la période précédente
-    const isInCurrentPeriod = (dateStr: string) => {
-      if (!dateStr) return false;
-      const d = parseISO(dateStr.split('T')[0]);
-      return d >= range.startDate && d <= range.endDate;
-    };
-
-    const isInPreviousPeriod = (dateStr: string) => {
-      if (!dateStr) return false;
-      const d = parseISO(dateStr.split('T')[0]);
-      return d >= range.previousStartDate && d <= range.previousEndDate;
-    };
-
-    // --- ANALYSE FRÉQUENTATION ---
-    const currentSheets = attendanceSheets.filter((s) => isInCurrentPeriod(s.expand?.service?.date || s.created));
-    const previousSheets = attendanceSheets.filter((s) => isInPreviousPeriod(s.expand?.service?.date || s.created));
-
-    // Si aucune donnée dans la base pour la période, générer des séries réalistes calibrées sur Yaoundé
-    const currCount = currentSheets.length > 0 ? currentSheets.length : 4;
-    const prevCount = previousSheets.length > 0 ? previousSheets.length : 4;
-
-    const currTotalAttendance = currentSheets.length > 0
-      ? currentSheets.reduce((acc, s) => acc + (s.total_attendance || 0), 0)
-      : 1945;
-
-    const prevTotalAttendance = previousSheets.length > 0
-      ? previousSheets.reduce((acc, s) => acc + (s.total_attendance || 0), 0)
-      : 1780;
-
-    const currNewVisitors = currentSheets.length > 0
-      ? currentSheets.reduce((acc, s) => acc + (s.new_visitors_count || 0), 0)
-      : 118;
-
-    const prevNewVisitors = previousSheets.length > 0
-      ? previousSheets.reduce((acc, s) => acc + (s.new_visitors_count || 0), 0)
-      : 96;
-
-    // Moyenne par service = Total participants / Nombre de services validés
-    const currAvgAttendancePerService = currCount > 0 ? Math.round(currTotalAttendance / currCount) : 0;
-    const prevAvgAttendancePerService = prevCount > 0 ? Math.round(prevTotalAttendance / prevCount) : 0;
-
-    const currAvgVisitorsPerService = currCount > 0 ? Math.round((currNewVisitors / currCount) * 10) / 10 : 0;
-    const prevAvgVisitorsPerService = prevCount > 0 ? Math.round((prevNewVisitors / prevCount) * 10) / 10 : 0;
-
-    // --- ANALYSE FINANCIÈRE ---
-    const currentEntries = entries.filter((e) => isInCurrentPeriod(e.collected_at || e.created));
-    const previousEntries = entries.filter((e) => isInPreviousPeriod(e.collected_at || e.created));
-
-    const currTotalRevenues = currentEntries.length > 0
-      ? currentEntries.reduce((acc, e) => acc + (e.amount || 0), 0)
-      : 3500000;
-
-    const prevTotalRevenues = previousEntries.length > 0
-      ? previousEntries.reduce((acc, e) => acc + (e.amount || 0), 0)
-      : 3100000;
-
-    // Répartition dîmes vs offrandes ordinaires vs affectés
-    const currTithes = currentEntries
-      .filter((e) => e.expand?.category?.code === 'tithes')
-      .reduce((acc, e) => acc + (e.amount || 0), 0) || Math.round(currTotalRevenues * 0.55);
-
-    const currOrdinaryOfferings = currentEntries
-      .filter((e) => e.expand?.category?.code === 'offerings')
-      .reduce((acc, e) => acc + (e.amount || 0), 0) || Math.round(currTotalRevenues * 0.25);
-
-    const currBuildingGifts = currentEntries
-      .filter((e) => e.expand?.category?.code === 'building')
-      .reduce((acc, e) => acc + (e.amount || 0), 0) || Math.round(currTotalRevenues * 0.15);
-
-    const currFriendsGifts = currentEntries
-      .filter((e) => e.expand?.category?.code === 'friends_of_jesus')
-      .reduce((acc, e) => acc + (e.amount || 0), 0) || Math.round(currTotalRevenues * 0.05);
-
-    // Dépenses payées (SEULES les payées sont des décaissements effectifs !)
-    const currentExpenses = expenses.filter((exp) => isInCurrentPeriod(exp.paid_at || exp.created));
-    const previousExpenses = expenses.filter((exp) => isInPreviousPeriod(exp.paid_at || exp.created));
-
-    const currPaidExpenses = currentExpenses
-      .filter((exp) => exp.status === 'paid')
-      .reduce((acc, exp) => acc + (exp.amount || 0), 0) || 480000;
-
-    const prevPaidExpenses = previousExpenses
-      .filter((exp) => exp.status === 'paid')
-      .reduce((acc, exp) => acc + (exp.amount || 0), 0) || 450000;
-
-    const currPendingExpenses = currentExpenses
-      .filter((exp) => exp.status === 'pending_approval')
-      .reduce((acc, exp) => acc + (exp.amount || 0), 0) || 350000;
-
-    // Moyenne des recettes par service
-    const currAvgRevenuePerService = currCount > 0 ? Math.round(currTotalRevenues / currCount) : 0;
-    const prevAvgRevenuePerService = prevCount > 0 ? Math.round(prevTotalRevenues / prevCount) : 0;
-
-    // Insights et observations calculées
-    const attendanceVar = calculateMetricVariation(currTotalAttendance, prevTotalAttendance, true);
-    const revenueVar = calculateMetricVariation(currTotalRevenues, prevTotalRevenues, true);
-    const expensesVar = calculateMetricVariation(currPaidExpenses, prevPaidExpenses, false); // dépense en baisse = favorable
-    const visitorsVar = calculateMetricVariation(currNewVisitors, prevNewVisitors, true);
 
     return {
       period,
@@ -461,56 +981,31 @@ export class AnalyticsService {
       kpis: {
         attendance: {
           total: attendanceVar,
-          averagePerService: calculateMetricVariation(currAvgAttendancePerService, prevAvgAttendancePerService, true),
-          servicesCount: currCount,
+          averagePerService: calculateMetricVariation(att.averagePerService, prevAtt.averagePerService, true),
+          servicesCount: att.servicesCount,
           newVisitors: visitorsVar,
-          averageVisitorsPerService: calculateMetricVariation(currAvgVisitorsPerService, prevAvgVisitorsPerService, true),
-          bestAttendanceService: {
-            name: 'Culte de Célébration Dominical',
-            date: '2026-11-01',
-            total: 500,
-          },
+          averageVisitorsPerService: calculateMetricVariation(att.averageVisitorsPerService, prevAtt.averageVisitorsPerService, true),
+          bestAttendanceService: att.best
+            ? { name: att.best.serviceTypeName, date: att.best.date, total: att.best.total }
+            : null,
         },
-        finance: {
-          totalRevenues: revenueVar,
-          tithes: currTithes,
-          ordinaryOfferings: currOrdinaryOfferings,
-          ordinaryCombined: currTithes + currOrdinaryOfferings,
-          designatedBuilding: currBuildingGifts,
-          designatedFriends: currFriendsGifts,
-          paidExpenses: expensesVar,
-          pendingCommitments: currPendingExpenses,
-          averageRevenuePerService: calculateMetricVariation(currAvgRevenuePerService, prevAvgRevenuePerService, true),
-          consolidatedPhysicalBalance: treasuryOverview.consolidatedPhysicalBalance,
-          generalFundFreeBalance: treasuryOverview.generalFundFreeBalance,
-        },
+        finance: includeFinance
+          ? {
+              totalRevenues: revenueVar,
+              tithes: fin.tithes,
+              ordinaryOfferings: fin.ordinaryOfferings,
+              ordinaryCombined: fin.ordinaryCombined,
+              designatedBuilding: fin.designated.buildingAuditorium,
+              designatedFriends: fin.designated.friendsOfJesus,
+              paidExpenses: expensesVar,
+              pendingCommitments: fin.expensesPending,
+              averageRevenuePerService: calculateMetricVariation(avgRevenue, prevAvgRevenue, true),
+              consolidatedPhysicalBalance: snapshot.treasury.consolidatedPhysicalBalance,
+              generalFundFreeBalance: snapshot.treasury.generalFundFreeBalance,
+            }
+          : undefined,
       },
-      insights: [
-        {
-          id: 'ins-1',
-          type: attendanceVar.isFavorable ? 'success' : 'warning',
-          title: `Évolution de la fréquentation : ${attendanceVar.percentage >= 0 ? '+' : ''}${attendanceVar.percentage}%`,
-          description: `La participation globale est passée de ${prevTotalAttendance} à ${currTotalAttendance} fidèles sur la période comparée.`,
-        },
-        {
-          id: 'ins-2',
-          type: 'info',
-          title: 'Culte phare du ministère',
-          description: `Les cultes dominicaux enregistrent la plus forte affluence moyenne avec 485 fidèles par réunion.`,
-        },
-        {
-          id: 'ins-3',
-          type: revenueVar.isFavorable ? 'success' : 'neutral',
-          title: `Recettes brutes : ${revenueVar.percentage >= 0 ? '+' : ''}${revenueVar.percentage}%`,
-          description: `Total de ${currTotalRevenues.toLocaleString('fr-FR')} FCFA encaissé avec strict respect de la clé 80/10/10.`,
-        },
-        {
-          id: 'ins-4',
-          type: 'warning',
-          title: `${currPendingExpenses > 0 ? 'Dépenses en attente d’arbitrage' : 'Trésorerie à jour'}`,
-          description: `2 engagements (${currPendingExpenses.toLocaleString('fr-FR')} FCFA) attendent la signature du Leader Principal.`,
-        },
-      ],
+      insights,
     };
   }
 
@@ -519,128 +1014,8 @@ export class AnalyticsService {
    */
   static async getAttendanceAnalytics(period: PeriodKey = 'this_month', customStart?: string, customEnd?: string) {
     const range = resolvePeriodDateRange(period, customStart, customEnd);
-    await ensureAdminAuth().catch(() => {});
-
-    let sheets: any[] = [];
-    try {
-      sheets = await pb.collection('attendance_sheets').getFullList({
-        filter: "status != 'draft' && status != 'cancelled'",
-        expand: 'service',
-        sort: 'created',
-      });
-    } catch {
-      sheets = [];
-    }
-
-    // Filtrage
-    const isInPeriod = (dStr: string) => {
-      if (!dStr) return false;
-      const d = parseISO(dStr.split('T')[0]);
-      return d >= range.startDate && d <= range.endDate;
-    };
-
-    const validSheets = sheets.filter((s) => isInPeriod(s.expand?.service?.date || s.created));
-
-    // Si vide, jeu de données cohérent avec l'assemblée EEV Yaoundé
-    const fallbackData = [
-      {
-        id: 's-1',
-        serviceName: 'Culte de Célébration (01/11)',
-        serviceType: 'sunday_service',
-        date: '2026-11-01',
-        men: 145,
-        women: 198,
-        youth: 92,
-        children: 65,
-        total: 500,
-        newVisitors: 32,
-        salvations: 14,
-      },
-      {
-        id: 's-2',
-        serviceName: 'Programme d’Enseignement (03/11)',
-        serviceType: 'tuesday_program',
-        date: '2026-11-03',
-        men: 68,
-        women: 85,
-        youth: 45,
-        children: 12,
-        total: 210,
-        newVisitors: 8,
-        salvations: 3,
-      },
-      {
-        id: 's-3',
-        serviceName: 'Prière d’Intercession (05/11)',
-        serviceType: 'thursday_program',
-        date: '2026-11-05',
-        men: 75,
-        women: 110,
-        youth: 50,
-        children: 15,
-        total: 250,
-        newVisitors: 11,
-        salvations: 5,
-      },
-      {
-        id: 's-4',
-        serviceName: 'Culte d’Onction & Sainte Cène (08/11)',
-        serviceType: 'sunday_service',
-        date: '2026-11-08',
-        men: 152,
-        women: 205,
-        youth: 98,
-        children: 70,
-        total: 525,
-        newVisitors: 35,
-        salvations: 18,
-      },
-    ];
-
-    const records = validSheets.length > 0
-      ? validSheets.map((s) => ({
-          id: s.id,
-          serviceName: s.expand?.service?.name || 'Culte',
-          serviceType: s.expand?.service?.service_type || 'sunday_service',
-          date: s.expand?.service?.date || s.created.split('T')[0],
-          men: s.men_count || 0,
-          women: s.women_count || 0,
-          youth: s.youth_count || 0,
-          children: s.children_count || 0,
-          total: s.total_attendance || (s.men_count + s.women_count + s.youth_count + s.children_count),
-          newVisitors: s.new_visitors_count || 0,
-          salvations: s.salvations_count || 0,
-        }))
-      : fallbackData;
-
-    // Totaux démographiques
-    const totalMen = records.reduce((sum, r) => sum + r.men, 0);
-    const totalWomen = records.reduce((sum, r) => sum + r.women, 0);
-    const totalYouth = records.reduce((sum, r) => sum + r.youth, 0);
-    const totalChildren = records.reduce((sum, r) => sum + r.children, 0);
-    const grandTotal = totalMen + totalWomen + totalYouth + totalChildren;
-
-    const totalNewVisitors = records.reduce((sum, r) => sum + r.newVisitors, 0);
-    const totalSalvations = records.reduce((sum, r) => sum + r.salvations, 0);
-    const servicesCount = records.length;
-
-    // Taux de nouveaux visiteurs (%) = (Visiteurs / Total participants) * 100
-    const visitorRate = grandTotal > 0 ? Math.round((totalNewVisitors / grandTotal) * 1000) / 10 : 0;
-
-    // Moyennes par type de culte
-    const sundays = records.filter((r) => r.serviceType === 'sunday_service');
-    const tuesdays = records.filter((r) => r.serviceType === 'tuesday_program');
-    const thursdays = records.filter((r) => r.serviceType === 'thursday_program');
-    const specials = records.filter((r) => !['sunday_service', 'tuesday_program', 'thursday_program'].includes(r.serviceType));
-
-    const avgSunday = sundays.length > 0 ? Math.round(sundays.reduce((s, r) => s + r.total, 0) / sundays.length) : 0;
-    const avgTuesday = tuesdays.length > 0 ? Math.round(tuesdays.reduce((s, r) => s + r.total, 0) / tuesdays.length) : 0;
-    const avgThursday = thursdays.length > 0 ? Math.round(thursdays.reduce((s, r) => s + r.total, 0) / thursdays.length) : 0;
-    const avgSpecial = specials.length > 0 ? Math.round(specials.reduce((s, r) => s + r.total, 0) / specials.length) : 0;
-
-    // Record de fréquentation
-    const bestRecord = records.reduce((best, cur) => (cur.total > best.total ? cur : best), records[0] || { total: 0 });
-    const lowestRecord = records.reduce((low, cur) => (cur.total < low.total ? cur : low), records[0] || { total: 0 });
+    const snapshot = await loadSnapshot({ finance: false });
+    const att = summarizeAttendance(snapshot, range.startDate, range.endDate);
 
     return {
       period,
@@ -650,54 +1025,67 @@ export class AnalyticsService {
         end: format(range.endDate, 'yyyy-MM-dd'),
       },
       summary: {
-        servicesCount,
-        grandTotal,
-        averagePerService: servicesCount > 0 ? Math.round(grandTotal / servicesCount) : 0,
-        totalNewVisitors,
-        averageVisitorsPerService: servicesCount > 0 ? Math.round((totalNewVisitors / servicesCount) * 10) / 10 : 0,
-        visitorRate,
-        totalSalvations,
+        servicesCount: att.servicesCount,
+        grandTotal: att.grandTotal,
+        averagePerService: att.averagePerService,
+        totalNewVisitors: att.totalNewVisitors,
+        averageVisitorsPerService: att.averageVisitorsPerService,
+        visitorRate: att.visitorRate,
+        totalSalvations: att.totalSalvations,
       },
-      demographics: [
-        { name: 'Femmes', count: totalWomen, percentage: grandTotal > 0 ? Math.round((totalWomen / grandTotal) * 100) : 0, color: '#EC4899' },
-        { name: 'Hommes', count: totalMen, percentage: grandTotal > 0 ? Math.round((totalMen / grandTotal) * 100) : 0, color: '#3B82F6' },
-        { name: 'Jeunes', count: totalYouth, percentage: grandTotal > 0 ? Math.round((totalYouth / grandTotal) * 100) : 0, color: '#FFBC00' },
-        { name: 'Enfants', count: totalChildren, percentage: grandTotal > 0 ? Math.round((totalChildren / grandTotal) * 100) : 0, color: '#10B981' },
-      ],
-      serviceTypeComparison: [
-        { type: 'Culte Dominical', code: 'sunday_service', count: sundays.length, average: avgSunday, total: sundays.reduce((s, r) => s + r.total, 0), color: '#FFBC00' },
-        { type: 'Mardi Enseignement', code: 'tuesday_program', count: tuesdays.length, average: avgTuesday, total: tuesdays.reduce((s, r) => s + r.total, 0), color: '#3B82F6' },
-        { type: 'Jeudi Intercession', code: 'thursday_program', count: thursdays.length, average: avgThursday, total: thursdays.reduce((s, r) => s + r.total, 0), color: '#8B5CF6' },
-        { type: 'Réunions Spéciales', code: 'special_meeting', count: specials.length, average: avgSpecial, total: specials.reduce((s, r) => s + r.total, 0), color: '#10B981' },
-      ],
+      demographics: att.demographics,
+      serviceTypeComparison: att.byType,
       records: {
-        best: {
-          service: bestRecord.serviceName,
-          date: bestRecord.date,
-          total: bestRecord.total,
-        },
-        lowest: {
-          service: lowestRecord.serviceName,
-          date: lowestRecord.date,
-          total: lowestRecord.total,
-        },
+        best: { service: att.best?.serviceName || '—', date: att.best?.date || '', total: att.best?.total || 0 },
+        lowest: { service: att.lowest?.serviceName || '—', date: att.lowest?.date || '', total: att.lowest?.total || 0 },
       },
-      servicesList: records,
+      servicesList: att.records,
     };
   }
 
   /**
    * Évolution temporelle de la fréquentation (courbes multi-séries H/F/J/E/Total)
    */
-  static async getAttendanceTrends(granularity: 'day' | 'week' | 'month' | 'quarter' = 'week') {
-    // Courbe d'évolution sur les derniers mois
-    return [
-      { period: 'Semaine 40', men: 130, women: 175, youth: 80, children: 55, total: 440, newVisitors: 20 },
-      { period: 'Semaine 41', men: 138, women: 182, youth: 85, children: 60, total: 465, newVisitors: 24 },
-      { period: 'Semaine 42', men: 142, women: 190, youth: 88, children: 62, total: 482, newVisitors: 28 },
-      { period: 'Semaine 43', men: 145, women: 198, youth: 92, children: 65, total: 500, newVisitors: 32 },
-      { period: 'Semaine 44', men: 152, women: 205, youth: 98, children: 70, total: 525, newVisitors: 35 },
-    ];
+  static async getAttendanceTrends(granularity: 'day' | 'week' | 'month' | 'quarter' = 'week', now: Date = new Date()) {
+    const snapshot = await loadSnapshot({ finance: false });
+    const buckets: Bucket[] = [];
+
+    if (granularity === 'day') {
+      for (let i = 29; i >= 0; i--) {
+        const d = startOfDay(subDays(now, i));
+        buckets.push({ key: format(d, 'yyyy-MM-dd'), label: format(d, 'dd/MM'), start: d, end: endOfDay(d) });
+      }
+    } else if (granularity === 'month') {
+      for (let i = 11; i >= 0; i--) {
+        const m = startOfMonth(subMonths(now, i));
+        buckets.push({ key: format(m, 'yyyy-MM'), label: format(m, 'MMM yy', { locale: fr }), start: m, end: endOfMonth(m) });
+      }
+    } else if (granularity === 'quarter') {
+      for (let i = 7; i >= 0; i--) {
+        const q = startOfQuarter(subQuarters(now, i));
+        buckets.push({ key: format(q, 'yyyy-QQQ'), label: `T${Math.floor(q.getMonth() / 3) + 1} ${format(q, 'yy')}`, start: q, end: endOfQuarter(q) });
+      }
+    } else {
+      for (let i = 11; i >= 0; i--) {
+        const w = startOfWeek(subWeeks(now, i), { weekStartsOn: 1 });
+        buckets.push({ key: format(w, 'yyyy-MM-dd'), label: `Sem. ${format(w, 'II')}`, start: w, end: endOfWeek(w, { weekStartsOn: 1 }) });
+      }
+    }
+
+    return buckets.map((b) => {
+      const a = summarizeAttendance(snapshot, b.start, b.end);
+      return {
+        period: b.label,
+        men: a.totalMen,
+        women: a.totalWomen,
+        youth: a.totalYouth,
+        children: a.totalChildren,
+        total: a.grandTotal,
+        newVisitors: a.totalNewVisitors,
+        salvations: a.totalSalvations,
+        services: a.servicesCount,
+      };
+    });
   }
 
   /**
@@ -705,104 +1093,8 @@ export class AnalyticsService {
    */
   static async getFinancialAnalytics(period: PeriodKey = 'this_month', customStart?: string, customEnd?: string) {
     const range = resolvePeriodDateRange(period, customStart, customEnd);
-    await ensureAdminAuth().catch(() => {});
-
-    let entries: any[] = [];
-    let expenses: any[] = [];
-    let treasury: any = null;
-
-    try {
-      entries = await pb.collection('financial_entries').getFullList({
-        expand: 'category,service',
-        sort: '-collected_at',
-      });
-    } catch {
-      entries = [];
-    }
-
-    try {
-      expenses = await pb.collection('expenses').getFullList({
-        expand: 'category,fund_account',
-        sort: '-created',
-      });
-    } catch {
-      expenses = [];
-    }
-
-    try {
-      treasury = await LedgerService.getConsolidatedTreasury();
-    } catch {
-      treasury = {
-        consolidatedPhysicalBalance: 14750000,
-        generalFundFreeBalance: 8150000,
-        pendingCommitmentsTotal: 350000,
-        funds: [],
-      };
-    }
-
-    // Filtrage date
-    const isInPeriod = (dStr: string) => {
-      if (!dStr) return false;
-      const d = parseISO(dStr.split('T')[0]);
-      return d >= range.startDate && d <= range.endDate;
-    };
-
-    const validEntries = entries.filter((e) => isInPeriod(e.collected_at || e.created));
-    const validExpenses = expenses.filter((exp) => isInPeriod(exp.paid_at || exp.created));
-
-    // Agrégats de recettes
-    const tithesTotal = validEntries
-      .filter((e) => e.expand?.category?.code === 'tithes')
-      .reduce((sum, e) => sum + (e.amount || 0), 0) || 1925000;
-
-    const ordinaryOfferingsTotal = validEntries
-      .filter((e) => e.expand?.category?.code === 'offerings')
-      .reduce((sum, e) => sum + (e.amount || 0), 0) || 875000;
-
-    const ordinaryCombined = tithesTotal + ordinaryOfferingsTotal;
-
-    // Prélèvements statutaires stricts (80/10/10)
-    const titheOfTithes_10pct = Math.floor(ordinaryCombined * 0.1);
-    const welfareAid_10pct = Math.floor(ordinaryCombined * 0.1);
-    const generalFund_80pct = ordinaryCombined - titheOfTithes_10pct - welfareAid_10pct;
-
-    // Dons affectés (0% de prélèvement, 100% alloués)
-    const buildingAuditorium = validEntries
-      .filter((e) => e.expand?.category?.code === 'building')
-      .reduce((sum, e) => sum + (e.amount || 0), 0) || 525000;
-
-    const friendsOfJesus = validEntries
-      .filter((e) => e.expand?.category?.code === 'friends_of_jesus')
-      .reduce((sum, e) => sum + (e.amount || 0), 0) || 175000;
-
-    const totalRevenues = ordinaryCombined + buildingAuditorium + friendsOfJesus;
-
-    // Dépenses par statut
-    const paidExpensesTotal = validExpenses
-      .filter((exp) => exp.status === 'paid')
-      .reduce((sum, exp) => sum + (exp.amount || 0), 0) || 480000;
-
-    const approvedExpensesTotal = validExpenses
-      .filter((exp) => exp.status === 'approved')
-      .reduce((sum, exp) => sum + (exp.amount || 0), 0) || 200000;
-
-    const pendingExpensesTotal = validExpenses
-      .filter((exp) => exp.status === 'pending_approval')
-      .reduce((sum, exp) => sum + (exp.amount || 0), 0) || 150000;
-
-    const rejectedExpensesTotal = validExpenses
-      .filter((exp) => exp.status === 'rejected')
-      .reduce((sum, exp) => sum + (exp.amount || 0), 0) || 50000;
-
-    // Évolution mensuelle historique des recettes et dépenses payées
-    const monthlyTrends = [
-      { month: 'Juin', tithes: 4500000, offerings: 2200000, building: 1200000, paidExpenses: 4200000, netFlow: 3700000 },
-      { month: 'Juil', tithes: 4900000, offerings: 2400000, building: 1300000, paidExpenses: 4600000, netFlow: 4000000 },
-      { month: 'Août', tithes: 5100000, offerings: 2600000, building: 1400000, paidExpenses: 5100000, netFlow: 4000000 },
-      { month: 'Sept', tithes: 5400000, offerings: 2800000, building: 1500000, paidExpenses: 4900000, netFlow: 4800000 },
-      { month: 'Oct', tithes: 5900000, offerings: 3100000, building: 1600000, paidExpenses: 5300000, netFlow: 5300000 },
-      { month: 'Nov (En cours)', tithes: tithesTotal, offerings: ordinaryOfferingsTotal, building: buildingAuditorium, paidExpenses: paidExpensesTotal, netFlow: totalRevenues - paidExpensesTotal },
-    ];
+    const snapshot = await loadSnapshot();
+    const fin = summarizeFinance(snapshot, range.startDate, range.endDate);
 
     return {
       period,
@@ -812,42 +1104,147 @@ export class AnalyticsService {
         end: format(range.endDate, 'yyyy-MM-dd'),
       },
       revenues: {
-        totalGross: totalRevenues,
-        tithes: tithesTotal,
-        ordinaryOfferings: ordinaryOfferingsTotal,
-        ordinaryCombined,
-        split80_10_10: {
-          generalFund: generalFund_80pct,
-          titheOfTithes: titheOfTithes_10pct,
-          welfareAid: welfareAid_10pct,
-        },
-        designated: {
-          buildingAuditorium,
-          friendsOfJesus,
-          total: buildingAuditorium + friendsOfJesus,
-        },
+        totalGross: fin.totalGross,
+        tithes: fin.tithes,
+        ordinaryOfferings: fin.ordinaryOfferings,
+        ordinaryCombined: fin.ordinaryCombined,
+        split80_10_10: fin.split80_10_10,
+        designated: fin.designated,
+        byCategory: fin.revenueByCategory,
       },
       expenses: {
-        paid: paidExpensesTotal, // Seule sortie réelle de caisse
-        approved: approvedExpensesTotal,
-        pending: pendingExpensesTotal,
-        rejected: rejectedExpensesTotal,
-        totalCommitted: paidExpensesTotal + approvedExpensesTotal + pendingExpensesTotal,
-        byCategory: [
-          { name: 'Électricité & Énergie', amount: 150000, percentage: 31, color: '#FFBC00' },
-          { name: 'Eau & Maintenance', amount: 120000, percentage: 25, color: '#3B82F6' },
-          { name: 'Transport & Logistique', amount: 90000, percentage: 19, color: '#10B981' },
-          { name: 'Sonorisation & Médias', amount: 80000, percentage: 17, color: '#EC4899' },
-          { name: 'Autres Charges', amount: 40000, percentage: 8, color: '#64748B' },
-        ],
+        paid: fin.expensesPaid, // Seule sortie réelle de caisse
+        approved: fin.expensesApproved,
+        pending: fin.expensesPending,
+        rejected: fin.expensesRejected,
+        totalCommitted: fin.expensesPaid + fin.expensesApproved + fin.expensesPending,
+        byCategory: fin.byCategory,
       },
       treasury: {
-        consolidatedPhysicalBalance: treasury.consolidatedPhysicalBalance,
-        generalFundFreeBalance: treasury.generalFundFreeBalance,
-        pendingCommitmentsTotal: treasury.pendingCommitmentsTotal,
+        consolidatedPhysicalBalance: snapshot.treasury.consolidatedPhysicalBalance,
+        generalFundFreeBalance: snapshot.treasury.generalFundFreeBalance,
+        pendingCommitmentsTotal: snapshot.treasury.pendingCommitmentsTotal,
       },
-      monthlyTrends,
+      monthlyTrends: monthlyFinanceTrends(snapshot, range.endDate, 6),
     };
+  }
+
+  /** Rapport périodique consolidé (page Rapports) */
+  static async getReportSummary(period: PeriodKey = 'this_month', customStart?: string, customEnd?: string, includeFinance = true) {
+    const range = resolvePeriodDateRange(period, customStart, customEnd);
+    const snapshot = await loadSnapshot({ finance: includeFinance });
+    const att = summarizeAttendance(snapshot, range.startDate, range.endDate);
+
+    const attendance = {
+      totalServicesOrganized: att.servicesCount,
+      cumulativeAttendance: att.grandTotal,
+      averagePerService: att.averagePerService,
+      totalNewVisitors: att.totalNewVisitors,
+      totalSalvations: att.totalSalvations,
+      demographics: {
+        menPercent: pct(att.totalMen, att.grandTotal),
+        womenPercent: pct(att.totalWomen, att.grandTotal),
+        youthPercent: pct(att.totalYouth, att.grandTotal),
+        childrenPercent: pct(att.totalChildren, att.grandTotal),
+      },
+      byServiceType: att.byType,
+    };
+
+    const base = {
+      period,
+      range: { start: format(range.startDate, 'yyyy-MM-dd'), end: format(range.endDate, 'yyyy-MM-dd'), label: range.label },
+      generatedAt: new Date().toISOString(),
+      attendance,
+    };
+    if (!includeFinance) return base;
+
+    const fin = summarizeFinance(snapshot, range.startDate, range.endDate);
+    return {
+      ...base,
+      currency: 'FCFA',
+      financials: {
+        totalGrossRevenues: fin.totalGross,
+        ordinaryRevenues: fin.ordinaryCombined,
+        standardOfferingsSplit: {
+          titheOfTithes_10pct: fin.split80_10_10.titheOfTithes,
+          welfareAid_10pct: fin.split80_10_10.welfareAid,
+          generalFund_80pct: fin.split80_10_10.generalFund,
+        },
+        designatedFundsCollected: fin.designated.total,
+        totalExpensesCommitted: fin.expensesPaid + fin.expensesApproved + fin.expensesPending,
+        totalExpensesPaid: fin.expensesPaid,
+        pendingCommitments: snapshot.treasury.pendingCommitmentsTotal,
+        consolidatedCashBalance: snapshot.treasury.consolidatedPhysicalBalance,
+        revenueByCategory: fin.revenueByCategory,
+        expensesByCategory: fin.byCategory,
+      },
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Exports CSV (séparateur « ; » et BOM UTF-8 pour Excel FR)
+  // ---------------------------------------------------------------------------
+  static async buildAttendanceCsv(period?: PeriodKey, customStart?: string, customEnd?: string): Promise<string> {
+    const snapshot = await loadSnapshot({ finance: false });
+    let sheets = snapshot.sheets;
+    if (period) {
+      const range = resolvePeriodDateRange(period, customStart, customEnd);
+      sheets = sheets.filter((s) => inRange(sheetDay(s), range.startDate, range.endDate));
+    }
+    const rows = sheets.map((s) => sheetToRecord(snapshot, s));
+    return toCsv(
+      ['Programme', 'Date', 'Statut', 'Hommes', 'Femmes', 'Jeunes', 'Enfants', 'Total_Participants', 'Nouveaux_Visiteurs', 'Decisions_Christ'],
+      rows.map((r) => [r.serviceTypeName, r.date, r.status, r.men, r.women, r.youth, r.children, r.total, r.newVisitors, r.salvations])
+    );
+  }
+
+  static async buildFinanceCsv(period?: PeriodKey, customStart?: string, customEnd?: string): Promise<string> {
+    const snapshot = await loadSnapshot();
+    let { entries, expenses } = snapshot;
+    if (period) {
+      const range = resolvePeriodDateRange(period, customStart, customEnd);
+      entries = entries.filter((e) => inRange(entryDay(e), range.startDate, range.endDate));
+      expenses = expenses.filter((x) => inRange(expenseDay(x), range.startDate, range.endDate));
+    }
+    const statusLabels: Record<string, string> = {
+      validated: 'Validée',
+      pending_approval: 'En attente',
+      approved: 'Approuvée',
+      rejected: 'Rejetée',
+      paid: 'Payée',
+      cancelled: 'Annulée',
+    };
+    const rows: (string | number)[][] = [
+      ...entries.map((e) => [
+        'RECETTE',
+        e.entry_number,
+        entryDay(e),
+        e.expand?.category?.name || '',
+        e.amount || 0,
+        e.donor_name || '',
+        e.payment_method || '',
+        statusLabels[e.status] || e.status,
+      ]),
+      ...expenses.map((x) => [
+        'DEPENSE',
+        x.expense_number,
+        expenseDay(x),
+        expenseCategoryName(x),
+        x.amount || 0,
+        x.beneficiary || '',
+        x.payment_method || '',
+        statusLabels[x.status] || x.status,
+      ]),
+    ];
+    rows.sort((a, b) => String(b[2]).localeCompare(String(a[2])));
+    return toCsv(['Type', 'Numero', 'Date', 'Categorie', 'Montant_FCFA', 'Donateur_ou_Beneficiaire', 'Mode_Paiement', 'Statut'], rows);
   }
 }
 
+export function toCsv(headers: string[], rows: (string | number | null | undefined)[][]): string {
+  const escape = (v: string | number | null | undefined) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return '﻿' + [headers.join(';'), ...rows.map((r) => r.map(escape).join(';'))].join('\r\n');
+}

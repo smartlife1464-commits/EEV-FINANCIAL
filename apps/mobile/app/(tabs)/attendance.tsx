@@ -8,10 +8,22 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { mobileApi } from '../../src/services/api';
+import { mobileApi, isNetworkError } from '../../src/services/api';
 import { OfflineSyncService } from '../../src/services/offlineSync';
 
+const OFFICIAL_PROGRAMS = [
+  { slug: 'tuesday_service', name: 'Culte de Mardi' },
+  { slug: 'thursday_service', name: 'Culte de Jeudi' },
+  { slug: 'sunday_service_1', name: '1er Service Dimanche' },
+  { slug: 'sunday_service_2', name: '2ème Service Dimanche' },
+  { slug: 'mission_camp', name: 'Camp Missionnaire' },
+  { slug: 'shepherds_camp', name: 'Camp des Bergers' },
+  { slug: 'special_programs', name: 'Programmes Spéciaux' },
+];
+
 export default function AttendanceMobile() {
+  const [selectedProgram, setSelectedProgram] = useState('sunday_service_1');
+  const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [men, setMen] = useState('145');
   const [women, setWomen] = useState('198');
   const [youth, setYouth] = useState('92');
@@ -28,7 +40,7 @@ export default function AttendanceMobile() {
   const childrenCount = parseInt(children) || 0;
   const visitorsCount = parseInt(visitors) || 0;
 
-  // Calcul certifié strict
+  // Calcul certifié strict : TOTAL = Hommes + Femmes + Jeunes + Enfants
   const total = menCount + womenCount + youthCount + childrenCount;
 
   useEffect(() => {
@@ -56,7 +68,10 @@ export default function AttendanceMobile() {
   const handleSubmit = async () => {
     setSubmitting(true);
     const payload = {
-      serviceId: 'srv-1',
+      serviceTypeSlug: selectedProgram,
+      serviceDate,
+      startTime: '09:00',
+      endTime: '12:00',
       menCount,
       womenCount,
       youthCount,
@@ -67,9 +82,14 @@ export default function AttendanceMobile() {
     };
 
     try {
-      await mobileApi.createAttendance(payload);
-      Alert.alert('Succès', 'Fiche de présence transmise avec succès au système.');
+      await mobileApi.createStructuredAttendance(payload);
+      Alert.alert('Succès', 'Fiche de présence officielle transmise avec succès.');
     } catch (err: any) {
+      // Refus métier (doublon, validation…) : afficher l'erreur au lieu de mettre en file
+      if (!isNetworkError(err)) {
+        Alert.alert('Fiche refusée', err.message);
+        return;
+      }
       // Sauvegarde dans la file locale hors-ligne
       await OfflineSyncService.queueAttendance(payload);
       await checkPendingQueue();
@@ -85,7 +105,7 @@ export default function AttendanceMobile() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.pageTitle}>Saisie Protocole Mobile</Text>
-      <Text style={styles.pageSub}>Comptabilisation des fidèles en direct du culte</Text>
+      <Text style={styles.pageSub}>Fiche de présence pour les 7 programmes officiels</Text>
 
       {/* Alerte si des fiches sont en attente de synchronisation */}
       {pendingSyncCount > 0 && (
@@ -99,6 +119,43 @@ export default function AttendanceMobile() {
         </View>
       )}
 
+      {/* 1. Sélection du Programme parmi les 7 officiels */}
+      <View style={styles.formCard}>
+        <Text style={styles.cardHeader}>1. Programme Officiel</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {OFFICIAL_PROGRAMS.map((p) => {
+              const active = selectedProgram === p.slug;
+              return (
+                <TouchableOpacity
+                  key={p.slug}
+                  onPress={() => setSelectedProgram(p.slug)}
+                  style={[
+                    styles.chipBtn,
+                    active && styles.chipBtnActive,
+                  ]}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {p.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+
+        <View style={[styles.inputRow, { marginTop: 8 }]}>
+          <Text style={styles.inputLabel}>📅 Date du culte</Text>
+          <TextInput
+            value={serviceDate}
+            onChangeText={setServiceDate}
+            placeholder="AAAA-MM-JJ"
+            placeholderTextColor="#64748B"
+            style={[styles.numberInput, { width: 130 }]}
+          />
+        </View>
+      </View>
+
       {/* Banner Total Automatique */}
       <View style={styles.totalBanner}>
         <View>
@@ -109,7 +166,7 @@ export default function AttendanceMobile() {
       </View>
 
       <View style={styles.formCard}>
-        <Text style={styles.cardHeader}>Catégories Exclusives</Text>
+        <Text style={styles.cardHeader}>2. Catégories Exclusives</Text>
 
         <View style={styles.inputRow}>
           <Text style={styles.inputLabel}>👨 Hommes</Text>
@@ -154,7 +211,7 @@ export default function AttendanceMobile() {
 
       {/* Nouveaux Visiteurs */}
       <View style={[styles.formCard, { borderColor: '#3B82F6' }]}>
-        <Text style={[styles.cardHeader, { color: '#60A5FA' }]}>Indicateurs Complémentaires</Text>
+        <Text style={[styles.cardHeader, { color: '#60A5FA' }]}>3. Indicateurs Complémentaires</Text>
         <Text style={styles.alertText}>
           ℹ️ Les nouveaux visiteurs ne s'ajoutent jamais au total de fréquentation ci-dessus.
         </Text>
@@ -217,56 +274,74 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   syncBtnText: { color: '#091338', fontWeight: '900', fontSize: 11 },
+  chipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#0C1530',
+    borderWidth: 1,
+    borderColor: '#16214A',
+  },
+  chipBtnActive: {
+    backgroundColor: '#FFBC00',
+    borderColor: '#FFBC00',
+  },
+  chipText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  chipTextActive: {
+    color: '#091338',
+    fontWeight: '900',
+  },
   totalBanner: {
     backgroundColor: '#FFBC00',
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
-  totalBannerLabel: { color: '#091338', fontWeight: '900', fontSize: 11, letterSpacing: 1 },
-  totalBannerSub: { color: '#091338', opacity: 0.8, fontSize: 10, marginTop: 2 },
+  totalBannerLabel: { color: '#091338', fontSize: 13, fontWeight: '900' },
+  totalBannerSub: { color: '#334155', fontSize: 10, fontWeight: '600', marginTop: 2 },
   totalBannerNum: { color: '#091338', fontSize: 32, fontWeight: '900' },
   formCard: {
-    backgroundColor: '#091338',
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: '#0C1530',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#16214A',
+    padding: 16,
     marginBottom: 16,
   },
-  cardHeader: { color: '#FFFFFF', fontSize: 13, fontWeight: 'bold', marginBottom: 12 },
-  alertText: { color: '#94A3B8', fontSize: 11, marginBottom: 12 },
+  cardHeader: { color: '#FFBC00', fontSize: 13, fontWeight: '800', marginBottom: 12, textTransform: 'uppercase' },
   inputRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  inputLabel: { color: '#CBD5E1', fontSize: 13, fontWeight: '600' },
+  inputLabel: { color: '#E2E8F0', fontSize: 13, fontWeight: '600' },
   numberInput: {
-    backgroundColor: '#0D1B48',
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 12,
+    backgroundColor: '#060D24',
     borderWidth: 1,
-    borderColor: '#334155',
-    minWidth: 80,
+    borderColor: '#16214A',
+    borderRadius: 12,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+    width: 90,
     textAlign: 'center',
+    paddingVertical: 8,
   },
+  alertText: { color: '#94A3B8', fontSize: 10, fontStyle: 'italic', marginBottom: 12 },
   submitBtn: {
     backgroundColor: '#FFBC00',
     borderRadius: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
   },
-  submitBtnText: { color: '#091338', fontWeight: '900', fontSize: 14 },
+  submitBtnText: { color: '#091338', fontSize: 14, fontWeight: '900', textTransform: 'uppercase' },
 });

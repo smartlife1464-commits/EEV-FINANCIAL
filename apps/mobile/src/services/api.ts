@@ -29,11 +29,16 @@ export async function mobileRequest<T>(endpoint: string, options: RequestInit = 
     } catch {
       errData = { message: response.statusText };
     }
-    throw new Error(errData.error || errData.message || 'Erreur réseau');
+    const message = typeof errData.error === 'string' ? errData.error : errData.message || 'Erreur serveur';
+    // Erreur métier (400/403/409…) : NE PAS mettre en file hors-ligne, elle échouerait indéfiniment
+    throw Object.assign(new Error(message), { status: response.status });
   }
 
   return response.json();
 }
+
+/** Vrai si l'erreur provient d'une absence de réseau (et non d'un refus du serveur) */
+export const isNetworkError = (err: any): boolean => !err || err.status === undefined;
 
 export const mobileApi = {
   login: (credentials: { email: string; password: string }) =>
@@ -61,6 +66,25 @@ export const mobileApi = {
     }),
   approveExpense: (id: string, decision: 'approve' | 'reject', reason?: string) =>
     mobileRequest<any>(`/finance/expenses/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, reason }),
+    }),
+  getServiceTypes: () => mobileRequest<any[]>('/service-types'),
+  getCategories: () => mobileRequest<any[]>('/finance/categories'),
+  createStructuredAttendance: (data: any) =>
+    mobileRequest<any>('/attendance/structured', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getFixedExpenses: () => mobileRequest<any[]>('/finance/fixed-expenses'),
+  getFixedOccurrences: () => mobileRequest<any[]>('/finance/fixed-expenses/occurrences'),
+  payFixedExpenseOccurrence: (id: string, paymentMethod: string, paymentReference?: string) =>
+    mobileRequest<any>(`/finance/fixed-expenses/occurrences/${id}/pay`, {
+      method: 'POST',
+      body: JSON.stringify({ paymentMethod, paymentReference }),
+    }),
+  approveFixedExpenseOccurrence: (id: string, decision: 'approve' | 'reject', reason?: string) =>
+    mobileRequest<any>(`/finance/fixed-expenses/occurrences/${id}/approve`, {
       method: 'POST',
       body: JSON.stringify({ decision, reason }),
     }),

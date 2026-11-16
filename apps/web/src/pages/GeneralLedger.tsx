@@ -12,6 +12,7 @@ import {
   Filter,
   Search,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const GeneralLedger: React.FC = () => {
   const [filterType, setFilterType] = useState('all');
@@ -66,7 +67,7 @@ export const GeneralLedger: React.FC = () => {
   });
 
   const handleExportCSV = () => {
-    window.open('/api/reports/export/csv', '_blank');
+    api.exportLedgerCsv().catch((err) => toast.error('Export impossible', { description: err.message }));
   };
 
   return (

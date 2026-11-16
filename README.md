@@ -84,8 +84,9 @@ pnpm test
 
 ### Lancement des services
 ```bash
-# Terminal 1 : PocketBase (serveur de données & auth)
-./bin/pocketbase serve --dir=./pocketbase/pb_data --http=127.0.0.1:8090
+# Terminal 1 : PocketBase (serveur de données & auth) — applique automatiquement les migrations
+pnpm dev:pb
+# équivalent : ./bin/pocketbase serve --dir=./pocketbase/pb_data --migrationsDir=./pocketbase/pb_migrations --hooksDir=./pocketbase/pb_hooks --http=127.0.0.1:8090
 
 # Terminal 2 : API Fastify Node.js (Port 4000)
 pnpm dev:api
@@ -101,28 +102,46 @@ Documentation Swagger interactive disponible sur : `http://localhost:4000/docs`.
 
 ---
 
+> ⚠️ Toujours passer `--migrationsDir` : sans lui, PocketBase cherche les migrations dans `bin/pb_migrations`
+> et les réparations de schéma (`pocketbase/pb_migrations/17942000*`) ne sont pas appliquées.
+
+### Vérifications avant livraison
+```bash
+pnpm typecheck   # types partagés + API + Web
+pnpm test        # règles métier + moteur statistique + API
+```
+
 ## 4. Déploiement en Production (VPS Linux & Docker)
 
-Le dossier `docker/` contient la configuration complète prête pour la production.
+Le dossier `docker/` contient la configuration de production. Variables **obligatoires** (fichier `.env` à la racine, jamais commité) :
+`POCKETBASE_ENCRYPTION_KEY` (32 caractères), `POCKETBASE_ADMIN_EMAIL`, `POCKETBASE_ADMIN_PASSWORD`.
 
 ```bash
 cd docker
-docker compose up -d --build
+docker compose --env-file ../.env up -d --build
 ```
+
+> En production (`NODE_ENV=production`), les jetons et identifiants de démonstration sont désactivés,
+> la page de connexion n'est plus pré-remplie et le sélecteur de comptes de démo est masqué.
 
 Services déployés :
 - **PocketBase** (`eev-pocketbase`) : SQLite avec volume persistant sécurisé.
 - **API Node.js** (`eev-api`) : Moteur Fastify avec logs structurés Pino.
 - **Frontend Nginx** (`eev-web`) : Sert l'application web React optimisée et assure le proxy inverse.
 
+### Paramètres institutionnels
+Le nom, l'adresse, la boîte postale, le téléphone et l'email du ministère se règlent dans **Paramètres** (rôles Admin / Leader).
+Ils alimentent tous les documents officiels (reçus de don, bons de caisse, PV de clôture, rapports, registre de fréquentation).
+
 ### Sauvegarde et Restauration Automatisées
 ```bash
 # Sauvegarde instantanée (à planifier en cron quotidien)
 ./scripts/backup/backup.sh
 
-# Restauration d'une archive
+# Restauration d'une archive (crée d'abord une copie de sécurité de la base actuelle)
 ./scripts/restore/restore.sh backups/eev_backup_20261106_220000.tar.gz
 ```
+Une sauvegarde instantanée peut aussi être lancée depuis **Paramètres → Sauvegarder maintenant** (visible dans la console PocketBase).
 
 ---
 
@@ -138,3 +157,8 @@ Services déployés :
 | `auditor` | **Auditeur** | ✅ Totale | ❌ | ❌ | ❌ | ❌ | ✅ Consultation | **✅ Totale** |
 | `admin` | **Administrateur** | ✅ Totale | ✅ | ✅ | ❌ | ❌ | ✅ Totale | ✅ |
 
+
+
+## 6. Audit & corrections de novembre 2026
+Le détail des dysfonctionnements corrigés et la feuille de route des améliorations figurent dans
+[`docs/AUDIT-2026-11.md`](docs/AUDIT-2026-11.md).

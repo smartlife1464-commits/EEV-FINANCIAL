@@ -10,14 +10,17 @@ import {
 } from 'react-native';
 import { calculateEntryAllocations } from '@eev/business-rules';
 import { AllocationRule, FundAccountCode } from '@eev/shared-types';
-import { mobileApi } from '../../src/services/api';
+import { mobileApi, isNetworkError } from '../../src/services/api';
 import { OfflineSyncService } from '../../src/services/offlineSync';
 
 export default function FinanceMobile() {
+  const [mainTab, setMainTab] = useState<'entries' | 'fixed_expenses'>('entries');
   const [amount, setAmount] = useState('100000');
   const [category, setCategory] = useState<'ordinary' | 'building'>('ordinary');
   const [submitting, setSubmitting] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [fixedExpenses, setFixedExpenses] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   const numAmount = parseInt(amount) || 0;
   const isOrdinary = category === 'ordinary';
@@ -30,7 +33,19 @@ export default function FinanceMobile() {
 
   useEffect(() => {
     checkPendingQueue();
+    loadFixedExpenses();
+    mobileApi.getCategories().then(setCategories).catch(() => setCategories([]));
   }, []);
+
+  const loadFixedExpenses = async () => {
+    try {
+      const data = await mobileApi.getFixedExpenses();
+      setFixedExpenses(data);
+    } catch {
+      // Aucune donnée fictive : liste vide si le serveur est injoignable
+      setFixedExpenses([]);
+    }
+  };
 
   const checkPendingQueue = async () => {
     const count = await OfflineSyncService.getPendingCount();
@@ -57,8 +72,10 @@ export default function FinanceMobile() {
     }
 
     setSubmitting(true);
-    const payload = {
-      categoryId: isOrdinary ? 'cat-tithe' : 'cat-build',
+    const categoryCode = isOrdinary ? 'tithes' : 'building';
+    const categoryId = categories.find((c: any) => c.code === categoryCode)?.id;
+    const payload: Record<string, any> = {
+      ...(categoryId ? { categoryId } : { categoryCode }),
       amount: numAmount,
       paymentMethod: 'cash',
       collectedAt: new Date().toISOString().split('T')[0],
@@ -66,9 +83,14 @@ export default function FinanceMobile() {
     };
 
     try {
+      if (!categoryId) throw Object.assign(new Error('offline'), {});
       await mobileApi.createEntry(payload);
       Alert.alert('Succès', `Recette de ${numAmount.toLocaleString('fr-FR')} FCFA comptabilisée.`);
-    } catch {
+    } catch (err: any) {
+      if (!isNetworkError(err)) {
+        Alert.alert('Recette refusée', err.message);
+        return;
+      }
       await OfflineSyncService.queueEntry(payload);
       await checkPendingQueue();
       Alert.alert(
@@ -97,58 +119,102 @@ export default function FinanceMobile() {
         </View>
       )}
 
-      {/* Select Category */}
-      <View style={styles.tabToggle}>
+      {/* Switcher Principal : Recettes vs Dépenses Fixes */}
+      <View style={styles.mainTabToggle}>
         <TouchableOpacity
-          style={[styles.toggleBtn, isOrdinary && styles.toggleBtnActive]}
-          onPress={() => setCategory('ordinary')}
+          style={[styles.mainToggleBtn, mainTab === 'entries' && styles.mainToggleBtnActive]}
+          onPress={() => setMainTab('entries')}
         >
-          <Text style={[styles.toggleText, isOrdinary && styles.toggleTextActive]}>
-            Dîmes & Offrandes (80/10/10)
+          <Text style={[styles.mainToggleText, mainTab === 'entries' && styles.mainToggleTextActive]}>
+            💰 Recettes & Dîmes
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity
-          style={[styles.toggleBtn, !isOrdinary && styles.toggleBtnActive]}
-          onPress={() => setCategory('building')}
+          style={[styles.mainToggleBtn, mainTab === 'fixed_expenses' && styles.mainToggleBtnActive]}
+          onPress={() => setMainTab('fixed_expenses')}
         >
-          <Text style={[styles.toggleText, !isOrdinary && styles.toggleTextActive]}>
-            Auditorium (100%)
+          <Text style={[styles.mainToggleText, mainTab === 'fixed_expenses' && styles.mainToggleTextActive]}>
+            ⚡ Charges Fixes ({fixedExpenses.length})
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Input Montant */}
-      <View style={styles.formCard}>
-        <Text style={styles.cardHeader}>Montant Brut Encaissé (FCFA)</Text>
-        <TextInput
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-          placeholder="Ex: 100000"
-          style={styles.amountInput}
-        />
+      {mainTab === 'entries' ? (
+        <>
+          {/* Select Category */}
+          <View style={styles.tabToggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, isOrdinary && styles.toggleBtnActive]}
+              onPress={() => setCategory('ordinary')}
+            >
+              <Text style={[styles.toggleText, isOrdinary && styles.toggleTextActive]}>
+                Dîmes & Offrandes (80/10/10)
+              </Text>
+            </TouchableOpacity>
 
-        {/* Live Allocations Preview */}
-        <Text style={styles.previewHeader}>Ventilation Analytique Automatique :</Text>
-
-        {split.allocations.map((alloc, idx) => (
-          <View key={idx} style={styles.allocRow}>
-            <Text style={styles.allocDesc}>{alloc.description}</Text>
-            <Text style={styles.allocVal}>{alloc.amount.toLocaleString('fr-FR')} FCFA</Text>
+            <TouchableOpacity
+              style={[styles.toggleBtn, !isOrdinary && styles.toggleBtnActive]}
+              onPress={() => setCategory('building')}
+            >
+              <Text style={[styles.toggleText, !isOrdinary && styles.toggleTextActive]}>
+                Auditorium (100%)
+              </Text>
+            </TouchableOpacity>
           </View>
-        ))}
-      </View>
 
-      <TouchableOpacity
-        style={styles.submitBtn}
-        onPress={handleSaveEntry}
-        disabled={submitting}
-      >
-        <Text style={styles.submitBtnText}>
-          {submitting ? 'Comptabilisation...' : 'Enregistrer la Recette'}
-        </Text>
-      </TouchableOpacity>
+          {/* Input Montant */}
+          <View style={styles.formCard}>
+            <Text style={styles.cardHeader}>Montant Brut Encaissé (FCFA)</Text>
+            <TextInput
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="Ex: 100000"
+              style={styles.amountInput}
+            />
+
+            {/* Live Allocations Preview */}
+            <Text style={styles.previewHeader}>Ventilation Analytique Automatique :</Text>
+
+            {split.allocations.map((alloc, idx) => (
+              <View key={idx} style={styles.allocRow}>
+                <Text style={styles.allocDesc}>{alloc.description}</Text>
+                <Text style={styles.allocVal}>{alloc.amount.toLocaleString('fr-FR')} FCFA</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitBtn}
+            onPress={handleSaveEntry}
+            disabled={submitting}
+          >
+            <Text style={styles.submitBtnText}>
+              {submitting ? 'Comptabilisation...' : 'Enregistrer la Recette'}
+            </Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <View style={styles.fixedExpensesSection}>
+          <Text style={styles.sectionTitle}>Charges Fixes Mensuelles Autorisées</Text>
+          <Text style={styles.sectionSubtitle}>
+            Imputées exclusivement sur les 80% du Fonds Général
+          </Text>
+
+          {fixedExpenses.map((fe) => (
+            <View key={fe.id} style={styles.fixedCard}>
+              <View style={styles.fixedCardHeader}>
+                <Text style={styles.fixedCardName}>{fe.name}</Text>
+                <Text style={styles.fixedCardAmount}>{fe.amount?.toLocaleString('fr-FR')} FCFA</Text>
+              </View>
+              <View style={styles.fixedCardFooter}>
+                <Text style={styles.fixedCardDetail}>Périodicité : {fe.frequency || 'Mensuelle'}</Text>
+                <Text style={styles.fixedCardDetail}>Échéance : le {fe.due_day || 5} du mois</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -177,6 +243,35 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   syncBtnText: { color: '#091338', fontWeight: '900', fontSize: 11 },
+  mainTabToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#0C1530',
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#16214A',
+  },
+  mainToggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+  mainToggleBtnActive: { backgroundColor: '#FFBC00' },
+  mainToggleText: { color: '#94A3B8', fontSize: 12, fontWeight: 'bold' },
+  mainToggleTextActive: { color: '#091338', fontWeight: '900' },
+  fixedExpensesSection: { marginTop: 4 },
+  sectionTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  sectionSubtitle: { color: '#94A3B8', fontSize: 11, marginBottom: 12, marginTop: 2 },
+  fixedCard: {
+    backgroundColor: '#0C1530',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#16214A',
+    padding: 14,
+    marginBottom: 10,
+  },
+  fixedCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fixedCardName: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
+  fixedCardAmount: { color: '#FFBC00', fontSize: 15, fontWeight: '900' },
+  fixedCardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  fixedCardDetail: { color: '#64748B', fontSize: 11 },
   tabToggle: {
     flexDirection: 'row',
     backgroundColor: '#091338',

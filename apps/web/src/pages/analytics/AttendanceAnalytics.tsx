@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { PeriodSelector } from '../../components/analytics/PeriodSelector';
+import { usePeriod } from '../../context/PeriodContext';
 import { MetricCard } from '../../components/analytics/MetricCard';
 import {
   Users,
@@ -35,11 +36,10 @@ import {
   Legend,
 } from 'recharts';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const AttendanceAnalytics: React.FC = () => {
-  const [period, setPeriod] = useState<string>('this_month');
-  const [customStart, setCustomStart] = useState<string | undefined>();
-  const [customEnd, setCustomEnd] = useState<string | undefined>();
+  const { period, startDate: customStart, endDate: customEnd, setPeriod: handlePeriodChange } = usePeriod();
   const [granularity, setGranularity] = useState<'day' | 'week' | 'month' | 'quarter'>('week');
 
   // Séries affichées / masquées
@@ -59,14 +59,9 @@ export const AttendanceAnalytics: React.FC = () => {
     queryFn: () => api.getAttendanceTrends(granularity),
   });
 
-  const handlePeriodChange = (newPeriod: string, start?: string, end?: string) => {
-    setPeriod(newPeriod);
-    setCustomStart(start);
-    setCustomEnd(end);
-  };
 
   const handleExportCSV = () => {
-    window.open('/api/analytics/export/csv?type=attendance', '_blank');
+    api.exportAnalyticsCsv('attendance', period, customStart, customEnd).catch((err) => toast.error('Export impossible', { description: err.message }));
   };
 
   const summary = attendanceData?.summary;
@@ -138,7 +133,7 @@ export const AttendanceAnalytics: React.FC = () => {
             <Users className="w-5 h-5 text-blue-500" />
           </div>
           <div className="text-3xl font-black text-slate-900 dark:text-white">
-            {summary?.grandTotal?.toLocaleString('fr-FR') || 1485}
+            {summary?.grandTotal?.toLocaleString('fr-FR') ?? 0}
           </div>
           <p className="text-[11px] text-slate-400">
             Sur {summary?.servicesCount || 4} cultes officiellement validés
@@ -153,7 +148,7 @@ export const AttendanceAnalytics: React.FC = () => {
             <CalendarDays className="w-5 h-5 text-amber-500" />
           </div>
           <div className="text-3xl font-black text-amber-500">
-            {summary?.averagePerService || 371}
+            {summary?.averagePerService ?? 0}
           </div>
           <p className="text-[11px] text-slate-400">
             Divisé strictement par le nombre de cultes
@@ -168,7 +163,7 @@ export const AttendanceAnalytics: React.FC = () => {
             <UserPlus className="w-5 h-5 text-emerald-500" />
           </div>
           <div className="text-3xl font-black text-emerald-500">
-            {summary?.totalNewVisitors || 86}
+            {summary?.totalNewVisitors ?? 0}
           </div>
           <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
             Taux d'accueil : {summary?.visitorRate || 5.8}% (Indicateur isolé)
@@ -183,7 +178,7 @@ export const AttendanceAnalytics: React.FC = () => {
             <HeartHandshake className="w-5 h-5 text-pink-500" />
           </div>
           <div className="text-3xl font-black text-pink-500">
-            {summary?.totalSalvations || 40}
+            {summary?.totalSalvations ?? 0}
           </div>
           <p className="text-[11px] text-slate-400">
             Orientés vers la classe de baptême
@@ -215,11 +210,10 @@ export const AttendanceAnalytics: React.FC = () => {
               <button
                 key={g.id}
                 onClick={() => setGranularity(g.id as any)}
-                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  granularity === g.id
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${granularity === g.id
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 {g.label}
               </button>
@@ -233,55 +227,50 @@ export const AttendanceAnalytics: React.FC = () => {
 
           <button
             onClick={() => setShowTotal(!showTotal)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showTotal
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showTotal
                 ? 'bg-indigo-600 text-white'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Total Participants</span>
           </button>
 
           <button
             onClick={() => setShowWomen(!showWomen)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showWomen
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showWomen
                 ? 'bg-pink-600 text-white'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Femmes</span>
           </button>
 
           <button
             onClick={() => setShowMen(!showMen)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showMen
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showMen
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Hommes</span>
           </button>
 
           <button
             onClick={() => setShowYouth(!showYouth)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showYouth
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showYouth
                 ? 'bg-amber-500 text-slate-950 font-black'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Jeunes</span>
           </button>
 
           <button
             onClick={() => setShowChildren(!showChildren)}
-            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              showChildren
+            className={`px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${showChildren
                 ? 'bg-emerald-600 text-white'
                 : 'bg-slate-100 dark:bg-[#16214A] text-slate-400 line-through'
-            }`}
+              }`}
           >
             <span>Enfants</span>
           </button>

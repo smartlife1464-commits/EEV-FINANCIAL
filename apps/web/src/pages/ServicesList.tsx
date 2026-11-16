@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { formatDate } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
+import { formatDate, formatFCFA } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import {
   CalendarDays,
@@ -12,21 +13,57 @@ import {
   X,
   CheckCircle2,
   Calendar,
+  Wallet,
+  ArrowDownCircle,
+  Search,
+  Filter,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const ServicesList: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+
   const { data: services = [], isLoading, refetch } = useQuery({
     queryKey: ['services'],
     queryFn: () => api.getServices(),
   });
 
+  const { data: attendanceSheets = [] } = useQuery({
+    queryKey: ['attendance-sheets'],
+    queryFn: () => api.getAttendance(),
+  });
+
+  const { hasPermission } = useAuth();
+  const canSeeFinance = hasPermission('canViewDashboardFinance');
+  const canCreateService = hasPermission('canCreateService');
+
+  const { data: financialEntries = [] } = useQuery({
+    queryKey: ['financial-entries'],
+    queryFn: () => api.getEntries(),
+    enabled: canSeeFinance, // le Protocole n'a aucun accès aux données financières
+  });
+
+  const { data: serviceTypes = [] } = useQuery({
+    queryKey: ['service-types'],
+    queryFn: () => api.getServiceTypes(),
+  });
+
+  /** Regroupe les 7 programmes officiels par jour pour les filtres et les badges */
+  const dayGroup = (slug: string = '') =>
+    slug.startsWith('sunday') ? 'sunday' : slug.startsWith('tuesday') ? 'tuesday' : slug.startsWith('thursday') ? 'thursday' : 'special';
+  const typeName = (slug: string) => serviceTypes.find((t: any) => t.slug === slug)?.name;
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [name, setName] = useState('');
-  const [serviceType, setServiceType] = useState('sunday_service');
+  const [serviceType, setServiceType] = useState('sunday_service_1');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('12:00');
+  const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleCreateService = async (e: React.FormEvent) => {
@@ -39,16 +76,25 @@ export const ServicesList: React.FC = () => {
         date,
         startTime,
         endTime,
+        description,
       });
+      toast.success('Culte programmé');
       setShowCreateModal(false);
       setName('');
+      setDescription('');
       await refetch();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création');
+      toast.error(err.message || 'Erreur lors de la création');
     } finally {
       setSubmitting(false);
     }
   };
+
+  const filteredServices = services.filter((s: any) => {
+    const matchesSearch = (s.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = typeFilter === 'all' || dayGroup(s.service_type) === typeFilter;
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
@@ -64,6 +110,7 @@ export const ServicesList: React.FC = () => {
           </p>
         </div>
 
+        {canCreateService && (
         <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-extrabold text-xs shadow-md shadow-amber-400/20 transition-all cursor-pointer"
@@ -71,64 +118,172 @@ export const ServicesList: React.FC = () => {
           <Plus className="w-4 h-4" />
           <span>Programmer un Culte</span>
         </button>
+        )}
       </div>
 
-      {/* Cartes des Cultes & Programmes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {services.map((service: any) => {
-          const isSunday = service.service_type === 'sunday_service';
-          return (
-            <div
-              key={service.id}
-              className="bg-white dark:bg-[#0C1530] rounded-3xl p-6 border border-slate-200 dark:border-[#16214A] shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+      {/* Barre de Recherche et Filtres par Type */}
+      <div className="p-4 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="relative w-full md:w-96">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Rechercher par intitulé du rassemblement..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-400"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+          {[
+            { id: 'all', label: 'Tous les cultes' },
+            { id: 'sunday', label: 'Dimanche' },
+            { id: 'tuesday', label: 'Mardi' },
+            { id: 'thursday', label: 'Jeudi' },
+            { id: 'special', label: 'Spéciaux' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setTypeFilter(item.id)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                typeFilter === item.id
+                  ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
+                  : 'bg-slate-100 dark:bg-[#16214A] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
             >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                      isSunday
-                        ? 'bg-amber-400/20 text-amber-500 border border-amber-400/30'
-                        : 'bg-blue-500/15 text-blue-400 border border-blue-500/25'
-                    }`}
-                  >
-                    {isSunday ? 'Culte Dominical' : 'Programme Semaine'}
-                  </span>
-                  <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-amber-500" />
-                    <span>
-                      {service.start_time || '09:00'} - {service.end_time || '12:00'}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grille des Cartes des Cultes & Programmes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredServices.length === 0 ? (
+          <div className="col-span-full p-12 text-center text-slate-500 dark:text-slate-400 text-xs bg-white dark:bg-[#0C1530] rounded-3xl border border-slate-200 dark:border-[#16214A]">
+            Aucun culte ne correspond à votre filtre.
+          </div>
+        ) : (
+          filteredServices.map((service: any) => {
+            const group = dayGroup(service.service_type);
+            const isSunday = group === 'sunday';
+
+            // Fiche de présence associée (lien direct, sinon même programme à la même date)
+            const sheet = attendanceSheets.find(
+              (s: any) =>
+                s.service === service.id ||
+                s.service?.id === service.id ||
+                (s.service_type_slug === service.service_type && s.service_date === String(service.date || '').slice(0, 10))
+            );
+
+            // Recettes associées
+            const entries = financialEntries.filter(
+              (e: any) => e.service === service.id || e.service_id === service.id || e.service?.id === service.id
+            );
+            const totalCollected = entries.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
+
+            return (
+              <div
+                key={service.id}
+                className="bg-white dark:bg-[#0C1530] rounded-3xl p-6 border border-slate-200 dark:border-[#16214A] shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        isSunday
+                          ? 'bg-amber-400/20 text-amber-500 border border-amber-400/30'
+                          : group === 'tuesday'
+                          ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25'
+                          : group === 'thursday'
+                          ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25'
+                          : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                      }`}
+                    >
+                      {typeName(service.service_type) ||
+                        (isSunday ? 'Culte Dominical' : group === 'tuesday' ? 'Mardi Enseignement' : group === 'thursday' ? 'Jeudi Intercession' : 'Réunion Spéciale')}
                     </span>
-                  </span>
+                    <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
+                      <span>
+                        {service.start_time || '09:00'} - {service.end_time || '12:00'}
+                      </span>
+                    </span>
+                  </div>
+
+                  <h2 className="text-base font-black text-slate-900 dark:text-white leading-snug">
+                    {service.name}
+                  </h2>
+
+                  <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <span>
+                      Date : <strong className="text-slate-800 dark:text-slate-200">{formatDate(service.date)}</strong>
+                    </span>
+                  </div>
+
+                  {/* Résumé Présences & Finances */}
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200/80 dark:border-[#16214A] space-y-1">
+                      <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-bold uppercase">
+                        <Users className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Fréquentation</span>
+                      </div>
+                      {sheet ? (
+                        <div>
+                          <span className="text-sm font-black text-slate-900 dark:text-white">
+                            {sheet.total_attendance} fidèles
+                          </span>
+                          <span className="block text-[10px] text-blue-500 font-bold">
+                            +{sheet.new_visitors_count} visiteurs
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-bold text-amber-500 block pt-1">
+                          En attente
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200/80 dark:border-[#16214A] space-y-1">
+                      <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-bold uppercase">
+                        <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Recettes</span>
+                      </div>
+                      <div>
+                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          {formatFCFA(totalCollected)}
+                        </span>
+                        <span className="block text-[10px] text-slate-400 font-bold">
+                          {entries.length} reçu(s)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <h2 className="text-base font-black text-slate-900 dark:text-white leading-snug">
-                  {service.name}
-                </h2>
+                {/* Actions de Saisie & Suivi */}
+                <div className="pt-4 border-t border-slate-100 dark:border-[#16214A] flex flex-wrap items-center justify-between gap-2">
+                  <Link
+                    to={sheet ? '/attendance' : `/attendance/new?slug=${encodeURIComponent(service.service_type || '')}&date=${String(service.date || '').slice(0, 10)}`}
+                    className="flex-1 py-2 px-3 rounded-xl bg-slate-100 dark:bg-[#16214A] hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>{sheet ? 'Fiche Saisie' : 'Saisir Fiche'}</span>
+                  </Link>
 
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <span>
-                    Date : <strong className="text-slate-800 dark:text-slate-200">{formatDate(service.date)}</strong>
-                  </span>
+                  <Link
+                    to={`/finance/entries/new?serviceId=${service.id}`}
+                    className="flex-1 py-2 px-3 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <ArrowDownCircle className="w-3.5 h-3.5" />
+                    <span>Encaisser</span>
+                  </Link>
                 </div>
               </div>
-
-              <div className="pt-4 border-t border-slate-100 dark:border-[#16214A] flex items-center justify-between">
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-500">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Prêt pour comptage</span>
-                </span>
-                <Link
-                  to="/attendance/new"
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-[#16214A] hover:bg-amber-400 hover:text-slate-950 dark:hover:bg-amber-400 dark:hover:text-slate-950 text-slate-900 dark:text-white font-bold text-xs flex items-center gap-1.5 transition-all"
-                >
-                  <span>Saisir Fiche</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Modal Programmation d'un Culte */}
@@ -137,7 +292,7 @@ export const ServicesList: React.FC = () => {
           <div className="bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] rounded-3xl max-w-lg w-full p-8 shadow-2xl relative space-y-6">
             <button
               onClick={() => setShowCreateModal(false)}
-              className="absolute right-5 top-5 p-2 rounded-xl bg-slate-100 dark:bg-[#16214A] text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              className="absolute right-5 top-5 p-2 rounded-xl bg-slate-100 dark:bg-[#16214A] text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -180,11 +335,11 @@ export const ServicesList: React.FC = () => {
                   onChange={(e) => setServiceType(e.target.value)}
                   className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-amber-400"
                 >
-                  <option value="sunday_service">Culte du Dimanche</option>
-                  <option value="tuesday_program">Programme du Mardi (Enseignement)</option>
-                  <option value="thursday_program">Programme du Jeudi (Délivrance & Prière)</option>
-                  <option value="special_meeting">Réunion Spéciale</option>
-                  <option value="campaign">Campagne d'Évangélisation</option>
+                  {serviceTypes.map((t: any) => (
+                    <option key={t.id} value={t.slug}>
+                      {t.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -225,11 +380,24 @@ export const ServicesList: React.FC = () => {
                 </div>
               </div>
 
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  Description / Thème du Culte
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Célébration avec le Pasteur Principal • Thème: La Puissance de la Grâce"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-xs outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-[#16214A]">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-5 py-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] text-slate-700 dark:text-slate-300 text-xs font-bold"
+                  className="px-5 py-2.5 rounded-2xl bg-slate-100 dark:bg-[#16214A] text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer"
                 >
                   Annuler
                 </button>

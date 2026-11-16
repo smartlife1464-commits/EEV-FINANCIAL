@@ -142,3 +142,87 @@ export interface ConsolidatedTreasury {
   generalFundFreeBalance: number;
 }
 
+export type FixedExpenseFrequency = 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'custom';
+export type FixedExpenseStatus = 'active' | 'suspended' | 'archived';
+
+export interface FixedExpense {
+  id: string;
+  name: string;
+  category: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  frequency: FixedExpenseFrequency;
+  dueDay?: number;
+  startDate: string;
+  endDate?: string;
+  fundAccountId: string;
+  beneficiary: string;
+  responsibleUserId?: string;
+  paymentMethod?: string;
+  status: FixedExpenseStatus;
+  notes?: string;
+  createdById?: string;
+  created?: string;
+  updated?: string;
+}
+
+export type OccurrenceStatus = 'pending' | 'due_soon' | 'overdue' | 'approved' | 'paid' | 'cancelled';
+export type OccurrenceCoverageStatus = 'covered' | 'partially_covered' | 'uncovered';
+
+export interface FixedExpenseOccurrence {
+  id: string;
+  fixedExpenseId: string;
+  dueDate: string;
+  expectedAmount: number;
+  fundAccountId: string;
+  status: OccurrenceStatus;
+  reservedAmount: number;
+  paidAmount: number;
+  coverageStatus?: OccurrenceCoverageStatus;
+  generatedAt?: string;
+  approvedById?: string;
+  approvedAt?: string;
+  paidAt?: string;
+  paymentTransaction?: string;
+  notes?: string;
+  fixedExpense?: FixedExpense;
+}
+
+export interface ExpenseBudget {
+  id: string;
+  category: string;
+  amount: number;
+  periodType: string;
+  periodStart: string;
+  periodEnd: string;
+  fundAccountId?: string;
+  alertThreshold: number;
+  status: 'active' | 'closed';
+  spentAmount?: number;
+  remainingAmount?: number;
+  consumptionRate?: number;
+}
+
+export interface FixedExpensesSummary {
+  totalMonthlyFixed: number;
+  totalQuarterlyFixed: number;
+  totalAnnualFixed: number;
+  monthlyEquivalentProvision: number;
+  upcomingOccurrencesTotal: number;
+  paidOccurrencesTotal: number;
+  pendingOccurrencesTotal: number;
+  overdueOccurrencesTotal: number;
+  coverageRate: number;
+}
+
+export interface CoverageEvaluation {
+  isCovered: boolean;
+  isPartiallyCovered: boolean;
+  coverageStatus: OccurrenceCoverageStatus;
+  shortageAmount: number;
+  physicalCashAvailable: number;
+  fundAvailable: number;
+  committedAmount: number;
+}
+

@@ -132,3 +132,78 @@ export function validateInternalTransfer(
   return { valid: true };
 }
 
+export interface CashCountBreakdown {
+  // Billets FCFA (CEMAC)
+  b10000?: number; // 10 000 FCFA
+  b5000?: number;  // 5 000 FCFA
+  b2000?: number;  // 2 000 FCFA
+  b1000?: number;  // 1 000 FCFA
+  b500?: number;   // 500 FCFA
+  // Pièces FCFA (CEMAC)
+  c500?: number;   // 500 FCFA
+  c100?: number;   // 100 FCFA
+  c50?: number;    // 50 FCFA
+  c25?: number;    // 25 FCFA
+  // Autres avoirs de caisse
+  mobileMoneyAmount?: number;
+  bankTransfersAmount?: number;
+  checksAmount?: number;
+}
+
+export interface CashReconciliationResult {
+  physicalCashTotal: number;
+  electronicAndChecksTotal: number;
+  grandTotalCounted: number;
+  theoreticalBalance: number;
+  discrepancy: number; // grandTotalCounted - theoreticalBalance
+  status: 'balanced' | 'surplus' | 'shortage';
+  statusLabel: string;
+}
+
+/**
+ * Calcule le dénombrement physique (billetage) et le rapprochement avec le solde théorique de caisse.
+ */
+export function calculateCashReconciliation(
+  count: CashCountBreakdown,
+  theoreticalBalance: number
+): CashReconciliationResult {
+  const b10k = (count.b10000 || 0) * 10000;
+  const b5k = (count.b5000 || 0) * 5000;
+  const b2k = (count.b2000 || 0) * 2000;
+  const b1k = (count.b1000 || 0) * 1000;
+  const b500 = (count.b500 || 0) * 500;
+
+  const c500 = (count.c500 || 0) * 500;
+  const c100 = (count.c100 || 0) * 100;
+  const c50 = (count.c50 || 0) * 50;
+  const c25 = (count.c25 || 0) * 25;
+
+  const physicalCashTotal = b10k + b5k + b2k + b1k + b500 + c500 + c100 + c50 + c25;
+  const electronicAndChecksTotal =
+    (count.mobileMoneyAmount || 0) + (count.bankTransfersAmount || 0) + (count.checksAmount || 0);
+
+  const grandTotalCounted = physicalCashTotal + electronicAndChecksTotal;
+  const discrepancy = grandTotalCounted - theoreticalBalance;
+
+  let status: 'balanced' | 'surplus' | 'shortage' = 'balanced';
+  let statusLabel = 'Caisse Juste (Écart nul)';
+
+  if (discrepancy > 0) {
+    status = 'surplus';
+    statusLabel = `Excédent de caisse (+${discrepancy} FCFA)`;
+  } else if (discrepancy < 0) {
+    status = 'shortage';
+    statusLabel = `Manquant de caisse (${discrepancy} FCFA)`;
+  }
+
+  return {
+    physicalCashTotal,
+    electronicAndChecksTotal,
+    grandTotalCounted,
+    theoreticalBalance,
+    discrepancy,
+    status,
+    statusLabel,
+  };
+}
+

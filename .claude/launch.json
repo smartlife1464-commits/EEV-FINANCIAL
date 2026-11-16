@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pocketbase",
+      "runtimeExecutable": "./bin/pocketbase",
+      "runtimeArgs": [
+        "serve",
+        "--dir=./pocketbase/pb_data",
+        "--migrationsDir=./pocketbase/pb_migrations",
+        "--hooksDir=./pocketbase/pb_hooks",
+        "--http=127.0.0.1:8090"
+      ],
+      "port": 8090
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@eev/api", "dev"],
+      "port": 4000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@eev/web", "dev"],
+      "port": 5173
+    }
+  ]
+}

@@ -14,9 +14,23 @@ export interface Service {
   updated: string;
 }
 
+export interface ServiceTypeDefinition {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
 export interface AttendanceSheet {
   id: string;
-  serviceId: string;
+  serviceId?: string;
+  serviceTypeId?: string;
+  serviceTypeSlug?: string;
+  serviceDate: string; // YYYY-MM-DD
+  startTime?: string;
+  endTime?: string;
   menCount: number;
   womenCount: number;
   youthCount: number;
@@ -31,11 +45,13 @@ export interface AttendanceSheet {
   newVisitorsCount: number;
   salvationsCount: number;
   notes?: string;
+  responsibleUserId?: string;
   submittedById: string;
   validatedById?: string;
   status: AttendanceSheetStatus;
   created: string;
   updated: string;
+  serviceType?: ServiceTypeDefinition;
 }
 
 export interface AttendanceSummary {

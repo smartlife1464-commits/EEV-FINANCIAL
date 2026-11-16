@@ -44,6 +44,22 @@ export interface PayExpenseInput {
 
 export class LedgerService {
   /**
+   * Génère le prochain numéro séquentiel annuel (ex. DEP-2026-00012) à partir du plus grand numéro
+   * existant — et non du nombre d'enregistrements, qui produisait des doublons après suppression.
+   */
+  static async nextNumber(collection: string, field: string, prefix: string, pad: number): Promise<string> {
+    await ensureAdminAuth();
+    const yearPrefix = `${prefix}-${new Date().getFullYear()}-`;
+    const last = await pb
+      .collection(collection)
+      .getList(1, 1, { filter: `${field} ~ "${yearPrefix}%"`, sort: `-${field}` })
+      .catch(() => null);
+    const lastValue = String(last?.items?.[0]?.[field] || '');
+    const lastSeq = parseInt(lastValue.slice(yearPrefix.length), 10) || 0;
+    return `${yearPrefix}${String(lastSeq + 1).padStart(pad, '0')}`;
+  }
+
+  /**
    * Enregistre une recette brute avec sa ventilation analytique non négociable.
    */
   static async recordFinancialEntry(input: CreateFinancialEntryInput) {
@@ -55,7 +71,13 @@ export class LedgerService {
     });
 
     const rule = category.allocation_rule as AllocationRule;
-    const targetFundCode = (category.expand as any)?.target_fund?.code || FundAccountCode.BUILDING;
+    const targetFundCode = (category.expand as any)?.target_fund?.code;
+    if (rule === AllocationRule.DIRECT_ALLOCATED && !targetFundCode) {
+      throw new Error(`La catégorie « ${category.name} » n'a pas de compartiment cible configuré.`);
+    }
+    if (!Object.values(AllocationRule).includes(rule)) {
+      throw new Error(`Règle de ventilation inconnue pour la catégorie « ${category.name || category.id} ».`);
+    }
 
     // 2. Calculer la ventilation avec exactitude arithmétique (pas de flottant)
     const splitResult = calculateEntryAllocations(input.amount, rule, targetFundCode);
@@ -65,8 +87,7 @@ export class LedgerService {
     const fundMapByCode = new Map(allFunds.map((f) => [f.code, f]));
 
     // 4. Générer le numéro séquentiel d'entrée
-    const count = await pb.collection('financial_entries').getList(1, 1);
-    const entryNumber = `REC-${new Date().getFullYear()}-${String(count.totalItems + 1).padStart(5, '0')}`;
+    const entryNumber = await LedgerService.nextNumber('financial_entries', 'entry_number', 'REC', 5);
 
     // 5. Créer l'enregistrement de recette
     const entryRecord = await pb.collection('financial_entries').create({
@@ -107,8 +128,7 @@ export class LedgerService {
       });
 
       // Écriture au grand livre (journal des transactions)
-      const txCount = await pb.collection('fund_transactions').getList(1, 1);
-      const txNumber = `TX-${new Date().getFullYear()}-${String(txCount.totalItems + 1).padStart(6, '0')}`;
+      const txNumber = await LedgerService.nextNumber('fund_transactions', 'transaction_number', 'TX', 6);
 
       await pb.collection('fund_transactions').create({
         transaction_number: txNumber,
@@ -177,8 +197,7 @@ export class LedgerService {
     });
 
     // 3. Créer le transfert interne
-    const count = await pb.collection('internal_transfers').getList(1, 1);
-    const transferNumber = `TRF-${new Date().getFullYear()}-${String(count.totalItems + 1).padStart(5, '0')}`;
+    const transferNumber = await LedgerService.nextNumber('internal_transfers', 'transfer_number', 'TRF', 5);
 
     const transfer = await pb.collection('internal_transfers').create({
       transfer_number: transferNumber,
@@ -190,8 +209,8 @@ export class LedgerService {
     });
 
     // 4. Écrire les 2 écritures symétriques au grand livre
-    const txCount = await pb.collection('fund_transactions').getList(1, 1);
-    const baseTxNum = txCount.totalItems + 1;
+    const firstTx = await LedgerService.nextNumber('fund_transactions', 'transaction_number', 'TX', 6);
+    const baseTxNum = parseInt(firstTx.split('-').pop() || '1', 10);
 
     // Débit source
     await pb.collection('fund_transactions').create({
@@ -275,8 +294,7 @@ export class LedgerService {
     });
 
     // 3. Écrire au grand livre
-    const txCount = await pb.collection('fund_transactions').getList(1, 1);
-    const txNumber = `TX-${new Date().getFullYear()}-${String(txCount.totalItems + 1).padStart(6, '0')}`;
+    const txNumber = await LedgerService.nextNumber('fund_transactions', 'transaction_number', 'TX', 6);
 
     await pb.collection('fund_transactions').create({
       transaction_number: txNumber,
@@ -308,6 +326,111 @@ export class LedgerService {
   }
 
   /**
+   * Procède au décaissement effectif d'une échéance de charge fixe (après approbation).
+   * Débite simultanément le solde physique de la caisse et le compartiment analytique concerné.
+   */
+  static async payFixedOccurrence(input: {
+    occurrenceId: string;
+    paymentMethod: PaymentMethod | string;
+    paymentReference?: string;
+    paidById: string;
+  }) {
+    await ensureAdminAuth();
+
+    const occ = await pb.collection('fixed_expense_occurrences').getOne(input.occurrenceId, {
+      expand: 'fixed_expense,fund_account',
+    });
+
+    if (occ.status === 'paid') {
+      throw new Error('Cette échéance a déjà été réglée.');
+    }
+    if (occ.status !== 'approved') {
+      throw new Error("Aucun décaissement sans autorisation : l'échéance doit d'abord être approuvée par le Leader Principal.");
+    }
+
+    const fund = (occ.expand as any)?.fund_account;
+    if (!fund) {
+      throw new Error('Compartiment analytique associé à l’échéance introuvable.');
+    }
+
+    if (fund.current_balance < occ.expected_amount) {
+      throw new Error(
+        `Solde insuffisant dans le fonds ${fund.name} (${fund.current_balance} FCFA disponible, ${occ.expected_amount} FCFA requis).`
+      );
+    }
+
+    // 1. Débiter le fonds analytique
+    const newFundBalance = fund.current_balance - occ.expected_amount;
+    await pb.collection('fund_accounts').update(fund.id, {
+      current_balance: newFundBalance,
+    });
+
+    // 2. Générer le numéro de dépense et créer l'enregistrement comptable
+    const expNumber = await LedgerService.nextNumber('expenses', 'expense_number', 'DEP', 5);
+    const fixedExpName = (occ.expand as any)?.fixed_expense?.name || 'Charge fixe';
+
+    const expenseRecord = await pb.collection('expenses').create({
+      expense_number: expNumber,
+      expense_type: 'fixed',
+      fixed_expense: occ.fixed_expense,
+      fixed_occurrence: occ.id,
+      category_name: (occ.expand as any)?.fixed_expense?.category || 'Charge fixe',
+      fund_account: fund.id,
+      amount: occ.expected_amount,
+      beneficiary: (occ.expand as any)?.fixed_expense?.beneficiary || 'Fournisseur',
+      purpose: `Règlement échéance du ${occ.due_date} - ${fixedExpName}`,
+      expense_date: occ.due_date,
+      status: ExpenseStatus.PAID,
+      requested_by: input.paidById,
+      approved_by: occ.approved_by || input.paidById,
+      approved_at: occ.approved_at || new Date().toISOString(),
+      paid_by: input.paidById,
+      paid_at: new Date().toISOString(),
+      payment_method: input.paymentMethod,
+      payment_reference: input.paymentReference || '',
+    });
+
+    // 3. Écrire au grand livre
+    const txNumber = await LedgerService.nextNumber('fund_transactions', 'transaction_number', 'TX', 6);
+
+    await pb.collection('fund_transactions').create({
+      transaction_number: txNumber,
+      fund_account: fund.id,
+      type: FundTransactionType.DEBIT_EXPENSE,
+      direction: 'debit',
+      amount: occ.expected_amount,
+      balance_after: newFundBalance,
+      related_expense: expenseRecord.id,
+      description: `Règlement charge fixe ${fixedExpName} (${expNumber})`,
+      created_by: input.paidById,
+    });
+
+    // 4. Mettre à jour l'occurrence
+    const updatedOcc = await pb.collection('fixed_expense_occurrences').update(occ.id, {
+      status: 'paid',
+      paid_amount: occ.expected_amount,
+      paid_at: new Date().toISOString(),
+      payment_transaction: txNumber,
+    });
+
+    // 5. Piste d'audit
+    await createAuditLog({
+      userId: input.paidById,
+      action: 'pay_fixed_occurrence',
+      collectionName: 'fixed_expense_occurrences',
+      recordId: occ.id,
+      oldValues: { status: occ.status },
+      newValues: {
+        status: 'paid',
+        paidAmount: occ.expected_amount,
+        txNumber,
+      },
+    });
+
+    return { occurrence: updatedOcc, expense: expenseRecord };
+  }
+
+  /**
    * Fournit la synthèse de la Trésorerie Unique Consolidée et la répartition analytique.
    */
   static async getConsolidatedTreasury(): Promise<ConsolidatedTreasury> {
@@ -325,7 +448,14 @@ export class LedgerService {
     const pendingApprovedExpenses = await pb.collection('expenses').getFullList({
       filter: `status = '${ExpenseStatus.APPROVED}'`,
     });
-    const pendingCommitmentsTotal = pendingApprovedExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+    // Échéances de charges fixes approuvées mais non encore réglées : également des engagements
+    const approvedOccurrences = await pb
+      .collection('fixed_expense_occurrences')
+      .getFullList({ filter: `status = 'approved'` })
+      .catch(() => [] as any[]);
+    const pendingCommitmentsTotal =
+      pendingApprovedExpenses.reduce((acc, e) => acc + (e.amount || 0), 0) +
+      approvedOccurrences.reduce((acc, o) => acc + (o.expected_amount || 0), 0);
 
     const generalFund = funds.find((f) => f.code === FundAccountCode.GENERAL);
     const generalFundBalance = generalFund ? generalFund.current_balance : 0;

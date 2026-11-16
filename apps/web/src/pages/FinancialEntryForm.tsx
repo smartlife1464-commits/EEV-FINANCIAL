@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { calculateEntryAllocations } from '@eev/business-rules';
 import { AllocationRule, FundAccountCode, PaymentMethod } from '@eev/shared-types';
-import { formatFCFA } from '../utils/formatters';
+import { formatFCFA, formatDate } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import {
   Wallet,
@@ -16,11 +16,16 @@ import {
   ArrowLeft,
   Info,
   ShieldCheck,
+  Calendar,
+  Clock,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const FinancialEntryForm: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryServiceId = searchParams.get('serviceId') || '';
+  const queryCategoryId = searchParams.get('categoryId') || '';
 
   const { data: services = [] } = useQuery({
     queryKey: ['services'],
@@ -32,8 +37,8 @@ export const FinancialEntryForm: React.FC = () => {
     queryFn: () => api.getCategories(),
   });
 
-  const [categoryId, setCategoryId] = useState('cat-tithe');
-  const [serviceId, setServiceId] = useState('');
+  const [categoryId, setCategoryId] = useState(queryCategoryId);
+  const [serviceId, setServiceId] = useState(queryServiceId);
   const [amount, setAmount] = useState<number>(100000);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
   const [reference, setReference] = useState('');
@@ -42,11 +47,30 @@ export const FinancialEntryForm: React.FC = () => {
   const [collectedAt, setCollectedAt] = useState(new Date().toISOString().split('T')[0]);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (queryServiceId && !serviceId) {
+      setServiceId(queryServiceId);
+    }
+  }, [queryServiceId]);
+
+  // Sélection par défaut : catégorie « Dîmes » réelle (identifiant PocketBase) dès le chargement
+  useEffect(() => {
+    if (categories.length === 0) return;
+    const exists = categories.some((c: any) => c.id === categoryId);
+    if (!exists) {
+      const byCode = queryCategoryId ? categories.find((c: any) => c.code === queryCategoryId || c.id === queryCategoryId) : null;
+      const tithes = categories.find((c: any) => c.code === 'tithes');
+      setCategoryId((byCode || tithes || categories[0]).id);
+    }
+  }, [categories, categoryId, queryCategoryId]);
+
+  const selectedService = services.find((s: any) => s.id === serviceId);
+
   // Déterminer la règle de la catégorie sélectionnée
-  const selectedCat = categories.find((c: any) => c.id === categoryId) || {
+  const selectedCat: any = categories.find((c: any) => c.id === categoryId) || {
     allocation_rule: AllocationRule.STANDARD_SPLIT_80_10_10,
-    target_fund_code: FundAccountCode.BUILDING,
   };
+  const targetFundCode = selectedCat.expand?.target_fund?.code || FundAccountCode.OTHER_DESIGNATED;
 
   const rule = (selectedCat.allocation_rule as AllocationRule) || AllocationRule.STANDARD_SPLIT_80_10_10;
   const isStandardSplit = rule === AllocationRule.STANDARD_SPLIT_80_10_10;
@@ -55,13 +79,17 @@ export const FinancialEntryForm: React.FC = () => {
   const splitResult = calculateEntryAllocations(
     amount || 0,
     rule,
-    selectedCat.target_fund_code || FundAccountCode.BUILDING
+    targetFundCode
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || amount <= 0) {
-      alert('Veuillez saisir un montant strictement supérieur à 0 FCFA.');
+    if (!amount || amount <= 0 || !Number.isInteger(amount)) {
+      toast.error('Veuillez saisir un montant entier strictement supérieur à 0 FCFA.');
+      return;
+    }
+    if (!categoryId) {
+      toast.error('Veuillez choisir une catégorie de recette.');
       return;
     }
 
@@ -77,9 +105,10 @@ export const FinancialEntryForm: React.FC = () => {
         notes: notes || undefined,
         collectedAt,
       });
+      toast.success('Recette enregistrée', { description: 'Ventilation analytique appliquée et inscrite au grand livre.' });
       navigate('/finance/entries');
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de l’enregistrement de la recette.');
+      toast.error(err.message || 'Erreur lors de l’enregistrement de la recette.');
     } finally {
       setSubmitting(false);
     }
@@ -142,11 +171,14 @@ export const FinancialEntryForm: React.FC = () => {
                 required
                 className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-semibold text-sm outline-none focus:ring-2 focus:ring-amber-400"
               >
-                <option value="cat-tithe">Dîmes (Répartition 80/10/10)</option>
-                <option value="cat-offering">Offrandes Ordinaires (Répartition 80/10/10)</option>
-                <option value="cat-build">Don Construction Auditorium (100% Affecté)</option>
-                <option value="cat-friends">Don Amis de Jésus (100% Affecté)</option>
-                <option value="cat-special">Offrande Spéciale Affectée (100% Affecté)</option>
+                {categories.length === 0 && <option value="">Chargement des catégories…</option>}
+                {categories
+                  .filter((c: any) => c.is_active !== false)
+                  .map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.allocation_rule === AllocationRule.STANDARD_SPLIT_80_10_10 ? '(Répartition 80/10/10)' : '(100% Affecté)'}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -184,6 +216,15 @@ export const FinancialEntryForm: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {selectedService && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Rattaché au culte : {selectedService.name}</span>
+                  </span>
+                  <span className="text-slate-500 font-semibold">{formatDate(selectedService.date)}</span>
+                </div>
+              )}
             </div>
 
             {/* Date d'encaissement */}
