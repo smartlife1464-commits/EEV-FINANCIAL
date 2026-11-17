@@ -1,7 +1,7 @@
 // Conversion d'un montant numérique en lettres en français (Francs CFA)
 
-export function numberToWordsFCFA(amount: number): string {
-  if (amount === 0) return 'Zéro franc CFA';
+export function numberToWordsFCFA(amount: number, currencyWords = 'francs CFA'): string {
+  if (amount === 0) return currencyWords === 'francs CFA' ? 'Zéro franc CFA' : `Zéro ${currencyWords}`;
 
   const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'];
   const teens = ['dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
@@ -73,5 +73,5 @@ export function numberToWordsFCFA(amount: number): string {
 
   const text = parts.join(' ').trim();
   const capitalized = text.charAt(0).toUpperCase() + text.slice(1);
-  return `${capitalized} francs CFA`;
+  return `${capitalized} ${currencyWords}`.trim();
 }

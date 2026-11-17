@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Palette officielle Esprit & Vie (charte : or #FFBC00 sur bleu nuit #091338),
+/// Palette par défaut de l'application (or #FFBC00 sur bleu nuit #091338),
 /// déclinée pour une interface premium en mode clair et sombre.
 abstract final class AppColors {
   // Identité

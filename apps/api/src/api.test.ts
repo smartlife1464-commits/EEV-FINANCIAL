@@ -25,20 +25,31 @@ describe('API EEV-FINANCIAL Endpoints', () => {
     expect(body.service).toBe('EEV-FINANCIAL API');
   });
 
-  it('POST /api/auth/login permet au Leader Principal de se connecter', async () => {
+  it('POST /api/auth/login refuse des identifiants invalides (aucun compte de démonstration)', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
-      payload: {
-        email: 'leader@espritvie.org',
-        password: 'Leader2026!',
-      },
+      payload: { email: 'inconnu@example.org', password: 'MauvaisMotDePasse1!' },
     });
+    expect([401, 503]).toContain(res.statusCode);
+  });
+
+  it('GET /api/platform/public expose la configuration publique sans authentification', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/platform/public' });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
-    expect(body.token).toBeDefined();
-    expect(body.user.role).toBe('lead_pastor');
-    expect(body.user.permissions.canApproveExpense).toBe(true);
+    expect(body.currency.label).toBeDefined();
+    expect(typeof body.setupRequired).toBe('boolean');
+  });
+
+  it('PUT /api/platform/config est refusé à un utilisateur qui n’est pas admin plateforme', async () => {
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/platform/config',
+      headers: { authorization: 'Bearer test-token-admin' },
+      payload: { modules: { analytics: false } },
+    });
+    expect(res.statusCode).toBe(403);
   });
 
   it('GET /api/dashboard/overview renvoie la trésorerie et la fréquentation pour le Leader', async () => {
@@ -46,7 +57,7 @@ describe('API EEV-FINANCIAL Endpoints', () => {
       method: 'GET',
       url: '/api/dashboard/overview',
       headers: {
-        authorization: 'Bearer dev-token-leader',
+        authorization: 'Bearer test-token-lead_pastor',
       },
     });
     // 200 si PocketBase est démarré, 503 explicite sinon (plus jamais de données fictives)
@@ -68,7 +79,7 @@ describe('API EEV-FINANCIAL Endpoints', () => {
       method: 'GET',
       url: '/api/finance/overview',
       headers: {
-        authorization: 'Bearer dev-token-leader',
+        authorization: 'Bearer test-token-lead_pastor',
       },
     });
     expect([200, 503]).toContain(res.statusCode);
@@ -83,7 +94,7 @@ describe('API EEV-FINANCIAL Endpoints', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/finance/overview',
-      headers: { authorization: 'Bearer dev-token-protocol' },
+      headers: { authorization: 'Bearer test-token-protocol_lead' },
     });
     expect(res.statusCode).toBe(403);
   });

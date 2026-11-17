@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { UserRole } from '@eev/shared-types';
 import { PostLoginPreloader } from '../components/auth/PostLoginPreloader';
+import { usePlatform } from '../context/PlatformContext';
+import { Church } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -33,16 +35,15 @@ export const Login: React.FC = () => {
     user: any;
   } | null>(null);
 
-  // Identifiants pré-remplis et accès rapide de démonstration : UNIQUEMENT en développement local
-  const isDevBuild = import.meta.env.DEV;
+  const { platform } = usePlatform();
   const [email, setEmail] = useState(() => {
     try {
-      return localStorage.getItem('eev_last_email') || (isDevBuild ? 'leader@espritvie.org' : '');
+      return localStorage.getItem('eev_last_email') || '';
     } catch {
-      return isDevBuild ? 'leader@espritvie.org' : '';
+      return '';
     }
   });
-  const [password, setPassword] = useState(isDevBuild ? 'Leader2026!' : '');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +51,6 @@ export const Login: React.FC = () => {
 
   // Modals & Panels
   const [showHelpModal, setShowHelpModal] = useState(false);
-  const [showDemoSelector, setShowDemoSelector] = useState(false);
 
   // Si l'utilisateur est déjà authentifié et aucun préchargement n'est en cours, redirection vers le dashboard
   // (placé APRÈS tous les hooks : un retour anticipé avant des hooks provoquait une erreur React après connexion)
@@ -110,12 +110,6 @@ export const Login: React.FC = () => {
     );
   }
 
-  const handleSelectRolePreset = (presetEmail: string, presetPass: string) => {
-    setEmail(presetEmail);
-    setPassword(presetPass);
-    setError(null);
-  };
-
   return (
     <div className="min-h-screen flex flex-col justify-between bg-[#F8FAFC] dark:bg-[#060D24] text-slate-900 dark:text-slate-100 transition-colors duration-200 relative overflow-hidden select-none">
       {/* Background Orbs & Gradients inspirés du thème institutionnel */}
@@ -127,14 +121,14 @@ export const Login: React.FC = () => {
       <header className="relative z-20 px-6 py-5 flex items-center justify-between max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/30 p-2 flex items-center justify-center shadow-md">
-            <img
-              src="/logo-eev.png"
-              alt="Logo Esprit & Vie"
-              className="w-full h-full object-contain"
-            />
+{platform.logo ? (
+              <img src={platform.logo} alt={`Logo ${platform.name}`} className="w-full h-full object-contain" />
+            ) : (
+              <Church className="w-5 h-5 text-amber-500" />
+            )}
           </div>
           <span className="font-black text-sm tracking-widest text-slate-900 dark:text-white uppercase hidden sm:inline-block">
-            MINISTÈRE ESPRIT & VIE
+            {platform.shortName || platform.name}
           </span>
         </div>
 
@@ -165,18 +159,18 @@ export const Login: React.FC = () => {
         <div className="text-center mb-6 space-y-2">
           <div className="inline-flex justify-center mb-1">
             <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400/25 to-amber-500/10 border-2 border-amber-400/40 p-3.5 shadow-xl shadow-amber-400/10 flex items-center justify-center transform hover:scale-105 transition-transform duration-300">
-              <img
-                src="/logo-eev.png"
-                alt="Logo Ministère Esprit & Vie"
-                className="w-full h-full object-contain drop-shadow"
-              />
+{platform.logo ? (
+                <img src={platform.logo} alt={`Logo ${platform.name}`} className="w-full h-full object-contain drop-shadow" />
+              ) : (
+                <Church className="w-9 h-9 text-amber-500" />
+              )}
             </div>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">
-            MINISTÈRE ESPRIT & VIE
+            {platform.name}
           </h1>
           <p className="text-xs sm:text-sm font-extrabold tracking-widest text-amber-500 uppercase">
-            Portail de Gouvernance, Trésorerie & Fréquentation
+            {platform.tagline || 'Portail de gouvernance, trésorerie & fréquentation'}
           </p>
         </div>
 
@@ -218,7 +212,7 @@ export const Login: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="username"
-                  placeholder="nom@espritvie.org"
+                  placeholder="nom@exemple.org"
                   className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-[#060D24] border border-slate-200 dark:border-[#16214A] rounded-2xl text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all font-medium"
                 />
               </div>
@@ -292,88 +286,6 @@ export const Login: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Access Roles Selector (développement local uniquement) */}
-          {isDevBuild && (
-          <div className="pt-4 border-t border-slate-100 dark:border-[#16214A]">
-            <button
-              type="button"
-              onClick={() => setShowDemoSelector(!showDemoSelector)}
-              className="w-full flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-500 hover:text-amber-500 transition-colors"
-            >
-              <span>Accès rapide selon votre habilitation</span>
-              <span className="text-[11px] font-bold text-amber-500">
-                {showDemoSelector ? 'Masquer' : 'Afficher les 7 rôles'}
-              </span>
-            </button>
-
-            {showDemoSelector && (
-              <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
-                <button
-                  type="button"
-                  onClick={() => handleSelectRolePreset('leader@espritvie.org', 'Leader2026!')}
-                  className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/30 text-amber-600 dark:text-amber-400 text-xs font-extrabold flex items-center justify-between transition-colors"
-                >
-                  <span>👑 Leader Principal</span>
-                  <span className="text-[10px] opacity-75">Gouvernance</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectRolePreset('admin@espritvie.org', 'Admin2026!')}
-                  className="p-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-400/30 text-indigo-600 dark:text-indigo-400 text-xs font-extrabold flex items-center justify-between transition-colors"
-                >
-                  <span>⚙️ Admin Général</span>
-                  <span className="text-[10px] opacity-75">Système</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectRolePreset('finance@espritvie.org', 'Finance2026!')}
-                  className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/30 text-emerald-600 dark:text-emerald-400 text-xs font-extrabold flex items-center justify-between transition-colors"
-                >
-                  <span>💰 Resp. Finances</span>
-                  <span className="text-[10px] opacity-75">Gestion</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectRolePreset('caissier@espritvie.org', 'Caissier2026!')}
-                  className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-500 text-xs font-extrabold flex items-center justify-between transition-colors"
-                >
-                  <span>💵 Caissier</span>
-                  <span className="text-[10px] opacity-75">Opérations</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectRolePreset('protocol@espritvie.org', 'Protocol2026!')}
-                  className="p-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 text-blue-600 dark:text-blue-400 text-xs font-extrabold flex items-center justify-between transition-colors"
-                >
-                  <span>📋 Resp. Protocole</span>
-                  <span className="text-[10px] opacity-75">Fréquentation</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectRolePreset('agent@espritvie.org', 'Agent2026!')}
-                  className="p-2.5 rounded-xl bg-slate-500/10 hover:bg-slate-500/20 border border-slate-400/30 text-slate-700 dark:text-slate-300 text-xs font-extrabold flex items-center justify-between transition-colors"
-                >
-                  <span>🙋‍♂️ Agent Protocole</span>
-                  <span className="text-[10px] opacity-75">Saisie fiches</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectRolePreset('auditeur@espritvie.org', 'Auditeur2026!')}
-                  className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-400/30 text-rose-600 dark:text-rose-400 text-xs font-extrabold flex items-center justify-between transition-colors col-span-1 sm:col-span-2"
-                >
-                  <span>🔍 Auditeur / Contrôleur</span>
-                  <span className="text-[10px] opacity-75">Audit & Traçabilité</span>
-                </button>
-              </div>
-            )}
-          </div>
-          )}
         </div>
       </main>
 
@@ -383,7 +295,7 @@ export const Login: React.FC = () => {
           « Car Dieu n'est pas un Dieu de désordre, mais de paix. » — 1 Corinthiens 14:33
         </p>
         <p className="font-semibold text-[11px] opacity-75">
-          © {new Date().getFullYear()} Ministère Esprit & Vie • Système de Gestion Financière & Statistique • Accès Privé
+          © {new Date().getFullYear()} {platform.name} • Gestion financière & statistique • Accès privé
         </p>
       </footer>
 
@@ -442,7 +354,7 @@ export const Login: React.FC = () => {
                   Besoin d'un accès ou mot de passe perdu ?
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Rapprochez-vous directement du bureau administratif ou écrivez à <span className="font-mono text-amber-500 font-bold">admin@espritvie.org</span> avec votre lettre de mandat ou affectation de département.
+                  Utilisez « Mot de passe oublié » si l’envoi d’emails est configuré, sinon rapprochez-vous de l’administrateur : il peut réinitialiser votre mot de passe depuis la gestion des utilisateurs.
                 </p>
               </div>
             </div>

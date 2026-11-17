@@ -1,5 +1,19 @@
 const API_BASE = '/api';
 
+export type PlatformRefKind = 'funds' | 'revenue-categories' | 'expense-categories' | 'service-types';
+
+export interface PlatformPublic {
+  name: string;
+  shortName: string;
+  tagline: string;
+  logo: string;
+  colors: { primary: string; secondary: string };
+  currency: { code: string; label: string; words: string };
+  modules: Record<string, boolean>;
+  roleLabels: Record<string, string>;
+  setupRequired: boolean;
+}
+
 export class ApiError extends Error {
   status: number;
   data: any;
@@ -221,6 +235,26 @@ export const api = {
       body: JSON.stringify(data),
     }),
   getSystemStatus: () => request<any>('/system/status'),
+  resetUserPassword: (id: string, password: string) =>
+    request<any>(`/users/${id}/password`, { method: 'POST', body: JSON.stringify({ password }) }),
+
+  // Plateforme : configuration de l'installation (une installation = une église)
+  getPlatformPublic: () => request<PlatformPublic>('/platform/public'),
+  getPlatformConfig: () => request<any>('/platform/config'),
+  updatePlatformConfig: (data: any) => request<any>('/platform/config', { method: 'PUT', body: JSON.stringify(data) }),
+  getSetupStatus: () => request<{ setupRequired: boolean; tokenRequired: boolean; tokenConfigured: boolean; mailConfigured: boolean }>('/platform/setup/status'),
+  runSetup: (data: any) => request<any>('/platform/setup', { method: 'POST', body: JSON.stringify(data) }),
+  getPlatformReference: () => request<any>('/platform/reference'),
+  createPlatformItem: (kind: PlatformRefKind, data: any) => request<any>(`/platform/${kind}`, { method: 'POST', body: JSON.stringify(data) }),
+  updatePlatformItem: (kind: PlatformRefKind, id: string, data: any) =>
+    request<any>(`/platform/${kind}/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  setPlatformAdmin: (id: string, value: boolean) =>
+    request<any>(`/platform/admins/${id}`, { method: 'PATCH', body: JSON.stringify({ is_platform_admin: value }) }),
+  exportChurchProfile: () => request<any>('/platform/profile'),
+  importChurchProfile: (profile: any, includeIdentity: boolean) =>
+    request<any>('/platform/profile', { method: 'POST', body: JSON.stringify({ profile, includeIdentity }) }),
+  resetPlatformData: (confirm: string, removeUsers: boolean) =>
+    request<any>('/platform/reset-data', { method: 'POST', body: JSON.stringify({ confirm, removeUsers }) }),
   createBackup: () => request<any>('/system/backup', { method: 'POST' }),
 
   // Notifications calculées en temps réel selon le rôle

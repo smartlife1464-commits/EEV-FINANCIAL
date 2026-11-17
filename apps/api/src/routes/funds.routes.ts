@@ -1,3 +1,4 @@
+import { money } from '../services/platform.js';
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { UserRole } from '@eev/shared-types';
@@ -266,7 +267,7 @@ export async function fundRoutes(app: FastifyInstance) {
         name: d.kind === 'campaign' ? `Quête : ${d.name}` : `Don affecté : ${d.name}`,
         allocation_rule: 'direct_allocated',
         target_fund: fund.id,
-        description: d.kind === 'campaign' ? `Quête spontanée — objectif ${d.targetAmount} FCFA avant le ${d.endDate}` : d.description || '',
+        description: d.kind === 'campaign' ? `Quête spontanée — objectif ${money(d.targetAmount || 0)} avant le ${d.endDate}` : d.description || '',
         is_active: true,
       });
       const saved = await pb.collection('fund_accounts').update(fund.id, { revenue_category: category.id });

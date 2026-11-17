@@ -1,3 +1,5 @@
+import 'package:provider/provider.dart';
+import '../../state/platform.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -224,6 +226,18 @@ class BrandLogo extends StatelessWidget {
   final bool glow;
   const BrandLogo({super.key, this.size = 56, this.glow = false});
 
+  /// Logo configuré par l'église (console plateforme), sinon icône de l'application
+  Widget _logo(BuildContext context) {
+    final cfg = context.watch<PlatformState>().config;
+    final bytes = cfg.logoBytes;
+    const fallback = Image(image: AssetImage('assets/images/logo.png'), fit: BoxFit.cover);
+    if (bytes != null) return ColoredBox(color: Colors.white, child: Image.memory(bytes, fit: BoxFit.contain, errorBuilder: (_, _, _) => fallback));
+    if (cfg.logo.startsWith('https://')) {
+      return ColoredBox(color: Colors.white, child: Image.network(cfg.logo, fit: BoxFit.contain, errorBuilder: (_, _, _) => fallback));
+    }
+    return fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -237,7 +251,7 @@ class BrandLogo extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(size * 0.28),
-        child: Image.asset('assets/images/logo.png', fit: BoxFit.cover),
+        child: _logo(context),
       ),
     );
   }

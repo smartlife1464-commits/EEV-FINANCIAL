@@ -43,6 +43,13 @@ services:
       # L'interface est servie par le même domaine (proxy Nginx) : aucune origine externe à autoriser
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
       - VENUE_CAPACITY=${VENUE_CAPACITY:-0}
+      # Jeton de l'assistant de première installation (création de l'administrateur de la plateforme)
+      - SETUP_TOKEN=${SETUP_TOKEN:?Définir SETUP_TOKEN (16 caractères minimum)}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
     expose:
       - "4000"
 

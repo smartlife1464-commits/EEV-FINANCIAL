@@ -23,6 +23,7 @@ import { fr } from 'date-fns/locale';
 import { pb, ensureAdminAuth } from './pocketbase.js';
 import { LedgerService } from './ledger.js';
 import { calculateEntryAllocations } from '@eev/business-rules';
+import { getPlatformConfig, money, type PlatformConfig } from './platform.js';
 import { AllocationRule, ConsolidatedTreasury } from '@eev/shared-types';
 import { config } from '../config.js';
 
@@ -329,6 +330,7 @@ export interface Snapshot {
   sheets: any[];
   serviceTypes: any[];
   treasury: ConsolidatedTreasury;
+  platform: PlatformConfig;
 }
 
 /** Extrait la partie AAAA-MM-JJ d'une date PocketBase ("2026-11-06 22:41:31.218Z") ou ISO */
@@ -376,7 +378,7 @@ export async function loadSnapshot(options: { finance?: boolean } = {}): Promise
   const withFinance = options.finance !== false;
   await ensureAdminAuth();
 
-  const [sheets, serviceTypes, entries, expenses, treasury] = await Promise.all([
+  const [sheets, serviceTypes, entries, expenses, treasury, platform] = await Promise.all([
     pb.collection('attendance_sheets').getFullList({ sort: '-service_date', expand: 'service,service_type' }),
     pb.collection('service_types').getFullList({ sort: 'display_order' }),
     withFinance
@@ -393,6 +395,7 @@ export async function loadSnapshot(options: { finance?: boolean } = {}): Promise
           pendingCommitmentsTotal: 0,
           generalFundFreeBalance: 0,
         } as ConsolidatedTreasury),
+    getPlatformConfig(),
   ]);
 
   return {
@@ -401,6 +404,7 @@ export async function loadSnapshot(options: { finance?: boolean } = {}): Promise
     entries: entries.filter((e: any) => e.status !== 'cancelled'),
     expenses,
     treasury,
+    platform,
   };
 }
 
@@ -561,18 +565,24 @@ export function summarizeFinance(snapshot: Snapshot, start: Date, end: Date) {
   const ordinaryEntries = entries.filter(isOrdinaryEntry);
   const ordinaryCombined = sum(ordinaryEntries, (e) => e.amount);
 
-  // Ventilation 80/10/10 recalculée écriture par écriture (arithmétique entière exacte)
-  let generalFund = 0;
-  let titheOfTithes = 0;
-  let welfareAid = 0;
+  // Ventilation des recettes ordinaires recalculée écriture par écriture selon la règle de l'église
+  const { split: splitRule, remainderFund } = snapshot.platform.finance;
+  const splitTotals = new Map<string, number>(splitRule.map((l) => [l.fundCode, 0]));
   for (const e of ordinaryEntries) {
-    const split = calculateEntryAllocations(e.amount || 0, AllocationRule.STANDARD_SPLIT_80_10_10);
-    for (const a of split.allocations) {
-      if (a.fundCode === 'GENERAL') generalFund += a.amount;
-      if (a.fundCode === 'TITHE_OF_TITHES') titheOfTithes += a.amount;
-      if (a.fundCode === 'WELFARE_AID') welfareAid += a.amount;
-    }
+    const split = calculateEntryAllocations(e.amount || 0, AllocationRule.STANDARD_SPLIT_80_10_10, undefined, splitRule, remainderFund);
+    for (const a of split.allocations) splitTotals.set(a.fundCode, (splitTotals.get(a.fundCode) || 0) + a.amount);
   }
+  const fundName = (code: string) => snapshot.treasury.funds.find((f: any) => f.account?.code === code)?.account?.name || code;
+  const splitBreakdown = splitRule.map((l) => ({
+    fundCode: l.fundCode,
+    label: l.label || fundName(l.fundCode),
+    percentage: l.percentage,
+    amount: splitTotals.get(l.fundCode) || 0,
+    isRemainder: l.fundCode === remainderFund,
+  }));
+  const generalFund = splitTotals.get(remainderFund) || 0;
+  const titheOfTithes = splitTotals.get('TITHE_OF_TITHES') || 0;
+  const welfareAid = splitTotals.get('WELFARE_AID') || 0;
 
   const buildingAuditorium = byCode('building');
   const friendsOfJesus = byCode('friends_of_jesus');
@@ -625,6 +635,7 @@ export function summarizeFinance(snapshot: Snapshot, start: Date, end: Date) {
     ordinaryOfferings,
     ordinaryCombined,
     split80_10_10: { generalFund, titheOfTithes, welfareAid },
+    splitBreakdown,
     designated: {
       buildingAuditorium,
       friendsOfJesus,
@@ -660,6 +671,7 @@ export function monthlyFinanceTrends(snapshot: Snapshot, end: Date, months = 6) 
       offerings: f.ordinaryOfferings,
       building: f.designated.buildingAuditorium,
       friendsOfJesus: f.designated.friendsOfJesus,
+      designated: f.designated.total,
       revenues: f.totalGross,
       paidExpenses: f.expensesPaid,
       expenses: f.expensesPaid,
@@ -844,6 +856,7 @@ export class AnalyticsService {
       welfareAidTotal: fundBalance('WELFARE_AID'),
       buildingFundTotal: fundBalance('BUILDING'),
       split80_10_10: fin.split80_10_10,
+      splitBreakdown: fin.splitBreakdown,
       revenueByCategory: fin.revenueByCategory,
       expensesByCategory: fin.byCategory,
       entriesCount: fin.entriesCount,
@@ -955,7 +968,7 @@ export class AnalyticsService {
         type: revenueVar.isFavorable ? 'success' : 'neutral',
         category: 'finance',
         title: `Recettes brutes : ${revenueVar.percentage >= 0 ? '+' : ''}${revenueVar.percentage}%`,
-        description: `Total de ${fin.totalGross.toLocaleString('fr-FR')} FCFA encaissé (${fin.entriesCount} recette(s)), ventilation 80/10/10 appliquée aux recettes ordinaires.`,
+        description: `Total de ${money(fin.totalGross)} encaissé (${fin.entriesCount} recette(s)), ventilation appliquée aux recettes ordinaires.`,
       });
       const pendingAll = snapshot.expenses.filter((x) => x.status === 'pending_approval');
       insights.push({
@@ -965,7 +978,7 @@ export class AnalyticsService {
         title: pendingAll.length > 0 ? 'Dépenses en attente d’arbitrage' : 'Aucune dépense en attente',
         description:
           pendingAll.length > 0
-            ? `${pendingAll.length} engagement(s) (${sum(pendingAll, (x) => x.amount).toLocaleString('fr-FR')} FCFA) attendent la décision du Leader Principal.`
+            ? `${pendingAll.length} engagement(s) (${money(sum(pendingAll, (x) => x.amount))}) attendent la décision du Leader Principal.`
             : 'Toutes les demandes de dépenses ont été arbitrées.',
       });
     }
@@ -1109,6 +1122,7 @@ export class AnalyticsService {
         ordinaryOfferings: fin.ordinaryOfferings,
         ordinaryCombined: fin.ordinaryCombined,
         split80_10_10: fin.split80_10_10,
+        splitBreakdown: fin.splitBreakdown,
         designated: fin.designated,
         byCategory: fin.revenueByCategory,
       },
@@ -1161,10 +1175,11 @@ export class AnalyticsService {
     const fin = summarizeFinance(snapshot, range.startDate, range.endDate);
     return {
       ...base,
-      currency: 'FCFA',
+      currency: snapshot.platform.locale.currencyLabel,
       financials: {
         totalGrossRevenues: fin.totalGross,
         ordinaryRevenues: fin.ordinaryCombined,
+        splitBreakdown: fin.splitBreakdown,
         standardOfferingsSplit: {
           titheOfTithes_10pct: fin.split80_10_10.titheOfTithes,
           welfareAid_10pct: fin.split80_10_10.welfareAid,
@@ -1237,7 +1252,7 @@ export class AnalyticsService {
       ]),
     ];
     rows.sort((a, b) => String(b[2]).localeCompare(String(a[2])));
-    return toCsv(['Type', 'Numero', 'Date', 'Categorie', 'Montant_FCFA', 'Donateur_ou_Beneficiaire', 'Mode_Paiement', 'Statut'], rows);
+    return toCsv(['Type', 'Numero', 'Date', 'Categorie', 'Montant', 'Donateur_ou_Beneficiaire', 'Mode_Paiement', 'Statut'], rows);
   }
 }
 

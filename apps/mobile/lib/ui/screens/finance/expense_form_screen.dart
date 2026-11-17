@@ -46,7 +46,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     final fund = funds.where((f) => f.s('id') == _fundId).firstOrNull;
     String? error;
     if (_value <= 0) {
-      error = 'Saisissez un montant supérieur à 0 FCFA.';
+      error = 'Saisissez un montant supérieur à 0.';
     } else if (_categoryId == null || fund == null) {
       error = 'Choisissez une catégorie et un compartiment.';
     } else if (_beneficiary.text.trim().length < 2) {
@@ -131,7 +131,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                 decoration: InputDecoration(
                   filled: false,
                   hintText: '0',
-                  suffixText: 'FCFA',
+                  suffixText: Fmt.currency,
                   suffixStyle: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w900, fontSize: 18),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,

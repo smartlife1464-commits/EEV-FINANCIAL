@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/platform_config.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -12,7 +13,7 @@ import '../../../data/offline_queue.dart';
 import '../../../state/data_bus.dart';
 import '../../kit/kit.dart';
 
-/// Saisie d'une recette : montant en grand, catégorie, ventilation 80/10/10 calculée en direct.
+/// Saisie d'une recette : montant en grand, catégorie, ventilation de l’église calculée en direct.
 class EntryFormScreen extends StatefulWidget {
   /// Catégorie présélectionnée (ex. depuis la fiche d'une quête ou d'un compartiment)
   final String? initialCategoryId;
@@ -42,7 +43,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
   }
 
   Future<void> _save() async {
-    if (_value <= 0) return showToast(context, 'Montant requis', kind: ToastKind.error, detail: 'Saisissez un montant supérieur à 0 FCFA.');
+    if (_value <= 0) return showToast(context, 'Montant requis', kind: ToastKind.error, detail: 'Saisissez un montant supérieur à 0.');
     if (_category == null) return showToast(context, 'Catégorie requise', kind: ToastKind.error);
     final payload = {
       'categoryId': _category!.s('id'),
@@ -128,12 +129,12 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly, _ThousandsFormatter()],
                 onChanged: (_) => setState(() {}),
                 style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: -1),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   filled: false,
                   hintText: '0',
-                  hintStyle: TextStyle(color: Colors.white24, fontSize: 40, fontWeight: FontWeight.w900),
-                  suffixText: 'FCFA',
-                  suffixStyle: TextStyle(color: AppColors.gold, fontWeight: FontWeight.w900, fontSize: 18),
+                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 40, fontWeight: FontWeight.w900),
+                  suffixText: Fmt.currency,
+                  suffixStyle: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.w900, fontSize: 18),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -171,7 +172,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(c.s('name'), style: TextStyle(fontWeight: FontWeight.w800, color: p.text, fontSize: 13.5)),
-                    Text(c.s('allocation_rule') == BusinessRules.standardSplit ? 'Ventilation 80/10/10' : '100 % affecté',
+                    Text(c.s('allocation_rule') == BusinessRules.standardSplit ? 'Ventilation ${PlatformConfig.current.splitLabel}' : '100 % affecté',
                         style: TextStyle(color: p.textMuted, fontSize: 11.5)),
                   ]),
                 ),

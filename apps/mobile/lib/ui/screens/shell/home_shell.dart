@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../../../core/platform_config.dart';
+import '../../../state/platform.dart';
 import '../../../core/models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/offline_queue.dart';
@@ -70,30 +72,34 @@ class _HomeShellState extends State<HomeShell> {
         _Tab(LucideIcons.userRound, 'Profil', ProfileScreen()),
       ];
     }
-    return const [
-      _Tab(LucideIcons.house, 'Accueil', LeaderDashboard()),
-      _Tab(LucideIcons.wallet, 'Finances', FinanceScreen()),
-      _Tab(LucideIcons.church, 'Cultes', AttendanceScreen()),
-      _Tab(LucideIcons.userRound, 'Profil', ProfileScreen()),
+    final cfg = PlatformConfig.current;
+    return [
+      const _Tab(LucideIcons.house, 'Accueil', LeaderDashboard()),
+      if (cfg.module('finance')) const _Tab(LucideIcons.wallet, 'Finances', FinanceScreen()),
+      if (cfg.module('attendance')) const _Tab(LucideIcons.church, 'Cultes', AttendanceScreen()),
+      if (!cfg.module('finance') || !cfg.module('attendance')) const _Tab(LucideIcons.bell, 'Alertes', NotificationsScreen()),
+      const _Tab(LucideIcons.userRound, 'Profil', ProfileScreen()),
     ];
   }
 
   List<_QuickAction> _actions(AppUser user) {
     final p = user.permissions;
+    final cfg = PlatformConfig.current;
+    final finance = cfg.module('finance');
     return [
-      if (p.createEntry)
+      if (p.createEntry && finance)
         _QuickAction(LucideIcons.handCoins, 'Nouvelle recette', 'Dîme, offrande ou don affecté', AppColors.success,
             () => const EntryFormScreen()),
-      if (p.createExpense)
+      if (p.createExpense && finance)
         _QuickAction(LucideIcons.receipt, 'Demande de dépense', 'Soumise à l\'accord du Leader', AppColors.danger,
             () => const ExpenseFormScreen()),
-      if (p.submitAttendance)
+      if (p.submitAttendance && cfg.module('attendance'))
         _QuickAction(LucideIcons.clipboardPen, 'Fiche de présence', 'Saisie guidée d\'un culte', AppColors.info,
             () => const AttendanceFormScreen()),
-      if (p.approveExpense)
+      if (p.approveExpense && finance)
         _QuickAction(LucideIcons.badgeCheck, 'Arbitrer les dépenses', 'Approuver ou rejeter', AppColors.gold,
             () => const ApprovalsScreen()),
-      if (user.canManageFunds)
+      if (user.canManageFunds && cfg.module('campaigns'))
         _QuickAction(LucideIcons.target, 'Lancer une quête', 'Objectif à atteindre avant une date', const Color(0xFFF97316),
             () => const FundFormScreen()),
     ];
@@ -140,8 +146,10 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<Session>().user;
+    context.watch<PlatformState>();
     if (user == null) return const SizedBox.shrink();
     final tabs = _tabs(user);
+    if (_index >= tabs.length) _index = 0;
     final actions = _actions(user);
     final unread = context.watch<NotificationsCenter>().unreadCount;
     final queue = context.watch<OfflineQueue>();

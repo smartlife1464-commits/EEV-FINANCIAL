@@ -14,6 +14,7 @@ abstract final class Storage {
   static const _readNotifs = 'eev.read_notifications';
   static const _queue = 'eev.offline_queue';
   static const _lastEmail = 'eev.last_email';
+  static const _platform = 'eev.platform_config';
 
   static SharedPreferences? _prefs;
   static Future<SharedPreferences> get _p async => _prefs ??= await SharedPreferences.getInstance();
@@ -46,6 +47,9 @@ abstract final class Storage {
     await p.remove(_token);
     await p.remove(_user);
   }
+
+  static Future<String?> platformCache() async => (await _p).getString(_platform);
+  static Future<void> setPlatformCache(String json) async => (await _p).setString(_platform, json);
 
   static Future<String> apiUrl() async => (await _p).getString(_apiUrl) ?? defaultApiUrl;
   static Future<void> setApiUrl(String? url) async {

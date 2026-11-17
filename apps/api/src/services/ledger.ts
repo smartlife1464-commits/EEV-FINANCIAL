@@ -1,3 +1,4 @@
+import { getPlatformConfig, money } from './platform.js';
 import { pb, ensureAdminAuth } from './pocketbase.js';
 import {
   calculateEntryAllocations,
@@ -81,7 +82,14 @@ export class LedgerService {
     }
 
     // 2. Calculer la ventilation avec exactitude arithmétique (pas de flottant)
-    const splitResult = calculateEntryAllocations(input.amount, rule, targetFundCode);
+    const platform = await getPlatformConfig();
+    const splitResult = calculateEntryAllocations(
+      input.amount,
+      rule,
+      targetFundCode,
+      platform.finance.split,
+      platform.finance.remainderFund
+    );
 
     // 3. Récupérer tous les comptes de fonds
     const allFunds = await pb.collection('fund_accounts').getFullList();
@@ -276,7 +284,7 @@ export class LedgerService {
     }
 
     if (fund.current_balance < expense.amount) {
-      throw new Error(`Solde insuffisant dans le fonds ${fund.name} (${fund.current_balance} FCFA disponible, ${expense.amount} FCFA requis).`);
+      throw new Error(`Solde insuffisant dans le fonds ${fund.name} (${money(fund.current_balance)} disponible, ${money(expense.amount)} requis).`);
     }
 
     // 1. Débiter le fonds analytique
@@ -356,7 +364,7 @@ export class LedgerService {
 
     if (fund.current_balance < occ.expected_amount) {
       throw new Error(
-        `Solde insuffisant dans le fonds ${fund.name} (${fund.current_balance} FCFA disponible, ${occ.expected_amount} FCFA requis).`
+        `Solde insuffisant dans le fonds ${fund.name} (${money(fund.current_balance)} disponible, ${money(occ.expected_amount)} requis).`
       );
     }
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { FundAccountCode } from '@eev/shared-types';
-import { formatFCFA } from '../utils/formatters';
+import { formatFCFA, currencyLabel } from '../utils/formatters';
 import { ArrowUpCircle, CheckCircle2, ArrowLeft, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -51,7 +51,7 @@ export const ExpenseForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || amount <= 0 || !Number.isInteger(amount)) {
-      toast.error('Veuillez saisir un montant entier strictement supérieur à 0 FCFA.');
+      toast.error('Veuillez saisir un montant entier strictement supérieur à 0.');
       return;
     }
     if (!categoryId || !fundAccountId) {
@@ -111,7 +111,7 @@ export const ExpenseForm: React.FC = () => {
       <div className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3.5 text-amber-900 dark:text-amber-300 text-xs">
         <ShieldAlert className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
         <div>
-          <strong className="font-bold">Règle Financière Non Négociable :</strong> Les charges courantes de fonctionnement (électricité, eau, sonorisation, transport, honoraires, loyer) sont exclusivement imputées sur les <strong>80% du Fonds Général</strong>. Les fonds affectés (Auditorium, Aide sociale, Dîme des dîmes) ne supportent aucune charge d'exploitation.
+          <strong className="font-bold">Règle financière :</strong> les charges courantes de fonctionnement (électricité, eau, sonorisation, transport, honoraires, loyer) sont imputées sur le <strong>compartiment de fonctionnement</strong>. Les fonds affectés ne supportent pas de charges d’exploitation.
         </div>
       </div>
 
@@ -121,7 +121,7 @@ export const ExpenseForm: React.FC = () => {
             {/* Montant de la dépense */}
             <div className="space-y-2 md:col-span-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Montant Requis (FCFA) *
+                Montant Requis ({currencyLabel()}) *
               </label>
               <div className="relative">
                 <input
@@ -134,7 +134,7 @@ export const ExpenseForm: React.FC = () => {
                   className="w-full text-3xl font-black py-4 px-5 bg-slate-50 dark:bg-[#070D22] border-2 border-rose-500/80 rounded-2xl text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-rose-500/20"
                 />
                 <span className="absolute right-5 top-1/2 -translate-y-1/2 font-black text-base text-rose-500">
-                  FCFA
+                  {currencyLabel()}
                 </span>
               </div>
             </div>

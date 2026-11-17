@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/platform_config.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/app_colors.dart';
@@ -27,7 +28,7 @@ const _slides = [
     AppColors.gold,
     'TRÉSORERIE UNIQUE',
     'Chaque franc, tracé et ventilé',
-    'Les dîmes et offrandes sont réparties automatiquement 80 / 10 / 10. Les dons affectés vont à 100 % à leur fonds.',
+    'Les dîmes et offrandes sont réparties automatiquement entre les compartiments de l’église. Les dons affectés vont à 100 % à leur fonds.',
     [
       (LucideIcons.chartPie, 'Ventilation calculée en direct'),
       (LucideIcons.bookOpenCheck, 'Grand livre immuable'),
@@ -103,10 +104,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   children: [
                     const BrandLogo(size: 40),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Esprit & Vie',
-                        style: TextStyle(
+                        PlatformConfig.current.displayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 16,

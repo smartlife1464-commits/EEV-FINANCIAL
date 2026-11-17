@@ -7,6 +7,8 @@ import 'data/storage.dart';
 import 'state/notifications.dart';
 import 'state/preferences.dart';
 import 'state/session.dart';
+import 'state/platform.dart';
+import 'ui/screens/auth/setup_required_screen.dart';
 import 'ui/screens/auth/login_screen.dart';
 import 'ui/screens/onboarding/onboarding_screen.dart';
 import 'ui/screens/shell/home_shell.dart';
@@ -25,10 +27,11 @@ class EevApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationsCenter()),
         ChangeNotifierProvider(create: (_) => OfflineQueue()..load()),
         ChangeNotifierProvider(create: (_) => DataBus()),
+        ChangeNotifierProvider(create: (_) => PlatformState()),
       ],
-      child: Consumer<Preferences>(
-        builder: (context, prefs, _) => MaterialApp(
-          title: 'Esprit & Vie',
+      child: Consumer2<Preferences, PlatformState>(
+        builder: (context, prefs, platform, _) => MaterialApp(
+          title: platform.config.displayName,
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
@@ -67,20 +70,31 @@ class _RootGateState extends State<RootGate> {
 
   Future<void> _boot() async {
     final session = context.read<Session>();
+    final platform = context.read<PlatformState>();
     await Future.wait([
-      session.restore(),
+      session.restore().then((_) => platform.load(signedIn: session.isSignedIn)),
       Storage.onboardingDone().then((v) => _onboardingDone = v),
       Future<void>.delayed(const Duration(milliseconds: 1700)),
     ]);
     if (mounted) setState(() => _splashDone = true);
   }
 
+  bool _wasSignedIn = false;
+
   @override
   Widget build(BuildContext context) {
     final session = context.watch<Session>();
+    final platform = context.watch<PlatformState>().config;
+    // Connexion : chargement de la configuration complète (ventilation de l'église)
+    if (session.isSignedIn && !_wasSignedIn && _splashDone) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => context.read<PlatformState>().load(signedIn: true));
+    }
+    _wasSignedIn = session.isSignedIn;
     final Widget page;
     if (!_splashDone || session.status == SessionStatus.unknown) {
       page = const SplashScreen();
+    } else if (platform.setupRequired && !session.isSignedIn) {
+      page = const SetupRequiredScreen();
     } else if (session.isSignedIn) {
       page = const HomeShell();
     } else if (_onboardingDone == false) {

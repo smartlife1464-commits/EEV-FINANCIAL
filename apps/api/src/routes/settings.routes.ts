@@ -21,7 +21,7 @@ export const ministrySettingsSchema = z.object({
 export type MinistrySettings = z.infer<typeof ministrySettingsSchema>;
 
 const DEFAULTS: MinistrySettings = {
-  name: 'Ministère Esprit & Vie',
+  name: '',
   headquarters: '',
   postalBox: '',
   phone: '',

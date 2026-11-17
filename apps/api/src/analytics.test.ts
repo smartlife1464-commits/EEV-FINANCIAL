@@ -1,3 +1,4 @@
+import { DEFAULT_PLATFORM_CONFIG } from './services/platform.js';
 import { describe, it, expect } from 'vitest';
 import {
   calculateMetricVariation,
@@ -85,6 +86,7 @@ describe('Analytics Calculations Engine & Statistical Accuracy', () => {
       { id: 'x3', amount: 50000, status: 'rejected', expense_date: '2026-11-07', category_name: 'Matériel' },
     ],
     treasury: { consolidatedPhysicalBalance: 0, funds: [], pendingCommitmentsTotal: 0, generalFundFreeBalance: 0 },
+    platform: DEFAULT_PLATFORM_CONFIG,
   };
   const nov = resolvePeriodDateRange('this_month', undefined, undefined, new Date('2026-11-15T12:00:00Z'));
 

@@ -7,6 +7,8 @@ export interface UserSession {
   email: string;
   name: string;
   role: UserRole;
+  /** Administrateur de la plateforme (console de configuration) */
+  isPlatformAdmin?: boolean;
   permissions: Record<string, boolean>;
 }
 
@@ -60,11 +62,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem('eev_token');
     if (!token) return;
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => {
+      .then(async (res) => {
         if (res.status === 401 || res.status === 403) {
           localStorage.removeItem('eev_token');
           localStorage.removeItem('eev_user');
           setUser(null);
+          return;
+        }
+        if (res.ok) {
+          // Rôle et droits à jour (ex. désignation comme administrateur de la plateforme)
+          const body = await res.json().catch(() => null);
+          const fresh = body?.user;
+          if (fresh?.id) {
+            setUser((prev) => {
+              if (!prev || prev.id !== fresh.id) return prev;
+              const next = { ...prev, name: fresh.name, role: fresh.role, isPlatformAdmin: fresh.isPlatformAdmin === true };
+              localStorage.setItem('eev_user', JSON.stringify(next));
+              return { ...next, permissions: PERMISSIONS_MATRIX[next.role as UserRole] || {} };
+            });
+          }
         }
       })
       .catch(() => {

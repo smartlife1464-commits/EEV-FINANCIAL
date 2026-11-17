@@ -3,6 +3,23 @@
 @tailwind utilities;
 
 @layer base {
+  /* Palette de la couleur principale (valeurs par défaut = ambre). Remplacée à l'exécution par
+     la couleur choisie dans la console de l'admin plateforme (utils/brand.ts). */
+  :root {
+    --brand-50: 255 251 235;
+    --brand-100: 254 243 199;
+    --brand-200: 253 230 138;
+    --brand-300: 252 211 77;
+    --brand-400: 251 191 36;
+    --brand-500: 245 158 11;
+    --brand-600: 217 119 6;
+    --brand-700: 180 83 9;
+    --brand-800: 146 64 14;
+    --brand-900: 120 53 15;
+    --brand-950: 69 26 3;
+    --brand-hex: #FFBC00;
+  }
+
   html {
     font-size: 16px;
     -webkit-tap-highlight-color: transparent;
@@ -81,7 +98,7 @@
 }
 
 .gold-gradient-text {
-  background: linear-gradient(135deg, #FFBC00 0%, #F59E0B 100%);
+  background: linear-gradient(135deg, var(--brand-hex) 0%, rgb(var(--brand-500)) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

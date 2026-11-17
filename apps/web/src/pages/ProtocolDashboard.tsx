@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { BrandLogo } from '../components/common/Brand';
+import { brandColor } from '../utils/brand';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { formatNumber, formatDate, formatVariation } from '../utils/formatters';
@@ -79,7 +81,7 @@ export const ProtocolDashboard: React.FC = () => {
   const demographicsData = [
     { name: 'Hommes', value: demoByName('Hommes'), color: '#3B82F6' },
     { name: 'Femmes', value: demoByName('Femmes'), color: '#EC4899' },
-    { name: 'Jeunes', value: demoByName('Jeunes'), color: '#FFBC00' },
+    { name: 'Jeunes', value: demoByName('Jeunes'), color: brandColor() },
     { name: 'Enfants', value: demoByName('Enfants'), color: '#10B981' },
   ];
   const totalDemographics = demographicsData.reduce((acc, curr) => acc + curr.value, 0);
@@ -134,14 +136,14 @@ export const ProtocolDashboard: React.FC = () => {
                 <AreaChart data={attendanceTrendData}>
                   <defs>
                     <linearGradient id="goldAttendanceGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#FFBC00" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="#FFBC00" stopOpacity={0.0} />
+                      <stop offset="0%" stopColor={brandColor()} stopOpacity={0.45} />
+                      <stop offset="100%" stopColor={brandColor()} stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <Area
                     type="monotone"
                     dataKey="total"
-                    stroke="#FFBC00"
+                    stroke={brandColor()}
                     strokeWidth={3.5}
                     fillOpacity={1}
                     fill="url(#goldAttendanceGradient)"
@@ -378,8 +380,8 @@ export const ProtocolDashboard: React.FC = () => {
               <AreaChart data={attendanceTrendData} margin={{ top: 20, right: 10, left: -15, bottom: 0 }}>
                 <defs>
                   <linearGradient id="chartAttendanceGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#FFBC00" stopOpacity={0.45} />
-                    <stop offset="100%" stopColor="#FFBC00" stopOpacity={0.0} />
+                    <stop offset="0%" stopColor={brandColor()} stopOpacity={0.45} />
+                    <stop offset="100%" stopColor={brandColor()} stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="name" stroke="#94A3B8" fontSize={12} tickLine={false} />
@@ -398,7 +400,7 @@ export const ProtocolDashboard: React.FC = () => {
                 <Area
                   type="monotone"
                   dataKey="total"
-                  stroke="#FFBC00"
+                  stroke={brandColor()}
                   strokeWidth={3.5}
                   fill="url(#chartAttendanceGrad)"
                 />
@@ -511,11 +513,7 @@ export const ProtocolDashboard: React.FC = () => {
         <div className="rounded-3xl p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 card-hover-effect">
           <div className="flex items-center gap-5">
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-900 border border-amber-400/35 shrink-0 relative flex items-center justify-center shadow-md">
-              <img
-                src="/logo-eev.png"
-                alt="Autel Culte Dominical"
-                className="w-14 h-14 object-contain"
-              />
+              <BrandLogo className="w-14 h-14 object-contain" />
             </div>
             <div>
               <span className="text-xs font-extrabold uppercase tracking-wider text-amber-500">

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/platform_config.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../../core/format.dart';
@@ -42,7 +43,7 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = Palette.of(context);
     final perms = context.read<Session>().user!.permissions;
-    final split = d.obj('split80_10_10');
+    final splitLines = d.list('splitBreakdown');
     final trend = d.list('trend').map((t) => TrendPoint(t.s('label'), t.n('revenues').toDouble(), t.n('expenses').toDouble())).toList();
     final byCat = d.list('revenueByCategory');
     final expCat = d.list('expensesByCategory');
@@ -107,27 +108,23 @@ class _Body extends StatelessWidget {
                     caption: 'Engagements : ${Fmt.fcfaCompact(d.n('pendingCommitments'))}')
                 .entrance(3),
           ]),
-          const SectionTitle('Ventilation 80 / 10 / 10'),
+          SectionTitle('Ventilation ${PlatformConfig.current.splitLabel}'),
           Gutter(
             child: AppCard(
               child: Column(children: [
-                for (final (label, key, color, pct) in [
-                  ('Fonds Général', 'generalFund', AppColors.info, 80),
-                  ('Dîme des Dîmes', 'titheOfTithes', AppColors.gold, 10),
-                  ('Aide Sociale', 'welfareAid', AppColors.success, 10),
-                ]) ...[
+                for (final (i, l) in splitLines.indexed) ...[
                   Row(children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-                      child: Text('$pct %', style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 12)),
+                      decoration: BoxDecoration(color: _splitColor(i).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                      child: Text('${l.i('percentage')} %', style: TextStyle(color: _splitColor(i), fontWeight: FontWeight.w900, fontSize: 12)),
                     ),
                     const SizedBox(width: 10),
-                    Expanded(child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: p.text))),
-                    Text(Fmt.fcfa(split.n(key)), style: TextStyle(fontWeight: FontWeight.w900, color: p.text)),
+                    Expanded(child: Text(l.s('label', l.s('fundCode')), style: TextStyle(fontWeight: FontWeight.w700, color: p.text))),
+                    Text(Fmt.fcfa(l.n('amount')), style: TextStyle(fontWeight: FontWeight.w900, color: p.text)),
                   ]),
                   const SizedBox(height: 8),
-                  ProgressBar(value: pct / 100, color: color),
+                  ProgressBar(value: l.n('percentage') / 100, color: _splitColor(i)),
                   const SizedBox(height: 14),
                 ],
                 Text('Calculée sur les dîmes et offrandes ordinaires brutes. Les dons affectés sont crédités à 100 %.',
@@ -145,7 +142,7 @@ class _Body extends StatelessWidget {
                   DonutChart(
                     size: 128,
                     centerValue: Fmt.fcfaCompact(d.n('totalRevenueMonth')),
-                    centerLabel: 'FCFA',
+                    centerLabel: Fmt.currency,
                     slices: [for (final (i, c) in byCat.indexed) DonutSlice(c.s('name'), c.n('amount').toDouble(), AppColors.chart[i % 8])],
                   ),
                   const SizedBox(width: 16),
@@ -176,3 +173,5 @@ class _Body extends StatelessWidget {
     );
   }
 }
+
+Color _splitColor(int i) => const [AppColors.info, AppColors.gold, AppColors.success, AppColors.pink, AppColors.violet][i % 5];

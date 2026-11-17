@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { formatFCFA } from '../utils/formatters';
+import { formatFCFA, currencyLabel } from '../utils/formatters';
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -48,7 +48,7 @@ export const InternalTransfers: React.FC = () => {
       return;
     }
     if (!amount || amount <= 0) {
-      toast.error('Le montant doit être strictement supérieur à 0 FCFA.');
+      toast.error('Le montant doit être strictement supérieur à 0.');
       return;
     }
     if (sourceFund && sourceFund.current_balance < amount) {
@@ -110,7 +110,7 @@ export const InternalTransfers: React.FC = () => {
           {/* Montant */}
           <div className="space-y-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-              Montant à Transférer (FCFA) *
+              Montant à Transférer ({currencyLabel()}) *
             </label>
             <div className="relative">
               <input
@@ -123,7 +123,7 @@ export const InternalTransfers: React.FC = () => {
                 className="w-full text-3xl font-black py-4 px-5 bg-slate-50 dark:bg-[#070D22] border-2 border-amber-400/80 rounded-2xl text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-400/20"
               />
               <span className="absolute right-5 top-1/2 -translate-y-1/2 font-black text-base text-amber-500">
-                FCFA
+                {currencyLabel()}
               </span>
             </div>
           </div>
@@ -210,7 +210,7 @@ export const InternalTransfers: React.FC = () => {
             <textarea
               required
               rows={3}
-              placeholder="Ex: Décision pastorale n° 12 d'affectation complémentaire au projet Auditorium..."
+              placeholder="Ex: Décision pastorale n° 12 d'affectation complémentaire au projet de construction…"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400"

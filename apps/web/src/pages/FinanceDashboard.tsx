@@ -48,7 +48,7 @@ export const FinanceDashboard: React.FC = () => {
             <span>Tableau de Bord du Département Finances</span>
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-            Caisse consolidée unique, ventilation automatique 80/10/10 et décaissements autorisés.
+            Caisse consolidée unique, ventilation automatique des recettes et décaissements autorisés.
           </p>
           <div className="mt-2.5">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-amber-400/20 text-amber-500 border border-amber-400/30">

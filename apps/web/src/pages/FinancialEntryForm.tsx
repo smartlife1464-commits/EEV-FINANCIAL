@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { calculateEntryAllocations } from '@eev/business-rules';
+import { usePlatform } from '../context/PlatformContext';
 import { AllocationRule, FundAccountCode, PaymentMethod } from '@eev/shared-types';
-import { formatFCFA, formatDate } from '../utils/formatters';
+import { formatFCFA, formatDate, currencyLabel } from '../utils/formatters';
 import { Badge } from '../components/common/Badge';
 import {
   Wallet,
@@ -76,16 +77,14 @@ export const FinancialEntryForm: React.FC = () => {
   const isStandardSplit = rule === AllocationRule.STANDARD_SPLIT_80_10_10;
 
   // Calcul certifié en direct par le moteur de règles financières
-  const splitResult = calculateEntryAllocations(
-    amount || 0,
-    rule,
-    targetFundCode
-  );
+  const { split, remainderFund } = usePlatform();
+  const splitLabel = split.map((l) => `${l.percentage}`).join(' / ');
+  const splitResult = calculateEntryAllocations(amount || 0, rule, targetFundCode, split, remainderFund);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || amount <= 0 || !Number.isInteger(amount)) {
-      toast.error('Veuillez saisir un montant entier strictement supérieur à 0 FCFA.');
+      toast.error('Veuillez saisir un montant entier strictement supérieur à 0.');
       return;
     }
     if (!categoryId) {
@@ -130,7 +129,7 @@ export const FinancialEntryForm: React.FC = () => {
             <span>Enregistrement d’une Recette Brute</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Comptabilisation immédiate avec ventilation analytique automatique (80/10/10 ou 100% affecté).
+            Comptabilisation immédiate avec ventilation analytique automatique (ventilation standard ou 100 % affecté).
           </p>
         </div>
       </div>
@@ -141,7 +140,7 @@ export const FinancialEntryForm: React.FC = () => {
             {/* Montant Brut Encaissé */}
             <div className="space-y-2 md:col-span-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Montant Brut Encaissé (FCFA) *
+                Montant Brut Encaissé ({currencyLabel()}) *
               </label>
               <div className="relative">
                 <input
@@ -155,7 +154,7 @@ export const FinancialEntryForm: React.FC = () => {
                   className="w-full text-3xl font-black py-4 px-5 bg-slate-50 dark:bg-[#070D22] border-2 border-amber-400/80 rounded-2xl text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-amber-400/20"
                 />
                 <span className="absolute right-5 top-1/2 -translate-y-1/2 font-extrabold text-base text-amber-500">
-                  FCFA
+                  {currencyLabel()}
                 </span>
               </div>
             </div>
@@ -176,7 +175,7 @@ export const FinancialEntryForm: React.FC = () => {
                   .filter((c: any) => c.is_active !== false)
                   .map((c: any) => (
                     <option key={c.id} value={c.id}>
-                      {c.name} {c.allocation_rule === AllocationRule.STANDARD_SPLIT_80_10_10 ? '(Répartition 80/10/10)' : '(100% Affecté)'}
+                      {c.name} {c.allocation_rule === AllocationRule.STANDARD_SPLIT_80_10_10 ? `(Ventilation ${splitLabel})` : '(100 % affecté)'}
                     </option>
                   ))}
               </select>
@@ -281,12 +280,12 @@ export const FinancialEntryForm: React.FC = () => {
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isStandardSplit
-                  ? 'Application stricte des règles ministérielles : 10% Dîme des dîmes + 10% Aide + 80% Fonds Général.'
+                  ? `Règle de l’église : ${split.map((l) => `${l.percentage} % ${l.label || l.fundCode}`).join(' + ')}.`
                   : 'Fonds affecté : 100% alloué directement sans prélèvement.'}
               </p>
             </div>
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-400 border border-amber-400/30">
-              {isStandardSplit ? 'Ventilation 80 / 10 / 10' : '100% Affecté'}
+              {isStandardSplit ? `Ventilation ${splitLabel}` : '100 % affecté'}
             </span>
           </div>
 
@@ -298,7 +297,7 @@ export const FinancialEntryForm: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-                    {alloc.percentage}% {alloc.description}
+                    {alloc.description}
                   </span>
                 </div>
                 <p className="text-2xl font-black text-white mt-1">
@@ -315,7 +314,7 @@ export const FinancialEntryForm: React.FC = () => {
             <span>Somme exacte vérifiée : <strong>{formatFCFA(splitResult.totalAllocated)}</strong></span>
             <span className="font-bold flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Écart : 0 FCFA (Précision arithmétique garantie)</span>
+              <span>Écart : 0 {currencyLabel()} (Précision arithmétique garantie)</span>
             </span>
           </div>
         </div>

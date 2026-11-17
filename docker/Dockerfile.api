@@ -10,7 +10,6 @@ COPY packages/business-rules/package.json packages/business-rules/
 COPY packages/shared-validation/package.json packages/shared-validation/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-COPY apps/mobile/package.json apps/mobile/
 
 RUN pnpm install --frozen-lockfile --filter "@eev/api..."
 

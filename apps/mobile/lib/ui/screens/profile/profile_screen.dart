@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/platform_config.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../../core/format.dart';
@@ -168,7 +169,7 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
         Center(
-          child: Text('Ministère Esprit & Vie • Plateforme de gestion', style: TextStyle(color: p.textFaint, fontSize: 11.5)),
+          child: Text('${PlatformConfig.current.name} • Plateforme de gestion', style: TextStyle(color: p.textFaint, fontSize: 11.5)),
         ),
       ],
     );

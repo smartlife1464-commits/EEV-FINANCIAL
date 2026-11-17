@@ -261,7 +261,7 @@ export const AttendanceForm: React.FC = () => {
               Sélectionnez le Programme de Culte
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Choisissez parmi les sept (7) programmes officiels reconnus par le Ministère Esprit & Vie.
+              Choisissez parmi les programmes définis dans la configuration de l’église.
             </p>
           </div>
 

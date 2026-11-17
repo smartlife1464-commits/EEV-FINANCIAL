@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../../../state/platform.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/api.dart';
@@ -27,16 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _loading = false;
   String? _error;
-
-  // Comptes de démonstration : uniquement dans les versions de développement
-  static const _demo = [
-    ('Pasteur', 'leader@espritvie.org', 'Leader2026!'),
-    ('Finances', 'finance@espritvie.org', 'Finance2026!'),
-    ('Caissier', 'caissier@espritvie.org', 'Caissier2026!'),
-    ('Protocole', 'protocol@espritvie.org', 'Protocol2026!'),
-    ('Agent', 'agent@espritvie.org', 'Agent2026!'),
-    ('Auditeur', 'auditeur@espritvie.org', 'Auditeur2026!'),
-  ];
 
   @override
   void initState() {
@@ -97,8 +87,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           .fadeIn(delay: 150.ms)
                           .slideY(begin: 0.3),
                       const SizedBox(height: 6),
-                      const Text('Connectez-vous à l\'espace de gestion\ndu Ministère Esprit & Vie',
-                              textAlign: TextAlign.center, style: TextStyle(color: Colors.white60, height: 1.45))
+                      Text('Connectez-vous à l\'espace de gestion\n${context.watch<PlatformState>().config.name}',
+                              textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, height: 1.45))
                           .animate()
                           .fadeIn(delay: 250.ms),
                       const SizedBox(height: 28),
@@ -118,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               AppField(
                                 controller: _email,
                                 label: 'Adresse email',
-                                hint: 'prenom.nom@espritvie.org',
+                                hint: 'prenom.nom@exemple.org',
                                 icon: LucideIcons.mail,
                                 keyboardType: TextInputType.emailAddress,
                                 textInputAction: TextInputAction.next,
@@ -171,36 +161,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ).animate().fadeIn(delay: 300.ms, duration: 500.ms).slideY(begin: 0.08, curve: Curves.easeOutCubic),
-                      if (kDebugMode) ...[
-                        const SizedBox(height: 22),
-                        const Text('ACCÈS DE DÉMONSTRATION (DÉVELOPPEMENT)',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.white38, fontSize: 10.5, fontWeight: FontWeight.w800, letterSpacing: 1.2)),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final d in _demo)
-                              Pressable(
-                                onTap: () => setState(() {
-                                  _email.text = d.$2;
-                                  _password.text = d.$3;
-                                }),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.06),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.white12),
-                                  ),
-                                  child: Text(d.$1, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, fontSize: 12.5)),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
                       const SizedBox(height: 22),
                       Center(
                         child: TextButton.icon(

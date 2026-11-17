@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { usePlatform } from '../../context/PlatformContext';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useTheme } from '../../context/ThemeContext';
 import { usePeriod } from '../../context/PeriodContext';
@@ -32,25 +33,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenOnboarding, onOpenPreloade
   const { period, setPeriod } = usePeriod();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  const getGreetingTitle = () => {
-    switch (user?.role) {
-      case UserRole.LEAD_PASTOR:
-        return 'Pasteur Principal';
-      case UserRole.FINANCE_LEAD:
-        return 'Responsable Finances';
-      case UserRole.CASHIER:
-        return 'Caissier';
-      case UserRole.PROTOCOL_LEAD:
-        return 'Responsable Protocole';
-      case UserRole.PROTOCOL_AGENT:
-        return 'Agent Protocole';
-      case UserRole.AUDITOR:
-        return 'Auditeur';
-      case UserRole.ADMIN:
-      default:
-        return 'Administrateur';
-    }
-  };
+  const { roleLabel } = usePlatform();
+  const getGreetingTitle = () => roleLabel(user?.role || UserRole.ADMIN);
 
   const getRoleSubtext = () => {
     switch (user?.role) {

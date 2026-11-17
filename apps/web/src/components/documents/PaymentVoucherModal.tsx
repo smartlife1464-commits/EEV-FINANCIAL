@@ -1,4 +1,6 @@
+import { currencyCode } from '../../utils/formatters';
 import React, { useState } from 'react';
+import { BrandLogo, BrandName } from '../common/Brand';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatFCFA, formatDate } from '../../utils/formatters';
 import { numberToWordsFCFA } from '../../utils/numberToWords';
@@ -48,11 +50,11 @@ export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ vouche
     type: 'payment_voucher',
     voucherRef,
     amount: voucher.amount,
-    currency: 'XAF',
+    currency: currencyCode(),
     date: voucher.date,
     beneficiary: voucher.beneficiary,
     fund: voucher.fundName,
-    ministry: 'Esprit & Vie',
+    ministry: ministry.name,
   });
 
   const handlePrint = () => {
@@ -125,15 +127,11 @@ export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ vouche
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 p-2 flex items-center justify-center shrink-0">
-                <img
-                  src="/logo-eev.png"
-                  alt="Ministère Esprit & Vie"
-                  className="w-full h-full object-contain"
-                />
+                <BrandLogo className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="font-black text-lg tracking-wider text-slate-950 uppercase">
-                  MINISTÈRE ESPRIT & VIE
+                  <BrandName upper />
                 </h1>
                 <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">
                   Direction Financière & Caisse Centrale
@@ -305,7 +303,7 @@ export const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({ vouche
 
           {/* Pied de Page Officiel Standardisé */}
           <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 font-medium">
-            <span>Ministère Esprit & Vie — Département des Finances & Contrôle Interne</span>
+            <span><BrandName /> — Département des Finances & Contrôle Interne</span>
             <span>Bon de Décaissement Officiel • Format A4 Paysage • Page 1/1</span>
           </div>
         </div>

@@ -1,4 +1,6 @@
+import { currencyCode } from '../../utils/formatters';
 import React, { useState } from 'react';
+import { BrandLogo, BrandName } from '../common/Brand';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatFCFA, formatDate } from '../../utils/formatters';
 import { numberToWordsFCFA } from '../../utils/numberToWords';
@@ -43,9 +45,9 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
   // Payload encodé dans le QR Code pour vérification d'authenticité
   const qrVerificationData = JSON.stringify({
     ref: receiptRef,
-    ministry: 'Esprit & Vie',
+    ministry: ministry.name,
     amount: receipt.amount,
-    currency: 'XAF',
+    currency: currencyCode(),
     date: receipt.date,
     category: receipt.categoryName,
     donor: donorDisplayName,
@@ -122,15 +124,11 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 p-2 flex items-center justify-center shrink-0">
-                <img
-                  src="/logo-eev.png"
-                  alt="Ministère Esprit & Vie"
-                  className="w-full h-full object-contain"
-                />
+                <BrandLogo className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="font-black text-lg tracking-wider text-slate-950 uppercase">
-                  MINISTÈRE ESPRIT & VIE
+                  <BrandName upper />
                 </h1>
                 <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">
                   Direction Générale • Caisse Centrale
@@ -243,7 +241,7 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
             <div className="flex flex-col items-center justify-center text-center">
               <div className="w-24 h-24 rounded-full border-2 border-dashed border-amber-600 p-1 flex flex-col items-center justify-center text-[8px] font-black uppercase text-amber-700 rotate-[-8deg] shadow-inner">
                 <span>MINISTÈRE</span>
-                <span className="font-extrabold text-[9px] text-amber-800">ESPRIT & VIE</span>
+                <span className="font-extrabold text-[9px] text-amber-800"><BrandName upper short /></span>
                 <span className="text-[7px] text-emerald-700">★ CERTIFIÉ CONFORME ★</span>
                 <span className="text-[7px]">CAISSE CENTRALE</span>
                 <span>{new Date(receipt.date || Date.now()).getFullYear()}</span>
@@ -257,7 +255,7 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
             <div className="text-right space-y-4">
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
-                  Pour le Ministère Esprit & Vie
+                  Pour <BrandName />
                 </p>
                 <p className="text-xs font-black text-slate-900">
                   La Caisse Centrale
@@ -283,7 +281,7 @@ export const DonationReceiptModal: React.FC<DonationReceiptModalProps> = ({ rece
 
           {/* Pied de Page Officiel Standardisé */}
           <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 font-medium">
-            <span>Ministère Esprit & Vie — Caisse Centrale & Trésorerie</span>
+            <span><BrandName /> — Caisse Centrale & Trésorerie</span>
             <span>Quittance Officielle Certifiée • Format A4 Paysage • Page 1/1</span>
           </div>
         </div>

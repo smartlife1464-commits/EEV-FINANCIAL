@@ -155,6 +155,10 @@ class Api {
   static Future<List<Map<String, dynamic>>> notifications() => _list('/notifications');
   static Future<Map<String, dynamic>> settings() => _map('GET', '/settings');
 
+  // ---------------------------------------------------------------- Plateforme (configuration de l'église)
+  static Future<Map<String, dynamic>> platformPublic() => _map('GET', '/platform/public');
+  static Future<Map<String, dynamic>> platformConfig() => _map('GET', '/platform/config');
+
   /// Test de connexion (écran de configuration du serveur)
   static Future<bool> ping(String baseUrl) async {
     try {
