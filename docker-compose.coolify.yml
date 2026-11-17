@@ -1,12 +1,13 @@
 # Déploiement Coolify (build pack « Docker Compose », fichier : /docker-compose.coolify.yml).
+# Les images sont compilées par GitHub Actions (.github/workflows/images.yml) et publiées sur GHCR :
+# le serveur ne fait que les télécharger. EEV_IMAGE_TAG permet d'épingler une version (sha-<commit>).
 # Le domaine est attribué au service « web » dans Coolify ; aucun port n'est publié sur l'hôte.
 # Les variables SERVICE_PASSWORD_* sont générées automatiquement par Coolify (visibles dans
 # l'onglet « Environment Variables » de l'application).
 services:
   pocketbase:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.pocketbase
+    image: ghcr.io/smartlife1464-commits/eev-financial-pocketbase:${EEV_IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     environment:
       - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:-superuser@cm.esprit-vie.cloud}
@@ -20,9 +21,8 @@ services:
       retries: 10
 
   api:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.api
+    image: ghcr.io/smartlife1464-commits/eev-financial-api:${EEV_IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       pocketbase:
@@ -48,11 +48,8 @@ services:
       retries: 5
 
   web:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.web
-      args:
-        NGINX_CONF: docker/nginx.coolify.conf
+    image: ghcr.io/smartlife1464-commits/eev-financial-web:${EEV_IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       api:

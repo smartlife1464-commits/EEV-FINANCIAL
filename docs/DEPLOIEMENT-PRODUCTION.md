@@ -67,3 +67,17 @@ sur l’écran d’accueil du téléphone sont ceux de la compilation : pour une
 - [ ] Sauvegarde quotidienne planifiée (`scripts/backup/backup.sh`) et restauration testée (`scripts/restore/restore.sh`)
 - [ ] Console PocketBase (`/_pb/`) non exposée sur Internet (restreinte au réseau local dans `docker/nginx.conf`)
 - [ ] Messagerie configurée, ou procédure de réinitialisation par l’administrateur connue des utilisateurs
+
+## 7. Déploiement sur Coolify (images précompilées)
+
+Le serveur Coolify ne compile pas l’application : GitHub Actions ([`images.yml`](../.github/workflows/images.yml))
+compile les images `pocketbase`, `api` et `web` à chaque push sur `main` et les publie sur GHCR
+(`ghcr.io/smartlife1464-commits/eev-financial-*`, étiquettes `latest` et `sha-<commit>`).
+
+- Application Coolify : build pack **Docker Compose**, fichier `/docker-compose.coolify.yml`, domaine sur le service `web`.
+- Le dépôt étant privé, le serveur doit être connecté à GHCR une fois (terminal Coolify du serveur) :
+  `docker login ghcr.io -u <compte GitHub>` avec un jeton GitHub (classic) limité à `read:packages`.
+- Secrets générés par Coolify : `SERVICE_PASSWORD_64_PBADMIN` (superutilisateur PocketBase) et
+  `SERVICE_PASSWORD_SETUPTOKEN` (jeton de l’assistant d’installation), onglet *Environment Variables*.
+- Redéploiement automatique après publication des images : secrets du dépôt `COOLIFY_DEPLOY_URL` et `COOLIFY_TOKEN`.
+- Revenir à une version précise : variable `EEV_IMAGE_TAG=sha-<commit>` dans Coolify, puis redéployer.
