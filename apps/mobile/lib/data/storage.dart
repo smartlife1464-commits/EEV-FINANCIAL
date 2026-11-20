@@ -19,8 +19,13 @@ abstract final class Storage {
   static SharedPreferences? _prefs;
   static Future<SharedPreferences> get _p async => _prefs ??= await SharedPreferences.getInstance();
 
-  /// URL par défaut : émulateur Android → 10.0.2.2 ; web / iOS / desktop → localhost
+  /// Serveur de l'église, fixé à la compilation : --dart-define=EEV_API_URL=https://…/api
+  static const _buildApiUrl = String.fromEnvironment('EEV_API_URL');
+
+  /// URL par défaut : celle de la compilation, sinon émulateur Android → 10.0.2.2 ;
+  /// web / iOS / desktop → localhost. Reste modifiable dans « Configuration du serveur ».
   static String get defaultApiUrl {
+    if (_buildApiUrl.isNotEmpty) return _buildApiUrl;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:4000/api';
     return 'http://localhost:4000/api';
   }
