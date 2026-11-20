@@ -1,3 +1,4 @@
+import { money } from '../services/platform.js';
 import { FastifyInstance } from 'fastify';
 import { PERMISSIONS_MATRIX } from '@eev/business-rules';
 import { UserRole } from '@eev/shared-types';
@@ -17,7 +18,7 @@ export interface AppNotification {
   at: string;
 }
 
-const fcfa = (n: number) => `${Math.round(n || 0).toLocaleString('fr-FR')} FCFA`;
+const fcfa = (n: number) => money(n);
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** Programmes réguliers attendus chaque semaine (jour JS : 0 = dimanche) */

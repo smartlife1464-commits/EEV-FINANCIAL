@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'platform_config.dart';
 import 'theme/app_colors.dart';
 
 /// Lecture tolérante d'un JSON dynamique (les réponses API sont des cartes clé/valeur).
@@ -41,17 +42,20 @@ extension JsonRead on Map<String, dynamic> {
 }
 
 enum UserRole {
-  admin('admin', 'Administrateur Général'),
-  leadPastor('lead_pastor', 'Pasteur Principal'),
-  financeLead('finance_lead', 'Responsable Finances'),
+  admin('admin', 'Administrateur général'),
+  leadPastor('lead_pastor', 'Pasteur principal'),
+  financeLead('finance_lead', 'Responsable des finances'),
   cashier('cashier', 'Caissier'),
-  protocolLead('protocol_lead', 'Responsable Protocole'),
-  protocolAgent('protocol_agent', 'Agent Protocole'),
-  auditor('auditor', 'Auditeur Interne');
+  protocolLead('protocol_lead', 'Responsable du protocole'),
+  protocolAgent('protocol_agent', 'Agent du protocole'),
+  auditor('auditor', 'Auditeur');
 
   final String value;
-  final String label;
-  const UserRole(this.value, this.label);
+  final String defaultLabel;
+  const UserRole(this.value, this.defaultLabel);
+
+  /// Libellé choisi par l'église (console plateforme), sinon libellé par défaut
+  String get label => PlatformConfig.current.roleLabel(value, defaultLabel);
 
   static UserRole parse(String v) =>
       UserRole.values.firstWhere((r) => r.value == v, orElse: () => UserRole.protocolAgent);

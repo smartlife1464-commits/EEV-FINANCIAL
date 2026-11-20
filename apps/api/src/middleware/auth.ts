@@ -10,6 +10,8 @@ export interface AuthUser {
   name: string;
   role: UserRole;
   departmentId?: string;
+  /** Administrateur de la plateforme : configure l'installation pour son église */
+  isPlatformAdmin: boolean;
 }
 
 declare module 'fastify' {
@@ -30,69 +32,11 @@ export async function authenticateRequest(
 
   const token = authHeader.substring(7);
 
-  // Mode développement/test tokens avec les vrais identifiants PocketBase
-  if (config.isDevelopment) {
-    if (token === 'dev-token-leader' || token === 'dev-token-lead_pastor') {
-      request.user = {
-        id: '88196e8a7d26spt',
-        email: 'leader@espritvie.org',
-        name: 'Pasteur Principal',
-        role: UserRole.LEAD_PASTOR,
-      };
-      return;
-    }
-    if (token === 'dev-token-admin') {
-      request.user = {
-        id: '900286e90az8m1k',
-        email: 'admin@espritvie.org',
-        name: 'Administrateur Général',
-        role: UserRole.ADMIN,
-      };
-      return;
-    }
-    if (token === 'dev-token-finance' || token === 'dev-token-finance_lead') {
-      request.user = {
-        id: '997whsmow930w37',
-        email: 'finance@espritvie.org',
-        name: 'Responsable Finances',
-        role: UserRole.FINANCE_LEAD,
-      };
-      return;
-    }
-    if (token === 'dev-token-cashier') {
-      request.user = {
-        id: '7lh063hmv9x4y5a',
-        email: 'caissier@espritvie.org',
-        name: 'Caissier Principal',
-        role: UserRole.CASHIER,
-      };
-      return;
-    }
-    if (token === 'dev-token-protocol' || token === 'dev-token-protocol_lead') {
-      request.user = {
-        id: 'h070a28998183ge',
-        email: 'protocol@espritvie.org',
-        name: 'Responsable Protocole',
-        role: UserRole.PROTOCOL_LEAD,
-      };
-      return;
-    }
-    if (token === 'dev-token-agent' || token === 'dev-token-protocol_agent') {
-      request.user = {
-        id: '91mui0shch2ehn5',
-        email: 'agent@espritvie.org',
-        name: 'Agent Protocole',
-        role: UserRole.PROTOCOL_AGENT,
-      };
-      return;
-    }
-    if (token === 'dev-token-auditor') {
-      request.user = {
-        id: '1515au79574ss4x',
-        email: 'auditeur@espritvie.org',
-        name: 'Auditeur / Contrôleur',
-        role: UserRole.AUDITOR,
-      };
+  // Jetons synthétiques réservés aux tests automatisés (NODE_ENV=test, jamais en développement ni en production)
+  if (config.nodeEnv === 'test' && token.startsWith('test-token-')) {
+    const role = token.slice('test-token-'.length) as UserRole;
+    if (Object.values(UserRole).includes(role)) {
+      request.user = { id: `test_${role}`, email: `${role}@test.local`, name: `Test ${role}`, role, isPlatformAdmin: false };
       return;
     }
   }
@@ -119,6 +63,7 @@ export async function authenticateRequest(
       name: rec.name || rec.email,
       role: (rec.role as UserRole) || UserRole.PROTOCOL_AGENT,
       departmentId: rec.department || undefined,
+      isPlatformAdmin: rec.is_platform_admin === true,
     };
   } catch (err: any) {
     if (err?.status === 0) {
@@ -160,4 +105,15 @@ export function requirePermission(permissionKey: keyof typeof PERMISSIONS_MATRIX
       });
     }
   };
+}
+
+/** Réservé à l'administrateur de la plateforme (console de configuration de l'installation) */
+export async function requirePlatformAdmin(request: FastifyRequest, reply: FastifyReply) {
+  if (!request.user) {
+    await authenticateRequest(request, reply);
+    if (reply.sent) return;
+  }
+  if (!request.user?.isPlatformAdmin) {
+    reply.status(403).send({ error: 'Accès réservé à l’administrateur de la plateforme.' });
+  }
 }

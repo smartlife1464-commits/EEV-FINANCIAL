@@ -149,24 +149,16 @@ migrate((app) => {
 
   const funds = {
     GENERAL: upsertByCode('fund_accounts', 'GENERAL', {
-      name: 'Fonds Général (80% Dîmes/Offrandes)',
+      name: 'Fonds général',
       description: 'Fonctionnement et charges courantes',
       current_balance: 0, is_restricted: false, is_active: true,
     }),
     TITHE_OF_TITHES: upsertByCode('fund_accounts', 'TITHE_OF_TITHES', {
-      name: 'Dîme des Dîmes (10%)', description: 'Prélèvement statutaire de 10%',
+      name: 'Dîme des dîmes', description: 'Prélèvement statutaire sur les recettes ordinaires',
       current_balance: 0, is_restricted: true, is_active: true,
     }),
     WELFARE_AID: upsertByCode('fund_accounts', 'WELFARE_AID', {
-      name: 'Aide Sociale & Secours (10%)', description: 'Prélèvement statutaire de 10%',
-      current_balance: 0, is_restricted: true, is_active: true,
-    }),
-    BUILDING: upsertByCode('fund_accounts', 'BUILDING', {
-      name: 'Construction Auditorium', description: 'Fonds affecté à 100%',
-      current_balance: 0, is_restricted: true, is_active: true,
-    }),
-    FRIENDS_OF_JESUS: upsertByCode('fund_accounts', 'FRIENDS_OF_JESUS', {
-      name: 'Amis de Jésus', description: 'Cotisations affectées à 100%',
+      name: 'Aide sociale & secours', description: 'Prélèvement statutaire sur les recettes ordinaires',
       current_balance: 0, is_restricted: true, is_active: true,
     }),
     SPECIAL_OFFERING: upsertByCode('fund_accounts', 'SPECIAL_OFFERING', {
@@ -176,10 +168,8 @@ migrate((app) => {
   };
 
   const categories = [
-    ['tithes', 'Dîmes', 'standard_split_80_10_10', null, 'Dîmes des fidèles (ventilation 80/10/10)'],
-    ['offerings', 'Offrandes ordinaires', 'standard_split_80_10_10', null, 'Offrandes de culte (ventilation 80/10/10)'],
-    ['building', 'Don Construction Auditorium', 'direct_allocated', 'BUILDING', 'Affecté à 100% au fonds Auditorium'],
-    ['friends_of_jesus', 'Cotisation Amis de Jésus', 'direct_allocated', 'FRIENDS_OF_JESUS', 'Affecté à 100% au fonds Amis de Jésus'],
+    ['tithes', 'Dîmes', 'standard_split_80_10_10', null, 'Dîmes des fidèles (ventilation standard)'],
+    ['offerings', 'Offrandes ordinaires', 'standard_split_80_10_10', null, 'Offrandes de culte (ventilation standard)'],
     ['special_offerings', 'Offrande spéciale / Don désigné', 'direct_allocated', 'SPECIAL_OFFERING', 'Affecté à 100% au fonds Offrandes spéciales'],
   ];
 
@@ -192,6 +182,40 @@ migrate((app) => {
       description,
       is_active: true,
     });
+  }
+
+  // Catégories de dépenses génériques (modifiables depuis la console de l'admin plateforme)
+  const expenseCategories = [
+    ['rent', 'Loyer', 'fixed'], ['water', 'Eau', 'fixed'], ['electricity', 'Électricité', 'fixed'],
+    ['internet', 'Internet', 'fixed'], ['subscriptions', 'Abonnements', 'fixed'],
+    ['maintenance_recurring', 'Entretien récurrent', 'fixed'], ['other_fixed', 'Autres charges régulières', 'fixed'],
+    ['transport', 'Transport', 'variable'], ['nutrition', 'Nutrition', 'variable'], ['aid', 'Aide', 'variable'],
+    ['logistics', 'Logistique', 'variable'], ['health', 'Santé', 'variable'], ['communication', 'Communication', 'variable'],
+    ['equipment', 'Matériel', 'variable'], ['exceptional_maintenance', 'Entretien exceptionnel', 'variable'],
+    ['evangelism', 'Évangélisation', 'variable'], ['mission', 'Mission', 'variable'], ['hospitality', 'Hébergement', 'variable'],
+    ['training', 'Formation', 'variable'], ['events', 'Événements', 'variable'], ['other_variable', 'Autres dépenses', 'variable'],
+  ];
+  for (const [code, name, type] of expenseCategories) {
+    upsertByCode('expense_categories', code, { name, type, description: '', is_active: true });
+  }
+
+  // Types de culte génériques, seulement sur une installation neuve
+  const serviceTypes = tryFind('service_types');
+  if (serviceTypes && app.countRecords(serviceTypes) === 0) {
+    const defaults = [
+      ['sunday_service', 'Culte du dimanche', 1],
+      ['midweek_service', 'Culte de semaine', 2],
+      ['prayer_meeting', 'Réunion de prière', 3],
+      ['special_programs', 'Programmes spéciaux', 4],
+    ];
+    for (const [slug, name, order] of defaults) {
+      const rec = new Record(serviceTypes);
+      rec.set('slug', slug);
+      rec.set('name', name);
+      rec.set('display_order', order);
+      rec.set('is_active', true);
+      app.save(rec);
+    }
   }
 }, (app) => {
   // Migration de réparation : pas de retour arrière destructif (les champs ajoutés sont conservés).

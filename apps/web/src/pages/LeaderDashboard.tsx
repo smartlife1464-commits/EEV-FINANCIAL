@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { BrandLogo } from '../components/common/Brand';
+import { brandColor } from '../utils/brand';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { usePeriod } from '../context/PeriodContext';
-import { formatFCFA, formatNumber, formatDate, timeAgo } from '../utils/formatters';
+import { formatFCFA, formatNumber, formatDate, timeAgo, currencyLabel } from '../utils/formatters';
 import {
   Wallet,
   Users,
@@ -99,7 +101,7 @@ export const LeaderDashboard: React.FC = () => {
               <div className={`flex items-center gap-2 text-xs md:text-sm font-extrabold ${trendClass(revenueDelta)}`}>
                 {revenueDelta >= 0 ? <ArrowUpRight className="w-4 h-4 md:w-5 md:h-5" /> : <ArrowDownRight className="w-4 h-4 md:w-5 md:h-5" />}
                 <span>
-                  Recettes {periodLabel.toLowerCase()} : {formatFCFA(fin?.revenues)} ({signed(revenueDelta, ' FCFA')} vs période précédente)
+                  Recettes {periodLabel.toLowerCase()} : {formatFCFA(fin?.revenues)} ({signed(revenueDelta, ` ${currencyLabel()}`)} vs période précédente)
                 </span>
               </div>
             </div>
@@ -117,14 +119,14 @@ export const LeaderDashboard: React.FC = () => {
                 <AreaChart data={sparklineData}>
                   <defs>
                     <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#FFBC00" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="#FFBC00" stopOpacity={0.0} />
+                      <stop offset="0%" stopColor={brandColor()} stopOpacity={0.45} />
+                      <stop offset="100%" stopColor={brandColor()} stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke="#FFBC00"
+                    stroke={brandColor()}
                     strokeWidth={3.5}
                     fillOpacity={1}
                     fill="url(#goldGradient)"
@@ -276,7 +278,7 @@ export const LeaderDashboard: React.FC = () => {
                 Charges courantes payées (Fonds Général)
               </p>
               <p className={`text-xs font-extrabold mt-1 ${trendClass(generalFundDelta, false)}`}>
-                {signed(generalFundDelta, ' FCFA')} vs période précédente
+                {signed(generalFundDelta, ` ${currencyLabel()}`)} vs période précédente
               </p>
             </div>
           </div>
@@ -333,8 +335,8 @@ export const LeaderDashboard: React.FC = () => {
               <AreaChart data={sparklineData} margin={{ top: 20, right: 10, left: -15, bottom: 0 }}>
                 <defs>
                   <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#FFBC00" stopOpacity={0.45} />
-                    <stop offset="100%" stopColor="#FFBC00" stopOpacity={0.0} />
+                    <stop offset="0%" stopColor={brandColor()} stopOpacity={0.45} />
+                    <stop offset="100%" stopColor={brandColor()} stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="name" stroke="#94A3B8" fontSize={12} tickLine={false} />
@@ -358,7 +360,7 @@ export const LeaderDashboard: React.FC = () => {
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke="#FFBC00"
+                  stroke={brandColor()}
                   strokeWidth={3.5}
                   fill="url(#chartGradient)"
                 />
@@ -479,11 +481,7 @@ export const LeaderDashboard: React.FC = () => {
         <div className="rounded-3xl p-7 bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 card-hover-effect">
           <div className="flex items-center gap-5">
             <div className="w-20 h-20 rounded-2xl overflow-hidden bg-slate-900 border border-amber-400/35 shrink-0 relative flex items-center justify-center shadow-md">
-              <img
-                src="/logo-eev.png"
-                alt="Autel Culte Dominical"
-                className="w-14 h-14 object-contain"
-              />
+              <BrandLogo className="w-14 h-14 object-contain" />
             </div>
             <div>
               <span className="text-xs font-extrabold uppercase tracking-wider text-amber-500">

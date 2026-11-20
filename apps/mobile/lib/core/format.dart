@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
+import 'platform_config.dart';
 
-/// Formatage localisé (fr) des montants FCFA, nombres et dates.
+/// Formatage localisé (fr) des montants (monnaie de l'église), nombres et dates.
 abstract final class Fmt {
   static final _number = NumberFormat.decimalPattern('fr');
   static final _compact = NumberFormat.compact(locale: 'fr');
@@ -9,7 +10,10 @@ abstract final class Fmt {
   /// on utilise l'espace insécable classique, plus lisible (« 14 600 000 »).
   static String _spaced(String v) => v.replaceAll('\u202F', '\u00A0');
 
-  static String fcfa(num? value) => '${number(value)} FCFA';
+  static String fcfa(num? value) => '${number(value)} ${PlatformConfig.current.currencyLabel}';
+
+  /// Symbole de la monnaie configurée (« FCFA », « € »…)
+  static String get currency => PlatformConfig.current.currencyLabel;
 
   /// Montant compact pour les petits espaces : « 14,6 M », « 850 k »
   static String fcfaCompact(num? value) {

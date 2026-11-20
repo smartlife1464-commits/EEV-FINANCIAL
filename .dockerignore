@@ -1,0 +1,13 @@
+.git
+.github
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+apps/mobile
+pocketbase/pb_data
+pocketbase/bin
+backups
+docs
+*.log

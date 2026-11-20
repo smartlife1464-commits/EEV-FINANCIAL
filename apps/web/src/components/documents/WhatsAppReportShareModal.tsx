@@ -1,3 +1,4 @@
+import { usePlatform } from '../../context/PlatformContext';
 import React, { useState } from 'react';
 import { formatFCFA, formatDate } from '../../utils/formatters';
 import { useAuth } from '../../context/AuthContext';
@@ -53,6 +54,8 @@ export const WhatsAppReportShareModal: React.FC<WhatsAppReportShareModalProps> =
   data,
   onClose,
 }) => {
+  const { platform } = usePlatform();
+  const churchName = platform.name;
   const { user } = useAuth();
   // Dernier numéro utilisé mémorisé sur ce poste (aucun numéro fictif par défaut)
   const [recipientPhone, setRecipientPhoneState] = useState(() => {
@@ -88,7 +91,7 @@ export const WhatsAppReportShareModal: React.FC<WhatsAppReportShareModalProps> =
   const hasAttendance = data.totalAttendance !== undefined;
 
   // Construction du message WhatsApp au format markdown officiel
-  let message = `🏛️ *MINISTÈRE ESPRIT & VIE*\n`;
+  let message = `🏛️ *${churchName.toLocaleUpperCase('fr-FR')}*\n`;
   message += data.cashClosing ? `📋 *PROCÈS-VERBAL DE CLÔTURE DE CAISSE*\n\n` : `📋 *BILAN OFFICIEL DU CULTE*\n\n`;
   message += `📅 *Date* : ${formatDate(data.serviceDate)}\n`;
   message += `🕊️ *${data.cashClosing ? 'Caisse' : 'Programme'}* : *${data.serviceName}*\n\n`;
@@ -133,7 +136,7 @@ export const WhatsAppReportShareModal: React.FC<WhatsAppReportShareModalProps> =
     }
   }
 
-  message += `\n✍️ _Rapport certifié et archivé sur la Plateforme Esprit & Vie_\n`;
+  message += `\n✍️ _Rapport certifié et archivé sur la plateforme ${churchName}_\n`;
   message += `_Émis par : ${data.responsibleName || user?.name || 'Direction du Ministère'}_`;
 
   const handleCopy = async () => {

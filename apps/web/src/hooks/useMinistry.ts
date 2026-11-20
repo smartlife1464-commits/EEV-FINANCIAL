@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePlatform } from '../context/PlatformContext';
 
 export interface MinistrySettings {
   name: string;
@@ -14,7 +15,7 @@ export interface MinistrySettings {
 }
 
 export const DEFAULT_MINISTRY: MinistrySettings = {
-  name: 'Ministère Esprit & Vie',
+  name: '',
   headquarters: '',
   postalBox: '',
   phone: '',
@@ -36,7 +37,8 @@ export function useMinistry() {
     enabled: isAuthenticated,
     staleTime: 5 * 60_000,
   });
-  const ministry: MinistrySettings = { ...DEFAULT_MINISTRY, ...(data || {}) };
+  const { platform } = usePlatform();
+  const ministry: MinistrySettings = { ...DEFAULT_MINISTRY, name: platform.name, ...(data || {}) };
 
   const addressLine = [ministry.headquarters ? `Siège : ${ministry.headquarters}` : '', ministry.postalBox]
     .filter(Boolean)

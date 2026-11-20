@@ -67,7 +67,7 @@ Les droits affichés suivent la matrice de permissions renvoyée par l'API ; le 
   connexion. Un refus métier reste visible (Profil) avec son motif au lieu d'être supprimé en silence.
 - **Règles d'or** : ventilation 80/10/10 calculée en direct, total de fréquentation = H + F + J + E,
   auto-approbation impossible, motif de rejet obligatoire.
-- **Comptes de démonstration** sur l'écran de connexion : uniquement dans les versions de développement.
+- **Configuration de l’église** lue depuis le serveur (nom, logo, monnaie, ventilation, libellés des rôles, modules) et gardée en cache pour le hors-ligne. Aucun compte de démonstration.
 
 ## Tests
 

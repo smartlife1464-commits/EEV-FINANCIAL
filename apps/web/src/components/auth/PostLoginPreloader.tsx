@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { BrandLogo, BrandName } from '../common/Brand';
 import { Lottie } from 'lottie-react';
 import { normalizeLottie } from '../../utils/lottie';
 import { useTheme } from '../../context/ThemeContext';
@@ -138,15 +139,11 @@ export const PostLoginPreloader: React.FC<PostLoginPreloaderProps> = ({
         {/* En-tête Institutionnel */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-400/40 p-2 flex items-center justify-center shadow-md">
-            <img
-              src="/logo-eev.png"
-              alt="Ministère Esprit & Vie"
-              className="w-full h-full object-contain"
-            />
+            <BrandLogo className="w-full h-full object-contain" />
           </div>
           <div className="text-left">
             <p className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">
-              MINISTÈRE ESPRIT & VIE
+              <BrandName upper />
             </p>
             <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">
               Plateforme Intégrée de Gouvernance & Caisse

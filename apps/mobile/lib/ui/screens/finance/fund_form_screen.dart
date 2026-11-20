@@ -171,7 +171,7 @@ class _FundFormScreenState extends State<FundFormScreen> {
                   const SizedBox(height: 14),
                   AppField(
                     controller: _target,
-                    label: 'Somme à atteindre (FCFA)',
+                    label: 'Somme à atteindre (${Fmt.currency})',
                     hint: 'Ex : 1 500 000',
                     icon: LucideIcons.goal,
                     keyboardType: TextInputType.number,
@@ -276,7 +276,7 @@ class _FundFormScreenState extends State<FundFormScreen> {
                     Expanded(
                       child: Text(
                         _campaign
-                            ? 'Les dons de la quête sont affectés à 100 % (aucun prélèvement 80/10/10). À la clôture, le montant collecté reste disponible dans ce compartiment.'
+                            ? 'Les dons de la quête sont affectés à 100 % (aucun prélèvement). À la clôture, le montant collecté reste disponible dans ce compartiment.'
                             : 'Une catégorie de recette dédiée sera créée : les dons qui y sont encaissés sont affectés à 100 % à ce compartiment.',
                         style: TextStyle(color: p.textMuted, fontSize: 12.5, height: 1.45),
                       ),
@@ -367,7 +367,7 @@ class _Preview extends StatelessWidget {
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
             const SizedBox(height: 4),
             Text(
-              campaign ? '0 FCFA sur ${target > 0 ? Fmt.fcfa(target) : '—'} • $days j' : 'Solde initial : 0 FCFA',
+              campaign ? '${Fmt.fcfa(0)} sur ${target > 0 ? Fmt.fcfa(target) : '—'} • $days j' : 'Solde initial : ${Fmt.fcfa(0)}',
               style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 12.5),
             ),
           ]),

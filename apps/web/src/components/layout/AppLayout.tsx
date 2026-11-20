@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import { BrandName } from '../common/Brand';
 import { Outlet, Navigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -27,7 +28,7 @@ export const AppLayout: React.FC = () => {
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-bold tracking-widest text-amber-400 uppercase">
-            MINISTÈRE ESPRIT & VIE • CHARGEMENT...
+            <BrandName upper /> • CHARGEMENT…
           </p>
         </div>
       </div>
@@ -47,7 +48,6 @@ export const AppLayout: React.FC = () => {
         <div className="print:hidden">
           <Header
             onOpenOnboarding={() => setIsOnboardingOpen(true)}
-            onOpenPreloader={() => setIsPreloaderDemoOpen(true)}
           />
         </div>
         <main className="flex-1 overflow-y-auto px-6 md:px-8 py-6 space-y-6 print:overflow-visible print:p-0 print:m-0 print:w-full">

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../state/platform.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/api.dart';
@@ -82,6 +84,8 @@ class _ServerSheetState extends State<_ServerSheet> {
           onPressed: () async {
             await Storage.setApiUrl(widget.ctrl.text);
             if (context.mounted) {
+              // Nouveau serveur = autre église possible : configuration rechargée
+              context.read<PlatformState>().load();
               Navigator.pop(context);
               showToast(context, 'Adresse du serveur enregistrée');
             }

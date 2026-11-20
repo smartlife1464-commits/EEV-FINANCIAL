@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { BrandLogo, BrandName } from '../components/common/Brand';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { formatFCFA, formatNumber } from '../utils/formatters';
+import { formatFCFA, formatNumber, currencyLabel, currencyCode } from '../utils/formatters';
 import { usePeriod } from '../context/PeriodContext';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
@@ -157,10 +158,10 @@ export const ReportsPage: React.FC = () => {
         {/* Entête officielle standardisée */}
         <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5">
           <div className="flex items-center gap-4">
-            <img src="/logo-eev.png" alt="Esprit & Vie" className="w-16 h-16 object-contain" />
+            <BrandLogo className="w-16 h-16 object-contain" />
             <div>
               <h2 className="text-xl font-black text-slate-900 uppercase tracking-wider">
-                Ministère Esprit & Vie
+                <BrandName />
               </h2>
               <p className="text-xs text-slate-500 font-semibold">
                 {letterheadLine}
@@ -174,7 +175,7 @@ export const ReportsPage: React.FC = () => {
           </div>
           <div className="text-right text-xs text-slate-500 space-y-1">
             <p className="font-semibold">Date d'édition : {new Date().toLocaleDateString('fr-FR')}</p>
-            {canViewFinance && <p className="font-mono font-bold text-amber-600">Devise : FCFA (XAF)</p>}
+            {canViewFinance && <p className="font-mono font-bold text-amber-600">Devise : {currencyLabel()} ({currencyCode()})</p>}
             <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
               ★ DOCUMENT OFFICIEL CERTIFIÉ
             </span>
@@ -198,29 +199,15 @@ export const ReportsPage: React.FC = () => {
                 <span className="text-[10px] text-slate-400">100% collecté</span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-bold text-amber-600 uppercase">Dîme des Dîmes (10%)</span>
-                <p className="text-lg font-black text-amber-600 mt-0.5">
-                  {formatFCFA(report?.financials?.standardOfferingsSplit?.titheOfTithes_10pct)}
-                </p>
-                <span className="text-[10px] text-slate-400">Sacerdoce pastoral</span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase">Aide Sociale (10%)</span>
-                <p className="text-lg font-black text-emerald-600 mt-0.5">
-                  {formatFCFA(report?.financials?.standardOfferingsSplit?.welfareAid_10pct)}
-                </p>
-                <span className="text-[10px] text-slate-400">Veuves & Nécessiteux</span>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-bold text-blue-600 uppercase">Fonds Général (80%)</span>
-                <p className="text-lg font-black text-blue-600 mt-0.5">
-                  {formatFCFA(report?.financials?.standardOfferingsSplit?.generalFund_80pct)}
-                </p>
-                <span className="text-[10px] text-slate-400">Charges courantes</span>
-              </div>
+              {(report?.financials?.splitBreakdown || []).map((l: any, i: number) => (
+                <div key={l.fundCode} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className={`text-[10px] font-bold uppercase ${['text-amber-600', 'text-emerald-600', 'text-blue-600', 'text-indigo-600'][i % 4]}`}>
+                    {l.label} ({l.percentage}%)
+                  </span>
+                  <p className={`text-lg font-black mt-0.5 ${['text-amber-600', 'text-emerald-600', 'text-blue-600', 'text-indigo-600'][i % 4]}`}>{formatFCFA(l.amount)}</p>
+                  <span className="text-[10px] text-slate-400">{l.isRemainder ? 'Reçoit le reliquat' : 'Prélèvement sur recettes ordinaires'}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -338,7 +325,7 @@ export const ReportsPage: React.FC = () => {
 
         {/* Pied de Page Officiel Standardisé */}
         <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-500">
-          <span>Ministère Esprit & Vie — Système Intégré de Gestion Ecclésiastique & Financière</span>
+          <span><BrandName /> — Système Intégré de Gestion Ecclésiastique & Financière</span>
           <span>Document certifié conforme • Format Officiel A4 Paysage • Page 1/1</span>
         </div>
       </div>

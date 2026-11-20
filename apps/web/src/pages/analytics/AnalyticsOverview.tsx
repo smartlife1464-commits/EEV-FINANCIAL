@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { brandColor } from '../../utils/brand';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { toast } from 'sonner';
-import { formatFCFA } from '../../utils/formatters';
+import { formatFCFA, currencyLabel } from '../../utils/formatters';
 import { PeriodSelector } from '../../components/analytics/PeriodSelector';
 import { MetricCard } from '../../components/analytics/MetricCard';
 import { useAuth } from '../../context/AuthContext';
@@ -314,7 +315,7 @@ export const AnalyticsOverview: React.FC = () => {
                 </p>
               </div>
               <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-400/15 text-amber-500 border border-amber-400/30">
-                Devise : FCFA
+                Devise : {currencyLabel()}
               </span>
             </div>
 
@@ -323,8 +324,8 @@ export const AnalyticsOverview: React.FC = () => {
                 <AreaChart data={financialData?.monthlyTrends || []} margin={{ top: 15, right: 15, left: -5, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorRevenues" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FFBC00" stopOpacity={0.45} />
-                      <stop offset="95%" stopColor="#FFBC00" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor={brandColor()} stopOpacity={0.45} />
+                      <stop offset="95%" stopColor={brandColor()} stopOpacity={0.0} />
                     </linearGradient>
                     <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.35} />
@@ -345,8 +346,8 @@ export const AnalyticsOverview: React.FC = () => {
                   <Area
                     type="monotone"
                     dataKey="tithes"
-                    name="Dîmes (FCFA)"
-                    stroke="#FFBC00"
+                    name={`Dîmes (${currencyLabel()})`}
+                    stroke={brandColor()}
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorRevenues)"
@@ -354,7 +355,7 @@ export const AnalyticsOverview: React.FC = () => {
                   <Area
                     type="monotone"
                     dataKey="paidExpenses"
-                    name="Dépenses Payées (FCFA)"
+                    name={`Dépenses payées (${currencyLabel()})`}
                     stroke="#F43F5E"
                     strokeWidth={3}
                     fillOpacity={1}
@@ -394,8 +395,8 @@ export const AnalyticsOverview: React.FC = () => {
                 >
                   <defs>
                     <linearGradient id="colorAttendance" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#FFBC00" stopOpacity={0.45} />
-                      <stop offset="95%" stopColor="#FFBC00" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor={brandColor()} stopOpacity={0.45} />
+                      <stop offset="95%" stopColor={brandColor()} stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="name" stroke="#94A3B8" fontSize={12} />
@@ -409,7 +410,7 @@ export const AnalyticsOverview: React.FC = () => {
                     type="monotone"
                     dataKey="total"
                     name="Participants Totaux"
-                    stroke="#FFBC00"
+                    stroke={brandColor()}
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorAttendance)"

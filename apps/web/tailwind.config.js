@@ -8,6 +8,10 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Couleur principale de l'église : palette pilotée par la configuration de la plateforme
+        amber: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((k) => [k, `rgb(var(--brand-${k}) / <alpha-value>)`])
+        ),
         eev: {
           navy: '#091338',
           gold: '#FFBC00',

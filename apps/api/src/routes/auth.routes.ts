@@ -9,17 +9,9 @@ import { PERMISSIONS_MATRIX } from '@eev/business-rules';
 import { pb, ensureAdminAuth } from '../services/pocketbase.js';
 import { createAuditLog } from '../services/audit.js';
 import { sendServiceError } from '../utils/http.js';
-
-/** Comptes de démonstration utilisables UNIQUEMENT en développement quand PocketBase est arrêté */
-const DEV_ACCOUNTS: Record<string, { password: string; token: string; user: { id: string; email: string; name: string; role: UserRole } }> = {
-  'leader@espritvie.org': { password: 'Leader2026!', token: 'dev-token-leader', user: { id: '88196e8a7d26spt', email: 'leader@espritvie.org', name: 'Pasteur Principal', role: UserRole.LEAD_PASTOR } },
-  'admin@espritvie.org': { password: 'Admin2026!', token: 'dev-token-admin', user: { id: '900286e90az8m1k', email: 'admin@espritvie.org', name: 'Administrateur Général', role: UserRole.ADMIN } },
-  'finance@espritvie.org': { password: 'Finance2026!', token: 'dev-token-finance', user: { id: '997whsmow930w37', email: 'finance@espritvie.org', name: 'Responsable Finances', role: UserRole.FINANCE_LEAD } },
-  'caissier@espritvie.org': { password: 'Caissier2026!', token: 'dev-token-cashier', user: { id: '7lh063hmv9x4y5a', email: 'caissier@espritvie.org', name: 'Caissier Principal', role: UserRole.CASHIER } },
-  'protocol@espritvie.org': { password: 'Protocol2026!', token: 'dev-token-protocol', user: { id: 'h070a28998183ge', email: 'protocol@espritvie.org', name: 'Responsable Protocole', role: UserRole.PROTOCOL_LEAD } },
-  'agent@espritvie.org': { password: 'Agent2026!', token: 'dev-token-protocol_agent', user: { id: '91mui0shch2ehn5', email: 'agent@espritvie.org', name: 'Agent Protocole', role: UserRole.PROTOCOL_AGENT } },
-  'auditeur@espritvie.org': { password: 'Auditeur2026!', token: 'dev-token-auditor', user: { id: '1515au79574ss4x', email: 'auditeur@espritvie.org', name: 'Auditeur / Contrôleur', role: UserRole.AUDITOR } },
-};
+import { isMailConfigured, sendMail } from '../services/mailer.js';
+import { clearAttempts, tooManyAttempts } from '../utils/rateLimit.js';
+import { getMinistrySettings } from './settings.routes.js';
 
 /** Champs sûrs d'un utilisateur renvoyés au frontend */
 function publicUser(u: any) {
@@ -31,6 +23,7 @@ function publicUser(u: any) {
     phone: u.phone || '',
     department: u.department || '',
     is_active: u.is_active !== false,
+    is_platform_admin: u.is_platform_admin === true,
     isActive: u.is_active !== false,
     verified: u.verified,
     created: u.created,
@@ -44,6 +37,11 @@ export async function authRoutes(app: FastifyInstance) {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: parsed.error.format() });
+    }
+    const limitKey = `login:${request.ip}:${parsed.data.email.toLowerCase()}`;
+    const wait = tooManyAttempts(limitKey, 8, 15 * 60 * 1000);
+    if (wait) {
+      return reply.status(429).send({ error: `Trop de tentatives. Réessayez dans ${Math.ceil(wait / 60)} minute(s).` });
     }
 
     try {
@@ -70,6 +68,7 @@ export async function authRoutes(app: FastifyInstance) {
       }
 
       const role = (userRecord.role as UserRole) || UserRole.PROTOCOL_AGENT;
+      clearAttempts(limitKey);
 
       await createAuditLog({
         userId: userRecord.id,
@@ -88,20 +87,13 @@ export async function authRoutes(app: FastifyInstance) {
           email: userRecord.email,
           name: userRecord.name || userRecord.email,
           role,
+          isPlatformAdmin: userRecord.is_platform_admin === true,
           permissions: PERMISSIONS_MATRIX[role],
         },
       });
     } catch (err: any) {
       // PocketBase injoignable : message explicite plutôt qu'un faux « mot de passe incorrect »
       if (err?.status === 0) {
-        // Mode démonstration hors-ligne réservé au développement local
-        const devUser = config.isDevelopment ? DEV_ACCOUNTS[parsed.data.email] : undefined;
-        if (devUser && devUser.password === parsed.data.password) {
-          return reply.send({
-            token: devUser.token,
-            user: { ...devUser.user, permissions: PERMISSIONS_MATRIX[devUser.user.role] },
-          });
-        }
         return reply.status(503).send({ error: 'Service d’authentification indisponible. Réessayez dans un instant.' });
       }
       return reply.status(401).send({ error: 'Email ou mot de passe incorrect.' });
@@ -179,6 +171,10 @@ export async function authRoutes(app: FastifyInstance) {
 
     try {
       await ensureAdminAuth();
+      const target = await pb.collection('users').getOne(id);
+      if (target.is_platform_admin === true && !request.user!.isPlatformAdmin) {
+        return reply.status(403).send({ error: 'Seul l’administrateur de la plateforme peut modifier ce compte.' });
+      }
       const updated = await pb.collection('users').update(id, {
         is_active: Boolean(is_active),
       });
@@ -197,163 +193,172 @@ export async function authRoutes(app: FastifyInstance) {
     }
   });
 
-  // --- Réinitialisation de mot de passe & OTP (Application privée) ---
-  const otpStore = new Map<string, { otp: string; expiresAt: number; resetToken?: string; resetTokenExpiresAt?: number }>();
+  // Réinitialisation du mot de passe par l'administration (repli quand la messagerie n'est pas configurée)
+  app.post('/api/users/:id/password', { preHandler: requireRoles([UserRole.ADMIN, UserRole.LEAD_PASTOR]) }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { password } = (request.body as { password?: string }) || {};
+    if (!password || password.length < 8) {
+      return reply.status(400).send({ error: 'Le mot de passe doit comporter au moins 8 caractères.' });
+    }
+    try {
+      await ensureAdminAuth();
+      const target = await pb.collection('users').getOne(id);
+      // Seul un administrateur plateforme peut modifier le mot de passe d'un autre administrateur plateforme
+      if (target.is_platform_admin === true && !request.user!.isPlatformAdmin) {
+        return reply.status(403).send({ error: 'Seul l’administrateur de la plateforme peut modifier ce compte.' });
+      }
+      await pb.collection('users').update(id, { password, passwordConfirm: password });
+      await createAuditLog({
+        userId: request.user!.id,
+        action: 'admin_password_reset',
+        collectionName: 'users',
+        recordId: id,
+        reason: `Mot de passe réinitialisé par ${request.user!.email}`,
+      });
+      return reply.send({ success: true });
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de réinitialiser le mot de passe.');
+    }
+  });
 
-  // 1. Demande d'envoi du code OTP
+  // --- Réinitialisation de mot de passe par code à 6 chiffres envoyé par email ---
+  const otpStore = new Map<
+    string,
+    { otp: string; expiresAt: number; attempts: number; resetToken?: string; resetTokenExpiresAt?: number }
+  >();
+  const MAX_OTP_ATTEMPTS = 5;
+
+  const findUserByEmail = async (email: string) => {
+    await ensureAdminAuth();
+    const records = await pb.collection('users').getList(1, 1, { filter: pb.filter('email = {:email}', { email }) });
+    return records.items[0] || null;
+  };
+
+  // 1. Demande d'envoi du code
   app.post('/api/auth/request-password-reset', async (request, reply) => {
     const { email } = (request.body as { email?: string }) || {};
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return reply.status(400).send({ error: 'Adresse email invalide.' });
     }
-
     const normalizedEmail = email.trim().toLowerCase();
-
-    // Vérifier si le compte existe dans DEV_ACCOUNTS ou dans PocketBase
-    let userExists = Boolean(DEV_ACCOUNTS[normalizedEmail]);
-    if (!userExists) {
-      try {
-        await ensureAdminAuth();
-        const records = await pb.collection('users').getList(1, 1, {
-          filter: `email = "${normalizedEmail}"`,
-        });
-        if (records.items.length > 0) {
-          userExists = true;
-        }
-      } catch {
-        // En mode déconnecté, accepter si présent dans DEV_ACCOUNTS
-      }
+    if (tooManyAttempts(`otp-request:${request.ip}`, 5, 15 * 60 * 1000)) {
+      return reply.status(429).send({ error: 'Trop de demandes. Réessayez dans quelques minutes.' });
     }
+    const genericMessage = 'Si cette adresse est rattachée à un compte actif, un code de vérification y a été envoyé.';
 
-    if (!userExists && !config.isDevelopment) {
-      // Pour des raisons de sécurité, ne pas divulguer si l'email existe ou pas
-      return reply.send({
-        success: true,
-        message: 'Si cette adresse email est rattachée à un compte actif, un code de réinitialisation y a été envoyé.',
+    if (!isMailConfigured() && !config.isDevelopment) {
+      return reply.status(503).send({
+        error: 'L’envoi d’emails n’est pas configuré sur ce serveur. Demandez à votre administrateur de réinitialiser votre mot de passe.',
       });
     }
 
-    // Génération d'un code OTP à 6 chiffres
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
-
-    otpStore.set(normalizedEmail, { otp, expiresAt });
-
-    // Envoi réel via PocketBase si configuré
+    let user: any = null;
     try {
-      await pb.collection('users').requestPasswordReset(normalizedEmail);
-    } catch {
-      // Ignorer si le serveur de messagerie externe n'est pas encore actif
+      user = await findUserByEmail(normalizedEmail);
+    } catch (err) {
+      return sendServiceError(reply, err, 'Service indisponible. Réessayez dans un instant.');
+    }
+    // Ne jamais divulguer l'existence d'un compte
+    if (!user || user.is_active === false) {
+      return reply.send({ success: true, message: genericMessage });
+    }
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    otpStore.set(normalizedEmail, { otp, expiresAt: Date.now() + 15 * 60 * 1000, attempts: 0 });
+
+    let devOtp: string | undefined;
+    if (isMailConfigured()) {
+      try {
+        const platform = await getMinistrySettings().catch(() => null);
+        await sendMail(
+          normalizedEmail,
+          'Votre code de réinitialisation',
+          `Bonjour ${user.name || ''},\n\nVotre code de vérification est : ${otp}\nIl est valable 15 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\n${platform?.name || ''}`
+        );
+      } catch (err) {
+        otpStore.delete(normalizedEmail);
+        return sendServiceError(reply, err, 'L’email n’a pas pu être envoyé. Réessayez plus tard ou contactez votre administrateur.');
+      }
+    } else {
+      // Développement local sans messagerie : le code est renvoyé pour pouvoir tester le parcours
+      devOtp = otp;
     }
 
     await createAuditLog({
-      userId: 'system',
+      userId: user.id,
       action: 'password_reset_requested',
       collectionName: 'users',
-      recordId: normalizedEmail,
-      reason: `Demande de code OTP pour ${normalizedEmail}`,
+      recordId: user.id,
+      reason: 'Demande de code de réinitialisation',
       ipAddress: request.ip,
       userAgent: String(request.headers['user-agent'] || ''),
     });
 
-    return reply.send({
-      success: true,
-      message: 'Un code de vérification à 6 chiffres a été envoyé à votre adresse email.',
-      devOtp: config.isDevelopment ? otp : undefined,
-    });
+    return reply.send({ success: true, message: genericMessage, devOtp });
   });
 
-  // 2. Vérification du code OTP
+  // 2. Vérification du code (5 essais maximum)
   app.post('/api/auth/verify-otp', async (request, reply) => {
     const { email, otp } = (request.body as { email?: string; otp?: string }) || {};
     if (!email || !otp) {
-      return reply.status(400).send({ error: 'L’email et le code OTP sont obligatoires.' });
+      return reply.status(400).send({ error: 'L’email et le code sont obligatoires.' });
     }
-
     const normalizedEmail = email.trim().toLowerCase();
     const record = otpStore.get(normalizedEmail);
 
     if (!record || record.expiresAt < Date.now()) {
-      return reply.status(400).send({ error: 'Le code OTP a expiré ou n’existe pas. Veuillez demander un nouveau code.' });
+      otpStore.delete(normalizedEmail);
+      return reply.status(400).send({ error: 'Le code a expiré ou n’existe pas. Demandez un nouveau code.' });
+    }
+    if (record.attempts >= MAX_OTP_ATTEMPTS) {
+      otpStore.delete(normalizedEmail);
+      return reply.status(429).send({ error: 'Trop de tentatives. Demandez un nouveau code.' });
+    }
+    if (record.otp !== String(otp).trim()) {
+      record.attempts += 1;
+      return reply.status(400).send({
+        error: `Code incorrect (${MAX_OTP_ATTEMPTS - record.attempts} essai(s) restant(s)).`,
+      });
     }
 
-    if (record.otp !== otp.trim()) {
-      return reply.status(400).send({ error: 'Code OTP incorrect. Veuillez vérifier le code à 6 chiffres.' });
-    }
-
-    // Générer un token temporaire de réinitialisation
     const resetToken = crypto.randomUUID();
     record.resetToken = resetToken;
-    record.resetTokenExpiresAt = Date.now() + 15 * 60 * 1000; // Valide 15 minutes
-
-    return reply.send({
-      success: true,
-      message: 'Code OTP validé avec succès.',
-      resetToken,
-    });
+    record.resetTokenExpiresAt = Date.now() + 15 * 60 * 1000;
+    return reply.send({ success: true, message: 'Code validé.', resetToken });
   });
 
-  // 3. Réinitialisation effective du mot de passe
+  // 3. Nouveau mot de passe
   app.post('/api/auth/reset-password', async (request, reply) => {
     const { email, resetToken, newPassword } = (request.body as { email?: string; resetToken?: string; newPassword?: string }) || {};
-
     if (!email || !resetToken || !newPassword) {
       return reply.status(400).send({ error: 'Paramètres incomplets pour la réinitialisation.' });
     }
-
     if (newPassword.length < 8) {
       return reply.status(400).send({ error: 'Le mot de passe doit comporter au moins 8 caractères.' });
     }
-
     const normalizedEmail = email.trim().toLowerCase();
     const record = otpStore.get(normalizedEmail);
-
-    if (
-      !record ||
-      record.resetToken !== resetToken ||
-      !record.resetTokenExpiresAt ||
-      record.resetTokenExpiresAt < Date.now()
-    ) {
+    if (!record || record.resetToken !== resetToken || !record.resetTokenExpiresAt || record.resetTokenExpiresAt < Date.now()) {
       return reply.status(400).send({ error: 'Jeton de réinitialisation invalide ou expiré.' });
     }
 
-    // Mise à jour dans PocketBase
     try {
-      await ensureAdminAuth();
-      const userList = await pb.collection('users').getList(1, 1, {
-        filter: `email = "${normalizedEmail}"`,
+      const user = await findUserByEmail(normalizedEmail);
+      if (!user) return reply.status(400).send({ error: 'Compte introuvable.' });
+      await pb.collection('users').update(user.id, { password: newPassword, passwordConfirm: newPassword });
+      otpStore.delete(normalizedEmail);
+      await createAuditLog({
+        userId: user.id,
+        action: 'password_reset_completed',
+        collectionName: 'users',
+        recordId: user.id,
+        reason: 'Mot de passe réinitialisé par code',
+        ipAddress: request.ip,
+        userAgent: String(request.headers['user-agent'] || ''),
       });
-      if (userList.items.length > 0) {
-        const userId = userList.items[0].id;
-        await pb.collection('users').update(userId, {
-          password: newPassword,
-          passwordConfirm: newPassword,
-        });
-      }
-    } catch {
-      // Si en mode dev avec DEV_ACCOUNTS
-      if (DEV_ACCOUNTS[normalizedEmail]) {
-        DEV_ACCOUNTS[normalizedEmail].password = newPassword;
-      }
+      return reply.send({ success: true, message: 'Votre mot de passe a été réinitialisé avec succès.' });
+    } catch (err) {
+      return sendServiceError(reply, err, 'Impossible de réinitialiser le mot de passe.');
     }
-
-    // Supprimer le code OTP consommé
-    otpStore.delete(normalizedEmail);
-
-    await createAuditLog({
-      userId: 'system',
-      action: 'password_reset_completed',
-      collectionName: 'users',
-      recordId: normalizedEmail,
-      reason: `Mot de passe réinitialisé avec succès pour ${normalizedEmail}`,
-      ipAddress: request.ip,
-      userAgent: String(request.headers['user-agent'] || ''),
-    });
-
-    return reply.send({
-      success: true,
-      message: 'Votre mot de passe a été réinitialisé avec succès.',
-    });
   });
 }
-

@@ -1,4 +1,4 @@
-// Lottie Animation Data Definitions for Ministère Esprit & Vie Onboarding
+// Lottie Animation Data Definitions for onboarding
 // Formats 100% conformes à la spécification Bodymovin / Lottie
 
 export const welcomeLottie = {

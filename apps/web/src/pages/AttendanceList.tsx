@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BrandLogo, BrandName } from '../components/common/Brand';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { CheckCircle2 as ValidateIcon, XCircle as RejectIcon } from 'lucide-react';
@@ -79,7 +80,7 @@ export const AttendanceList: React.FC = () => {
     if (sheet.service_type?.name) return sheet.service_type.name;
     const found = serviceTypes.find((st: any) => st.slug === sheet.service_type_slug);
     if (found) return found.name;
-    return sheet.service?.name || sheet.service_name || 'Culte Esprit & Vie';
+    return sheet.service?.name || sheet.service_name || 'Culte';
   };
 
   const handleOpenWhatsApp = (sheet: any) => {
@@ -481,15 +482,11 @@ export const AttendanceList: React.FC = () => {
               <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 p-2 flex items-center justify-center shrink-0">
-                    <img
-                      src="/logo-eev.png"
-                      alt="Ministère Esprit & Vie"
-                      className="w-full h-full object-contain"
-                    />
+                    <BrandLogo className="w-full h-full object-contain" />
                   </div>
                   <div>
                     <h1 className="font-black text-lg tracking-wider text-slate-950 uppercase">
-                      MINISTÈRE ESPRIT & VIE
+                      <BrandName upper />
                     </h1>
                     <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">
                       Direction du Protocole & Accueil • Suivi des Rassemblements
@@ -629,7 +626,7 @@ export const AttendanceList: React.FC = () => {
 
               {/* Pied de Page Officiel Standardisé */}
               <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 font-medium">
-                <span>Ministère Esprit & Vie — Département du Protocole & Accueil • Registre Officiel de Fréquentation</span>
+                <span><BrandName /> — Département du Protocole & Accueil • Registre Officiel de Fréquentation</span>
                 <span>Document Officiel Certifié • Format A4 Paysage • Page 1/1</span>
               </div>
             </div>

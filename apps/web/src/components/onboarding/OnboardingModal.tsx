@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BrandLogo, BrandName } from '../common/Brand';
 import { Lottie } from 'lottie-react';
 import * as rawAnimations from './lottieAnimations';
 import { normalizeLottie } from '../../utils/lottie';
@@ -161,15 +162,11 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
         <div className="p-5 sm:p-6 border-b border-slate-100 dark:border-[#16214A]/80 flex items-center justify-between bg-slate-50/50 dark:bg-[#091338]/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-400/20 border border-amber-400/35 p-2 flex items-center justify-center shadow-md">
-              <img
-                src="/logo-eev.png"
-                alt="Logo Esprit & Vie"
-                className="w-full h-full object-contain"
-              />
+              <BrandLogo className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="font-black text-xs uppercase tracking-widest text-slate-900 dark:text-white">
-                MINISTÈRE ESPRIT & VIE
+                <BrandName upper />
               </p>
               <p className="text-[11px] font-bold text-amber-500">
                 Guide de Démarrage • Étape {currentStep} sur {totalSteps}
@@ -229,7 +226,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
                   L'Excellence au Service du Royaume
                 </h2>
                 <p className="text-sm text-slate-600 dark:text-slate-300 max-w-lg mx-auto leading-relaxed font-medium">
-                  La plateforme de gestion du <strong>Ministère Esprit & Vie</strong> unifie la trésorerie ecclésiastique, le suivi démographique des cultes et la gouvernance pastorale avec une transparence absolue.
+                  La plateforme de gestion du <strong><BrandName /></strong> unifie la trésorerie ecclésiastique, le suivi démographique des cultes et la gouvernance pastorale avec une transparence absolue.
                 </p>
               </div>
 
@@ -237,7 +234,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClos
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">
                   <p className="text-xs font-black text-amber-500 mb-0.5">Rigueur & Clarté</p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Chaque franc CFA et chaque présence sont tracés en temps réel.
+                    Chaque montant et chaque présence sont tracés en temps réel.
                   </p>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A]">

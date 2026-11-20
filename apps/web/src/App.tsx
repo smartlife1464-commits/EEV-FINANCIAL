@@ -10,6 +10,9 @@ import { FinancialRouteGuard } from './components/common/FinancialRouteGuard';
 import { UserRole } from '@eev/shared-types';
 import { Toaster } from 'sonner';
 import { RoleGuard } from './components/common/RoleGuard';
+import { PlatformProvider, usePlatform } from './context/PlatformContext';
+import { ModuleGuard, PlatformAdminGuard } from './components/common/PlatformGuards';
+import { SetupWizard } from './pages/platform/SetupWizard';
 
 // Pages chargées à la demande (bundle initial allégé, important sur réseau mobile)
 const LeaderDashboard = lazy(() => import('./pages/LeaderDashboard').then((m) => ({ default: m.LeaderDashboard })));
@@ -34,6 +37,7 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then((m
 const AnalyticsOverview = lazy(() => import('./pages/analytics/AnalyticsOverview').then((m) => ({ default: m.AnalyticsOverview })));
 const AttendanceAnalytics = lazy(() => import('./pages/analytics/AttendanceAnalytics').then((m) => ({ default: m.AttendanceAnalytics })));
 const FinancialAnalytics = lazy(() => import('./pages/analytics/FinancialAnalytics').then((m) => ({ default: m.FinancialAnalytics })));
+const PlatformConsole = lazy(() => import('./pages/platform/PlatformConsole').then((m) => ({ default: m.PlatformConsole })));
 const CashClosingReconciliation = lazy(() => import('./pages/CashClosingReconciliation').then((m) => ({ default: m.CashClosingReconciliation })));
 
 const queryClient = new QueryClient({
@@ -69,16 +73,53 @@ const DashboardRouter: React.FC = () => {
   return <LeaderDashboard />;
 };
 
+/** Tant que l'installation n'est pas configurée, toutes les routes mènent à l'assistant. */
+const PlatformGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { ready, platform, error, refresh } = usePlatform();
+  if (!ready) return <PageLoader />;
+  if (error) {
+    // Configuration inconnue : ne jamais afficher l'application avec des valeurs supposées
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#F8FAFC] dark:bg-[#060D24]">
+        <div className="max-w-md text-center space-y-4">
+          <h1 className="text-xl font-black text-slate-900 dark:text-white">Serveur injoignable</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            L’application ne parvient pas à joindre le serveur ({error}). Vérifiez votre connexion puis réessayez.
+          </p>
+          <button
+            onClick={() => refresh()}
+            className="px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-sm"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (platform.setupRequired) {
+    return (
+      <Routes>
+        <Route path="/setup" element={<SetupWizard />} />
+        <Route path="*" element={<Navigate to="/setup" replace />} />
+      </Routes>
+    );
+  }
+  return <>{children}</>;
+};
+
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
+          <PlatformProvider>
           <PeriodProvider>
             <Toaster position="top-right" richColors closeButton duration={5000} />
             <BrowserRouter>
               <Suspense fallback={<PageLoader />}>
+              <PlatformGate>
               <Routes>
+                <Route path="/setup" element={<Navigate to="/login" replace />} />
                 {/* Authentification : Connexion uniquement, inscription publique strictement fermée */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Navigate to="/login" replace />} />
@@ -91,109 +132,85 @@ export const App: React.FC = () => {
                   <Route path="protocol" element={<ProtocolDashboard />} />
 
                   {/* Module Fréquentation & Protocole (Accessible à tous les rôles autorisés) */}
-                  <Route path="services" element={<ServicesList />} />
-                  <Route path="attendance" element={<AttendanceList />} />
-                  <Route path="attendance/new" element={<AttendanceForm />} />
-                  <Route path="analytics/attendance" element={<AttendanceAnalytics />} />
+                  <Route path="services" element={<ModuleGuard module="attendance"><ServicesList /></ModuleGuard>} />
+                  <Route path="attendance" element={<ModuleGuard module="attendance"><AttendanceList /></ModuleGuard>} />
+                  <Route path="attendance/new" element={<ModuleGuard module="attendance"><AttendanceForm /></ModuleGuard>} />
+                  <Route path="analytics/attendance" element={<ModuleGuard module="attendance"><AttendanceAnalytics /></ModuleGuard>} />
 
                   {/* Module Finances (STRICTEMENT INTERDIT aux rôles Protocole) */}
                   <Route
                     path="finance"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="finance"><FinancialRouteGuard>
                         <FinanceDashboard />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/entries"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="finance"><FinancialRouteGuard>
                         <FinancialEntriesList />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/entries/new"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="finance"><FinancialRouteGuard>
                         <FinancialEntryForm />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/expenses"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="finance"><FinancialRouteGuard>
                         <ExpensesList />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/expenses/new"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="finance"><FinancialRouteGuard>
                         <ExpenseForm />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/approvals"
-                    element={
-                      <RoleGuard roles={[UserRole.ADMIN, UserRole.LEAD_PASTOR, UserRole.AUDITOR]}>
+                    element={<ModuleGuard module="finance"><RoleGuard roles={[UserRole.ADMIN, UserRole.LEAD_PASTOR, UserRole.AUDITOR]}>
                         <ExpenseApprovals />
-                      </RoleGuard>
-                    }
+                      </RoleGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/treasury"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="finance"><FinancialRouteGuard>
                         <TreasuryDetail />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/cash-closing"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="cashClosing"><FinancialRouteGuard>
                         <CashClosingReconciliation />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/transfers"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="transfers"><FinancialRouteGuard>
                         <InternalTransfers />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="finance/transactions"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="finance"><FinancialRouteGuard>
                         <GeneralLedger />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
                   <Route
                     path="analytics/finance"
-                    element={
-                      <FinancialRouteGuard>
+                    element={<ModuleGuard module="analytics"><FinancialRouteGuard>
                         <FinancialAnalytics />
-                      </FinancialRouteGuard>
-                    }
+                      </FinancialRouteGuard></ModuleGuard>}
                   />
 
                   {/* Statistiques et Rapports avec filtrage selon le rôle */}
                   <Route
                     path="analytics"
-                    element={
-                      <RoleGuard roles={[UserRole.ADMIN, UserRole.LEAD_PASTOR, UserRole.FINANCE_LEAD, UserRole.PROTOCOL_LEAD, UserRole.AUDITOR]}>
+                    element={<ModuleGuard module="analytics"><RoleGuard roles={[UserRole.ADMIN, UserRole.LEAD_PASTOR, UserRole.FINANCE_LEAD, UserRole.PROTOCOL_LEAD, UserRole.AUDITOR]}>
                         <AnalyticsOverview />
-                      </RoleGuard>
-                    }
+                      </RoleGuard></ModuleGuard>}
                   />
                   <Route
                     path="reports"
@@ -229,14 +246,24 @@ export const App: React.FC = () => {
                       </RoleGuard>
                     }
                   />
+                  <Route
+                    path="platform"
+                    element={
+                      <PlatformAdminGuard>
+                        <PlatformConsole />
+                      </PlatformAdminGuard>
+                    }
+                  />
                   <Route path="notifications" element={<NotificationsPage />} />
 
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>
               </Routes>
+              </PlatformGate>
               </Suspense>
             </BrowserRouter>
           </PeriodProvider>
+          </PlatformProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

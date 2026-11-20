@@ -1,19 +1,36 @@
+/** Monnaie de l'église, fixée au démarrage par la configuration de la plateforme. */
+let currency = { label: 'FCFA', words: 'francs CFA', code: 'XAF' };
+
+export function setCurrency(next: { label?: string; words?: string; code?: string }) {
+  currency = { ...currency, ...Object.fromEntries(Object.entries(next).filter(([, v]) => Boolean(v))) };
+}
+
+/** Libellé court de la monnaie (« FCFA », « €», « CDF »…) */
+export function currencyLabel(): string {
+  return currency.label;
+}
+
+/** Code ISO de la monnaie (XAF, XOF, EUR…) */
+export function currencyCode(): string {
+  return currency.code;
+}
+
+/** Monnaie en toutes lettres pour les reçus (« francs CFA », « euros »…) */
+export function currencyWords(): string {
+  return currency.words;
+}
+
 /**
- * Formate un montant entier en FCFA avec séparateurs de milliers.
+ * Formate un montant avec séparateurs de milliers et la monnaie de l'église.
  * Ex: 100000 -> "100 000 FCFA"
  */
 export function formatFCFA(amount: number | undefined | null): string {
-  if (amount === undefined || amount === null || isNaN(amount)) {
-    return '0 FCFA';
-  }
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'XOF',
-    maximumFractionDigits: 0,
-  })
-    .format(amount)
-    .replace('XOF', 'FCFA');
+  const n = amount === undefined || amount === null || isNaN(Number(amount)) ? 0 : Number(amount);
+  return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n))} ${currency.label}`;
 }
+
+/** Alias explicite */
+export const formatMoney = formatFCFA;
 
 /**
  * Formate une date ISO en format lisible français.

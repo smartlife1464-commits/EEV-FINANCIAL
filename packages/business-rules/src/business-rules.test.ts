@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateEntryAllocations,
+  validateSplitRule,
   validateInternalTransfer,
   calculateAttendanceTotal,
   canTransitionExpense,
@@ -42,6 +43,29 @@ describe('Scénarios Financiers et Règles Métier EEV', () => {
     expect(result.allocations[0].fundCode).toBe(FundAccountCode.BUILDING);
     expect(result.allocations[0].amount).toBe(100000);
     expect(result.allocations[0].percentage).toBe(100);
+  });
+
+  it('Ventilation paramétrable : 70 / 20 / 10 avec reliquat au fonds général, somme exacte', () => {
+    const split = [
+      { fundCode: 'GENERAL', percentage: 70, label: 'Fonds général' },
+      { fundCode: 'MISSIONS', percentage: 20, label: 'Missions' },
+      { fundCode: 'WELFARE_AID', percentage: 10, label: 'Aide' },
+    ];
+    const r = calculateEntryAllocations(100003, AllocationRule.STANDARD_SPLIT_80_10_10, undefined, split, 'GENERAL');
+    expect(r.totalAllocated).toBe(100003);
+    expect(r.allocations.find((a) => a.fundCode === 'MISSIONS')?.amount).toBe(20000);
+    expect(r.allocations.find((a) => a.fundCode === 'WELFARE_AID')?.amount).toBe(10000);
+    expect(r.allocations.find((a) => a.fundCode === 'GENERAL')?.amount).toBe(70003);
+  });
+
+  it('Ventilation paramétrable : règle invalide refusée (total ≠ 100 %, reliquat absent, doublon)', () => {
+    expect(validateSplitRule([{ fundCode: 'A', percentage: 90 }], 'A').valid).toBe(false);
+    expect(validateSplitRule([{ fundCode: 'A', percentage: 100 }], 'B').valid).toBe(false);
+    expect(validateSplitRule([{ fundCode: 'A', percentage: 50 }, { fundCode: 'A', percentage: 50 }], 'A').valid).toBe(false);
+    expect(validateSplitRule([{ fundCode: 'A', percentage: 100 }], 'A').valid).toBe(true);
+    expect(() =>
+      calculateEntryAllocations(1000, AllocationRule.STANDARD_SPLIT_80_10_10, undefined, [{ fundCode: 'A', percentage: 60 }], 'A')
+    ).toThrow();
   });
 
   it('Scénario 6 : Transfert interne entre deux fonds sans changer le solde global', () => {

@@ -42,7 +42,7 @@ export async function reportRoutes(app: FastifyInstance) {
       await ensureAdminAuth();
       const list = await pb.collection('fund_transactions').getFullList({ sort: '-created', expand: 'fund_account' });
       const csv = toCsv(
-        ['Numero', 'Date', 'Compartiment', 'Type', 'Sens', 'Montant_FCFA', 'Solde_Apres_FCFA', 'Libelle'],
+        ['Numero', 'Date', 'Compartiment', 'Type', 'Sens', 'Montant', 'Solde_Apres', 'Libelle'],
         list.map((t: any) => [
           t.transaction_number,
           String(t.created || '').slice(0, 19),

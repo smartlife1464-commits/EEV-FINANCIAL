@@ -1,4 +1,5 @@
-// Règles métier du Ministère Esprit & Vie (miroir exact de @eev/business-rules).
+// Règles métier (miroir exact de @eev/business-rules).
+import 'platform_config.dart';
 
 class AllocationLine {
   final String fundCode;
@@ -19,19 +20,18 @@ abstract final class BusinessRules {
     return pos(men) + pos(women) + pos(youth) + pos(children);
   }
 
-  /// Ventilation d'une recette brute en FCFA (arithmétique entière exacte) :
-  /// recettes ordinaires 10 % Dîme des dîmes, 10 % Aide sociale, 80 % Fonds général (reliquat) ;
-  /// fonds affectés 100 % au compartiment cible, sans prélèvement.
+  /// Ventilation d'une recette brute (arithmétique entière exacte) selon la règle de l'église :
+  /// chaque compartiment reçoit sa part arrondie à l'inférieur, le compartiment du reliquat reçoit
+  /// le complément ; fonds affectés : 100 % au compartiment cible, sans prélèvement.
   static List<AllocationLine> allocate(int gross, String rule, {String? targetFundCode, String? targetFundName}) {
     final amount = gross < 0 ? 0 : gross;
     if (rule == standardSplit) {
-      final tithe = (amount * 10) ~/ 100;
-      final aid = (amount * 10) ~/ 100;
-      return [
-        AllocationLine('GENERAL', 'Fonds Général', amount - tithe - aid, 80),
-        AllocationLine('TITHE_OF_TITHES', 'Dîme des Dîmes', tithe, 10),
-        AllocationLine('WELFARE_AID', 'Aide Sociale', aid, 10),
-      ];
+      final cfg = PlatformConfig.current;
+      final others = cfg.split.where((l) => l.fundCode != cfg.remainderFund).toList();
+      final rem = cfg.split.firstWhere((l) => l.fundCode == cfg.remainderFund, orElse: () => cfg.split.first);
+      final lines = [for (final l in others) AllocationLine(l.fundCode, l.label.isEmpty ? l.fundCode : l.label, (amount * l.percentage) ~/ 100, l.percentage)];
+      final rest = amount - lines.fold<int>(0, (s, l) => s + l.amount);
+      return [AllocationLine(rem.fundCode, rem.label.isEmpty ? rem.fundCode : rem.label, rest, rem.percentage), ...lines];
     }
     return [AllocationLine(targetFundCode ?? 'OTHER_DESIGNATED', targetFundName ?? 'Fonds affecté', amount, 100)];
   }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { brandColor } from '../../utils/brand';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { PeriodSelector } from '../../components/analytics/PeriodSelector';
@@ -318,7 +319,7 @@ export const AttendanceAnalytics: React.FC = () => {
                   type="monotone"
                   dataKey="youth"
                   name="Jeunes"
-                  stroke="#FFBC00"
+                  stroke={brandColor()}
                   strokeWidth={2}
                 />
               )}
@@ -357,7 +358,7 @@ export const AttendanceAnalytics: React.FC = () => {
                 <Tooltip
                   contentStyle={{ backgroundColor: '#091338', borderColor: '#16214A', borderRadius: 16 }}
                 />
-                <Bar dataKey="average" name="Moyenne par Culte" fill="#FFBC00" radius={[10, 10, 0, 0]} />
+                <Bar dataKey="average" name="Moyenne par Culte" fill={brandColor()} radius={[10, 10, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

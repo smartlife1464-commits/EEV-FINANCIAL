@@ -15,8 +15,11 @@ import {
   Users,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { Link } from 'react-router-dom';
+import { usePlatform } from '../context/PlatformContext';
+import { useAuth } from '../context/AuthContext';
 import { DEFAULT_MINISTRY, MinistrySettings } from '../hooks/useMinistry';
-import { formatNumber, timeAgo } from '../utils/formatters';
+import { formatNumber, timeAgo, currencyLabel, currencyCode } from '../utils/formatters';
 
 const inputClass =
   'w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-bold text-xs outline-none focus:ring-2 focus:ring-amber-400';
@@ -33,6 +36,8 @@ const COUNT_LABELS: Record<string, string> = {
 
 export const SettingsPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const { split, remainderFund } = usePlatform();
+  const { user } = useAuth();
   const [form, setForm] = useState<MinistrySettings>(DEFAULT_MINISTRY);
 
   const { data: settings, isLoading } = useQuery({
@@ -85,7 +90,7 @@ export const SettingsPage: React.FC = () => {
         <div>
           <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Settings className="w-6 h-6 text-amber-500" />
-            <span>Paramètres Généraux & Règles Financières</span>
+            <span>Paramètres généraux</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Identité officielle du ministère (en-têtes des reçus, bons de caisse, PV et rapports), règles de ventilation et état du système.
@@ -142,7 +147,7 @@ export const SettingsPage: React.FC = () => {
             </div>
             <div className="space-y-2">
               <label className={labelClass}>Devise comptable</label>
-              <input type="text" disabled value="FCFA (Franc CFA XAF)" className="w-full p-3.5 rounded-2xl bg-slate-100 dark:bg-[#070D22]/60 border border-slate-200 dark:border-[#16214A] text-slate-500 font-bold text-xs cursor-not-allowed" />
+              <input type="text" disabled value={`${currencyLabel()} (${currencyCode()}) — modifiable dans la console plateforme`} className="w-full p-3.5 rounded-2xl bg-slate-100 dark:bg-[#070D22]/60 border border-slate-200 dark:border-[#16214A] text-slate-500 font-bold text-xs cursor-not-allowed" />
             </div>
           </div>
 
@@ -159,33 +164,36 @@ export const SettingsPage: React.FC = () => {
         </div>
       </form>
 
-      {/* Section 2 : Règles de Ventilation Statutaire (verrouillées dans le moteur de règles) */}
+      {/* Section 2 : Règle de ventilation en vigueur (configurée par l'admin plateforme) */}
       <div className="bg-white dark:bg-[#0C1530] p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-[#16214A] shadow-sm space-y-6">
-        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-[#16214A] pb-4">
-          <Coins className="w-5 h-5 text-emerald-500" />
-          <div>
-            <h2 className="text-base font-black text-slate-900 dark:text-white">Règles de Répartition Analytique (80 / 10 / 10)</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Règle statutaire non modifiable depuis l’interface : elle est garantie par le moteur de règles et la piste d’audit.
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-[#16214A] pb-4">
+          <div className="flex items-center gap-2">
+            <Coins className="w-5 h-5 text-emerald-500" />
+            <div>
+              <h2 className="text-base font-black text-slate-900 dark:text-white">Ventilation des recettes ordinaires</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Règle en vigueur, appliquée automatiquement à chaque recette et tracée dans le journal d’audit.
+              </p>
+            </div>
           </div>
+          {user?.isPlatformAdmin && (
+            <Link to="/platform" className="text-xs font-black text-amber-600 hover:underline whitespace-nowrap">
+              Modifier dans la console plateforme →
+            </Link>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { label: 'Dîme des Dîmes', pct: 10, box: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-500', desc: 'Prélèvement statutaire réservé à la direction sacerdotale.' },
-            { label: 'Aide Sociale & Secours', pct: 10, box: 'bg-emerald-500/10 border-emerald-500/20', text: 'text-emerald-500', desc: 'Prélèvement réservé aux veuves, orphelins et secours.' },
-            { label: 'Fonds Général', pct: 80, box: 'bg-blue-500/10 border-blue-500/20', text: 'text-blue-500', desc: "Seul fonds supportant l'intégralité des charges courantes." },
-          ].map((r) => (
-            <div key={r.label} className={`p-5 rounded-2xl border space-y-2 ${r.box}`}>
-              <span className={`text-xs font-black uppercase ${r.text}`}>{r.label}</span>
-              <p className="text-3xl font-black text-slate-900 dark:text-white">{r.pct} %</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">{r.desc}</p>
+          {split.map((r) => (
+            <div key={r.fundCode} className="p-5 rounded-2xl border space-y-2 bg-amber-500/5 border-amber-500/20">
+              <span className="text-xs font-black uppercase text-amber-600 dark:text-amber-400">{r.label || r.fundCode}</span>
+              <p className="text-3xl font-black text-slate-900 dark:text-white">{r.percentage} %</p>
+              {r.fundCode === remainderFund && <p className="text-[11px] text-slate-500 dark:text-slate-400">Reçoit aussi le reliquat des arrondis.</p>}
             </div>
           ))}
         </div>
         <p className="text-[11px] text-slate-500 dark:text-slate-400">
-          Les dons affectés (Construction Auditorium, Amis de Jésus, Offrandes spéciales) sont crédités à 100 % de leur compartiment, sans prélèvement.
+          Les dons affectés (catégories à affectation directe) sont crédités à 100 % de leur compartiment, sans prélèvement.
         </p>
       </div>
 

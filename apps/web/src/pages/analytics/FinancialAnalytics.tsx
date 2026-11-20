@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { brandColor } from '../../utils/brand';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { formatFCFA } from '../../utils/formatters';
@@ -54,13 +55,14 @@ export const FinancialAnalytics: React.FC = () => {
   const expenses = finData?.expenses;
   const treasury = finData?.treasury;
 
-  const splitData = revenues?.split80_10_10
-    ? [
-        { name: 'Fonds Général (80%)', amount: revenues.split80_10_10.generalFund, color: '#FFBC00', percentage: 80 },
-        { name: 'Dîme des Dîmes (10%)', amount: revenues.split80_10_10.titheOfTithes, color: '#6366F1', percentage: 10 },
-        { name: 'Aide Sociale & Secours (10%)', amount: revenues.split80_10_10.welfareAid, color: '#10B981', percentage: 10 },
-      ]
-    : [];
+  const SPLIT_COLORS = [brandColor(), '#6366F1', '#10B981', '#EC4899', '#0EA5E9', '#F97316'];
+  const splitData: { name: string; amount: number; color: string; percentage: number }[] = (revenues?.splitBreakdown || []).map((l: any, i: number) => ({
+    name: `${l.label} (${l.percentage}%)`,
+    amount: l.amount,
+    color: SPLIT_COLORS[i % SPLIT_COLORS.length],
+    percentage: l.percentage,
+  }));
+  const splitLabel = (revenues?.splitBreakdown || []).map((l: any) => l.percentage).join(' / ');
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
@@ -72,7 +74,7 @@ export const FinancialAnalytics: React.FC = () => {
             <span>Analyses Approfondies des Finances & Trésorerie</span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Ventilation certifiée 80/10/10, suivi des fonds affectés, analyse des décaissements et équilibre de caisse.
+            Ventilation automatique des recettes ordinaires, suivi des fonds affectés, analyse des décaissements et équilibre de caisse.
           </p>
         </div>
 
@@ -122,7 +124,7 @@ export const FinancialAnalytics: React.FC = () => {
       <div className="p-5 rounded-3xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3.5 text-amber-900 dark:text-amber-300 text-xs">
         <ShieldCheck className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
         <div>
-          <strong className="font-bold">Principe de Gestion Statutaire :</strong> Les recettes ordinaires (dîmes et offrandes ordinaires) sont soumises à la clé stricte 80/10/10. Les dons affectés (Auditorium, Amis de Jésus) sont alloués à <strong>100% sans aucun prélèvement</strong>. Les charges courantes de fonctionnement sont supportées à <strong>100% par le Fonds Général</strong>.
+          <strong className="font-bold">Principe de Gestion Statutaire :</strong> Les recettes ordinaires (dîmes et offrandes ordinaires) sont soumises à la clé de ventilation de l’église. Les dons affectés sont alloués à <strong>100% sans aucun prélèvement</strong>. Les charges courantes de fonctionnement sont supportées par le <strong>compartiment de fonctionnement</strong>.
         </div>
       </div>
 
@@ -154,7 +156,7 @@ export const FinancialAnalytics: React.FC = () => {
             {formatFCFA(revenues?.ordinaryCombined ?? 0)}
           </div>
           <p className="text-[11px] text-slate-400">
-            Base exacte de la répartition 80/10/10
+            Base exacte de la ventilation
           </p>
         </div>
 
@@ -176,12 +178,12 @@ export const FinancialAnalytics: React.FC = () => {
         <div className="p-5 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-blue-500">
-              Fonds Affecté Auditorium
+              Dons affectés
             </span>
             <Building2 className="w-5 h-5 text-blue-500" />
           </div>
           <div className="text-2xl font-black text-blue-500">
-            {formatFCFA(revenues?.designated?.buildingAuditorium ?? 0)}
+            {formatFCFA(revenues?.designated?.total ?? 0)}
           </div>
           <p className="text-[11px] text-emerald-500 font-bold">
             100% alloué (0% de prélèvement)
@@ -189,15 +191,15 @@ export const FinancialAnalytics: React.FC = () => {
         </div>
       </div>
 
-      {/* C. VENTILATION AUTOMATIQUE 80/10/10 & DONS AFFECTÉS */}
+      {/* C. VENTILATION AUTOMATIQUE & DONS AFFECTÉS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Boîte 80/10/10 */}
+        {/* Ventilation */}
         <div className="p-6 rounded-3xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#16214A] pb-3">
             <div>
               <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <Coins className="w-5 h-5 text-amber-500" />
-                <span>Ventilation Automatique 80 / 10 / 10</span>
+                <span>Ventilation automatique {splitLabel}</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Calculée sur les recettes ordinaires ({formatFCFA(revenues?.ordinaryCombined ?? 0)}).
@@ -243,7 +245,7 @@ export const FinancialAnalytics: React.FC = () => {
                 <span>Répartition des Dépenses de Fonctionnement</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Imputées exclusivement sur les 80% du Fonds Général.
+                Imputées par défaut sur le compartiment de fonctionnement.
               </p>
             </div>
             <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/25">
@@ -303,9 +305,9 @@ export const FinancialAnalytics: React.FC = () => {
                 contentStyle={{ backgroundColor: '#091338', borderColor: '#16214A', borderRadius: 16 }}
               />
               <Legend />
-              <Bar dataKey="tithes" name="Dîmes" fill="#FFBC00" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="tithes" name="Dîmes" fill={brandColor()} radius={[6, 6, 0, 0]} />
               <Bar dataKey="offerings" name="Offrandes Ordinaires" fill="#3B82F6" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="building" name="Auditorium (Affecté)" fill="#10B981" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="designated" name="Dons affectés" fill="#10B981" radius={[6, 6, 0, 0]} />
               <Bar dataKey="paidExpenses" name="Dépenses Payées" fill="#F43F5E" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

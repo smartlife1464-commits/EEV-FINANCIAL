@@ -1,0 +1,66 @@
+# Déploiement Coolify (build pack « Docker Compose », fichier : /docker-compose.coolify.yml).
+# Les images sont compilées par GitHub Actions (.github/workflows/images.yml) et publiées sur GHCR :
+# le serveur ne fait que les télécharger. EEV_IMAGE_TAG permet d'épingler une version (sha-<commit>).
+# Le domaine est attribué au service « web » dans Coolify ; aucun port n'est publié sur l'hôte.
+# Les variables SERVICE_PASSWORD_* sont générées automatiquement par Coolify (visibles dans
+# l'onglet « Environment Variables » de l'application).
+services:
+  pocketbase:
+    image: ghcr.io/smartlife1464-commits/eev-financial-pocketbase:${EEV_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:-superuser@cm.esprit-vie.cloud}
+      - POCKETBASE_ADMIN_PASSWORD=${SERVICE_PASSWORD_64_PBADMIN}
+    volumes:
+      - pb_data:/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ghcr.io/smartlife1464-commits/eev-financial-api:${EEV_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    environment:
+      - PORT=4000
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+      - POCKETBASE_URL=http://pocketbase:8090
+      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:-superuser@cm.esprit-vie.cloud}
+      - POCKETBASE_ADMIN_PASSWORD=${SERVICE_PASSWORD_64_PBADMIN}
+      - SETUP_TOKEN=${SERVICE_PASSWORD_SETUPTOKEN}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://cm.esprit-vie.cloud,http://cm.esprit-vie.cloud}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: ghcr.io/smartlife1464-commits/eev-financial-web:${EEV_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pb_data:

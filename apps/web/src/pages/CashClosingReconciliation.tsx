@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { BrandLogo, BrandName } from '../components/common/Brand';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { calculateCashReconciliation, CashCountBreakdown } from '@eev/business-rules';
-import { formatFCFA, formatDate } from '../utils/formatters';
+import { formatFCFA, formatDate, currencyLabel, currencyCode } from '../utils/formatters';
 import { WhatsAppReportShareModal, WhatsAppServiceReportData } from '../components/documents/WhatsAppReportShareModal';
 import {
   Calculator,
@@ -287,7 +288,7 @@ export const CashClosingReconciliation: React.FC = () => {
             <div>
               <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <Wallet className="w-5 h-5 text-amber-500" />
-                <span>1. Dénombrement des Coupures de Billets (CEMAC)</span>
+                <span>1. Dénombrement des Coupures de Billets </span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Indiquez la quantité physique comptée pour chaque coupure.
@@ -300,11 +301,11 @@ export const CashClosingReconciliation: React.FC = () => {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {[
-              { label: '10 000 FCFA', value: b10000, setter: setB10000, unit: 10000, color: 'text-emerald-500' },
-              { label: '5 000 FCFA', value: b5000, setter: setB5000, unit: 5000, color: 'text-blue-500' },
-              { label: '2 000 FCFA', value: b2000, setter: setB2000, unit: 2000, color: 'text-amber-500' },
-              { label: '1 000 FCFA', value: b1000, setter: setB1000, unit: 1000, color: 'text-indigo-500' },
-              { label: '500 FCFA', value: b500, setter: setB500, unit: 500, color: 'text-slate-400' },
+              { label: `10 000 ${currencyLabel()}`, value: b10000, setter: setB10000, unit: 10000, color: 'text-emerald-500' },
+              { label: `5 000 ${currencyLabel()}`, value: b5000, setter: setB5000, unit: 5000, color: 'text-blue-500' },
+              { label: `2 000 ${currencyLabel()}`, value: b2000, setter: setB2000, unit: 2000, color: 'text-amber-500' },
+              { label: `1 000 ${currencyLabel()}`, value: b1000, setter: setB1000, unit: 1000, color: 'text-indigo-500' },
+              { label: `500 ${currencyLabel()}`, value: b500, setter: setB500, unit: 500, color: 'text-slate-400' },
             ].map((b) => (
               <div key={b.label} className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] space-y-2">
                 <span className={`block text-xs font-black uppercase ${b.color}`}>
@@ -333,7 +334,7 @@ export const CashClosingReconciliation: React.FC = () => {
             <div>
               <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <Coins className="w-5 h-5 text-amber-500" />
-                <span>2. Dénombrement des Pièces de Monnaie (CEMAC)</span>
+                <span>2. Dénombrement des Pièces de Monnaie </span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Comptabilisation des pièces métalliques de la caisse.
@@ -346,10 +347,10 @@ export const CashClosingReconciliation: React.FC = () => {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: '500 FCFA', value: c500, setter: setC500, unit: 500 },
-              { label: '100 FCFA', value: c100, setter: setC100, unit: 100 },
-              { label: '50 FCFA', value: c50, setter: setC50, unit: 50 },
-              { label: '25 FCFA', value: c25, setter: setC25, unit: 25 },
+              { label: `500 ${currencyLabel()}`, value: c500, setter: setC500, unit: 500 },
+              { label: `100 ${currencyLabel()}`, value: c100, setter: setC100, unit: 100 },
+              { label: `50 ${currencyLabel()}`, value: c50, setter: setC50, unit: 50 },
+              { label: `25 ${currencyLabel()}`, value: c25, setter: setC25, unit: 25 },
             ].map((c) => (
               <div key={c.label} className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] space-y-2">
                 <span className="block text-xs font-black uppercase text-slate-600 dark:text-slate-300">
@@ -399,7 +400,7 @@ export const CashClosingReconciliation: React.FC = () => {
                 min="0"
                 value={mobileMoney || ''}
                 onChange={(e) => setMobileMoney(Math.max(0, parseInt(e.target.value) || 0))}
-                placeholder="Montant FCFA"
+                placeholder={`Montant ${currencyLabel()}`}
                 className="w-full p-2.5 rounded-xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-amber-400"
               />
             </div>
@@ -413,7 +414,7 @@ export const CashClosingReconciliation: React.FC = () => {
                 min="0"
                 value={bankTransfers || ''}
                 onChange={(e) => setBankTransfers(Math.max(0, parseInt(e.target.value) || 0))}
-                placeholder="Montant FCFA"
+                placeholder={`Montant ${currencyLabel()}`}
                 className="w-full p-2.5 rounded-xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-amber-400"
               />
             </div>
@@ -427,7 +428,7 @@ export const CashClosingReconciliation: React.FC = () => {
                 min="0"
                 value={checks || ''}
                 onChange={(e) => setChecks(Math.max(0, parseInt(e.target.value) || 0))}
-                placeholder="Montant FCFA"
+                placeholder={`Montant ${currencyLabel()}`}
                 className="w-full p-2.5 rounded-xl bg-white dark:bg-[#0C1530] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-amber-400"
               />
             </div>
@@ -588,15 +589,11 @@ export const CashClosingReconciliation: React.FC = () => {
               <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 p-2 flex items-center justify-center shrink-0">
-                    <img
-                      src="/logo-eev.png"
-                      alt="Ministère Esprit & Vie"
-                      className="w-full h-full object-contain"
-                    />
+                    <BrandLogo className="w-full h-full object-contain" />
                   </div>
                   <div>
                     <h1 className="font-black text-lg tracking-wider text-slate-950 uppercase">
-                      MINISTÈRE ESPRIT & VIE
+                      <BrandName upper />
                     </h1>
                     <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">
                       Département des Finances & Contrôle Interne
@@ -615,7 +612,7 @@ export const CashClosingReconciliation: React.FC = () => {
                     Arrêté le : <strong className="text-slate-950">{formatDate(selectedPV.date || selectedPV.created)}</strong>
                   </p>
                   <p className="text-slate-600">
-                    Devise : <span className="font-mono font-bold text-amber-600">FCFA (XAF)</span>
+                    Devise : <span className="font-mono font-bold text-amber-600">{currencyLabel()} ({currencyCode()})</span>
                   </p>
                   <span className="inline-block px-3 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
                     ★ CONTRÔLE CONTRADICTOIRE CONFORME
@@ -677,7 +674,7 @@ export const CashClosingReconciliation: React.FC = () => {
                   </span>
                   <p className="text-xl font-black mt-1">
                     {selectedPV.discrepancy === 0
-                      ? '0 FCFA'
+                      ? formatFCFA(0)
                       : (selectedPV.discrepancy > 0 ? `+${formatFCFA(selectedPV.discrepancy)}` : formatFCFA(selectedPV.discrepancy))}
                   </p>
                   <span className="text-[10px] font-bold">
@@ -692,7 +689,7 @@ export const CashClosingReconciliation: React.FC = () => {
 
               {/* Note d'intégrité ecclésiastique */}
               <div className="p-3 bg-slate-50 border-l-4 border-amber-500 rounded-r-xl text-xs text-slate-700 italic">
-                « Les soussignés certifient sur l'honneur l'exactitude des montants dénombrés contradictoirement ci-dessus, scellés en caisse centrale conformément aux statuts et règlements financiers du Ministère Esprit & Vie. »
+                « Les soussignés certifient sur l'honneur l'exactitude des montants dénombrés contradictoirement ci-dessus, scellés en caisse centrale conformément aux statuts et règlements financiers de <BrandName />. »
               </div>
 
               {selectedPV.notes && (
@@ -743,7 +740,7 @@ export const CashClosingReconciliation: React.FC = () => {
 
               {/* Pied de Page Officiel Standardisé */}
               <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 font-medium">
-                <span>Ministère Esprit & Vie — Département des Finances & Contrôle Interne • Registre des Clôtures</span>
+                <span><BrandName /> — Département des Finances & Contrôle Interne • Registre des Clôtures</span>
                 <span>Document Officiel Certifié • Format A4 Paysage • Page 1/1</span>
               </div>
             </div>

@@ -14,81 +14,93 @@ export interface AllocationSplitResult {
   grossAmount: number;
 }
 
+/** Une ligne de la règle de ventilation des recettes ordinaires (paramétrable par église). */
+export interface SplitRuleLine {
+  fundCode: string;
+  percentage: number;
+  label?: string;
+}
+
+/** Règle par défaut : 10 % Dîme des dîmes, 10 % Aide sociale, le reliquat (80 %) au Fonds général. */
+export const DEFAULT_SPLIT_RULE: SplitRuleLine[] = [
+  { fundCode: FundAccountCode.TITHE_OF_TITHES, percentage: 10, label: 'Dîme des dîmes' },
+  { fundCode: FundAccountCode.WELFARE_AID, percentage: 10, label: 'Aide sociale' },
+  { fundCode: FundAccountCode.GENERAL, percentage: 80, label: 'Fonds général' },
+];
+export const DEFAULT_REMAINDER_FUND = FundAccountCode.GENERAL as string;
+
 /**
- * Calcule la ventilation d'une recette brute en FCFA.
- * Règle non négociable :
- * - Dîmes et Offrandes ordinaires : 10% Dîme des dîmes, 10% Aide, 80% Fonds Général.
- * - Fonds affectés : 100% alloué au fonds cible, 0% de prélèvement.
- * Précision exacte : pas de flottants pour les totaux, somme égale au centime/franc près.
+ * Vérifie qu'une règle de ventilation est exploitable : pourcentages entiers positifs, total de 100 %,
+ * compartiments distincts, et compartiment du reliquat présent dans la règle.
+ */
+export function validateSplitRule(split: SplitRuleLine[], remainderFund: string): { valid: boolean; error?: string } {
+  if (!Array.isArray(split) || split.length === 0) {
+    return { valid: false, error: 'La règle de ventilation doit contenir au moins un compartiment.' };
+  }
+  const codes = new Set<string>();
+  let total = 0;
+  for (const line of split) {
+    if (!line.fundCode) return { valid: false, error: 'Chaque ligne doit désigner un compartiment.' };
+    if (codes.has(line.fundCode)) return { valid: false, error: `Le compartiment ${line.fundCode} apparaît deux fois.` };
+    codes.add(line.fundCode);
+    if (!Number.isInteger(line.percentage) || line.percentage < 0 || line.percentage > 100) {
+      return { valid: false, error: 'Les pourcentages doivent être des entiers entre 0 et 100.' };
+    }
+    total += line.percentage;
+  }
+  if (total !== 100) return { valid: false, error: `Le total de la ventilation doit faire 100 % (actuellement ${total} %).` };
+  if (!codes.has(remainderFund)) {
+    return { valid: false, error: 'Le compartiment qui reçoit le reliquat doit faire partie de la ventilation.' };
+  }
+  return { valid: true };
+}
+
+/**
+ * Calcule la ventilation d'une recette brute (montants entiers).
+ * - Recettes ordinaires (règle standard) : chaque compartiment reçoit sa part arrondie à l'inférieur,
+ *   le compartiment du reliquat reçoit le complément pour que la somme soit exactement le montant brut.
+ *   La règle est paramétrable par église (par défaut 80 / 10 / 10).
+ * - Fonds affectés : 100 % alloué au fonds cible, 0 % de prélèvement.
  */
 export function calculateEntryAllocations(
   grossAmount: number,
   rule: AllocationRule,
-  targetFundCode?: FundAccountCode | string
+  targetFundCode?: FundAccountCode | string,
+  split: SplitRuleLine[] = DEFAULT_SPLIT_RULE,
+  remainderFund: string = DEFAULT_REMAINDER_FUND
 ): AllocationSplitResult {
   if (grossAmount < 0) {
     throw new Error('Le montant brut doit être positif ou nul.');
   }
 
-  // Si montant zéro, retourne allocations à 0
-  if (grossAmount === 0) {
-    if (rule === AllocationRule.STANDARD_SPLIT_80_10_10) {
-      return {
-        grossAmount: 0,
-        totalAllocated: 0,
-        allocations: [
-          { fundCode: FundAccountCode.TITHE_OF_TITHES, amount: 0, percentage: 10, description: '10% Dîme des dîmes' },
-          { fundCode: FundAccountCode.WELFARE_AID, amount: 0, percentage: 10, description: '10% Aide' },
-          { fundCode: FundAccountCode.GENERAL, amount: 0, percentage: 80, description: '80% Fonds général' },
-        ],
-      };
-    } else {
-      const code = targetFundCode || FundAccountCode.OTHER_DESIGNATED;
-      return {
-        grossAmount: 0,
-        totalAllocated: 0,
-        allocations: [{ fundCode: code, amount: 0, percentage: 100, description: '100% Affectation directe' }],
-      };
-    }
-  }
-
-  // Règle 1 : Ventilation ordinaire 80 / 10 / 10
   if (rule === AllocationRule.STANDARD_SPLIT_80_10_10) {
-    const titheOfTithes = Math.floor((grossAmount * 10) / 100);
-    const welfareAid = Math.floor((grossAmount * 10) / 100);
-    // Le reliquat va au fonds général pour garantir que la somme = montant brut
-    const generalFund = grossAmount - (titheOfTithes + welfareAid);
+    const check = validateSplitRule(split, remainderFund);
+    if (!check.valid) throw new Error(check.error);
 
-    const totalAllocated = titheOfTithes + welfareAid + generalFund;
+    const others = split.filter((l) => l.fundCode !== remainderFund);
+    const remainderLine = split.find((l) => l.fundCode === remainderFund)!;
+    const parts = others.map((l) => ({ line: l, amount: Math.floor((grossAmount * l.percentage) / 100) }));
+    const remainderAmount = grossAmount - parts.reduce((s, p) => s + p.amount, 0);
 
+    const allocations = [
+      ...parts.map((p) => ({
+        fundCode: p.line.fundCode,
+        amount: p.amount,
+        percentage: p.line.percentage,
+        description: `${p.line.percentage}% ${p.line.label || p.line.fundCode} (prélèvement brut)`,
+      })),
+      {
+        fundCode: remainderLine.fundCode,
+        amount: remainderAmount,
+        percentage: remainderLine.percentage,
+        description: `${remainderLine.percentage}% ${remainderLine.label || remainderLine.fundCode} (reliquat)`,
+      },
+    ];
+    const totalAllocated = allocations.reduce((s, a) => s + a.amount, 0);
     if (totalAllocated !== grossAmount) {
       throw new Error(`Incohérence de calcul: ${totalAllocated} != ${grossAmount}`);
     }
-
-    return {
-      grossAmount,
-      totalAllocated,
-      allocations: [
-        {
-          fundCode: FundAccountCode.TITHE_OF_TITHES,
-          amount: titheOfTithes,
-          percentage: 10,
-          description: '10% Dîme des dîmes (prélèvement brut)',
-        },
-        {
-          fundCode: FundAccountCode.WELFARE_AID,
-          amount: welfareAid,
-          percentage: 10,
-          description: '10% Aide sociale (prélèvement brut)',
-        },
-        {
-          fundCode: FundAccountCode.GENERAL,
-          amount: generalFund,
-          percentage: 80,
-          description: '80% Fonds général (fonctionnement)',
-        },
-      ],
-    };
+    return { grossAmount, totalAllocated, allocations };
   }
 
   // Règle 2 : Fonds affecté intégralement (100%)
@@ -121,12 +133,12 @@ export function validateInternalTransfer(
     return { valid: false, error: 'Le fonds source et le fonds destination doivent être distincts.' };
   }
   if (amount <= 0) {
-    return { valid: false, error: 'Le montant du transfert doit être strictement supérieur à 0 FCFA.' };
+    return { valid: false, error: 'Le montant du transfert doit être strictement supérieur à 0.' };
   }
   if (sourceCurrentBalance < amount) {
     return {
       valid: false,
-      error: `Solde insuffisant sur le fonds source (${sourceCurrentBalance} FCFA disponible, ${amount} FCFA demandé).`,
+      error: `Solde insuffisant sur le fonds source (${sourceCurrentBalance} disponible, ${amount} demandé).`,
     };
   }
   return { valid: true };
@@ -190,10 +202,10 @@ export function calculateCashReconciliation(
 
   if (discrepancy > 0) {
     status = 'surplus';
-    statusLabel = `Excédent de caisse (+${discrepancy} FCFA)`;
+    statusLabel = `Excédent de caisse (+${discrepancy})`;
   } else if (discrepancy < 0) {
     status = 'shortage';
-    statusLabel = `Manquant de caisse (${discrepancy} FCFA)`;
+    statusLabel = `Manquant de caisse (${discrepancy})`;
   }
 
   return {

@@ -2,6 +2,11 @@
 
 Bienvenue sur la plateforme officielle de gestion administrative, statistique et financière du **Ministère Esprit & Vie** (Yaoundé, Cameroun).
 
+> **Adaptable à d’autres églises.** Une installation sert une église ; l’administrateur de la plateforme
+> la configure depuis la console web (identité, logo, couleurs, monnaie, ventilation des recettes,
+> compartiments, cultes, rôles, modules) et peut exporter un profil pour une autre église.
+> Voir [docs/ADMIN-PLATEFORME.md](docs/ADMIN-PLATEFORME.md) et [docs/DEPLOIEMENT-PRODUCTION.md](docs/DEPLOIEMENT-PRODUCTION.md).
+
 Ce système remplace intégralement les fiches physiques, les registres papier et les transmissions de rapports manuels par WhatsApp en centralisant l'intégralité des flux au sein d'une solution numérique traçable, auditée et sécurisée.
 
 ---
@@ -100,6 +105,10 @@ cd apps/mobile && flutter run
 
 Documentation Swagger interactive disponible sur : `http://localhost:4000/docs`.
 
+Au premier lancement, créez le superutilisateur PocketBase (`./bin/pocketbase superuser upsert EMAIL MOT_DE_PASSE`,
+mêmes identifiants que `POCKETBASE_ADMIN_*` dans `apps/api/.env`), puis ouvrez `http://localhost:5173` :
+l’**assistant d’installation** crée l’administrateur de la plateforme. Aucun compte de démonstration n’existe.
+
 ---
 
 > ⚠️ Toujours passer `--migrationsDir` : sans lui, PocketBase cherche les migrations dans `bin/pb_migrations`
@@ -113,16 +122,18 @@ pnpm test        # règles métier + moteur statistique + API
 
 ## 4. Déploiement en Production (VPS Linux & Docker)
 
-Le dossier `docker/` contient la configuration de production. Variables **obligatoires** (fichier `.env` à la racine, jamais commité) :
-`POCKETBASE_ENCRYPTION_KEY` (32 caractères), `POCKETBASE_ADMIN_EMAIL`, `POCKETBASE_ADMIN_PASSWORD`.
+Le dossier `docker/` contient la configuration de production. Variables **obligatoires** (fichier `.env` à la racine,
+modèle [`.env.example`](.env.example), jamais commité) : `POCKETBASE_ENCRYPTION_KEY` (32 caractères),
+`POCKETBASE_ADMIN_EMAIL`, `POCKETBASE_ADMIN_PASSWORD`, `SETUP_TOKEN`. Procédure complète :
+[docs/DEPLOIEMENT-PRODUCTION.md](docs/DEPLOIEMENT-PRODUCTION.md).
 
 ```bash
 cd docker
 docker compose --env-file ../.env up -d --build
 ```
 
-> En production (`NODE_ENV=production`), les jetons et identifiants de démonstration sont désactivés,
-> la page de connexion n'est plus pré-remplie et le sélecteur de comptes de démo est masqué.
+> Aucun compte, mot de passe ni jeton de démonstration n’existe dans le code. En production, l’API refuse de
+> démarrer si un secret manque ou si `CORS_ORIGIN` vaut `*`.
 
 Services déployés :
 - **PocketBase** (`eev-pocketbase`) : SQLite avec volume persistant sécurisé.
@@ -130,7 +141,7 @@ Services déployés :
 - **Frontend Nginx** (`eev-web`) : Sert l'application web React optimisée et assure le proxy inverse.
 
 ### Paramètres institutionnels
-Le nom, l'adresse, la boîte postale, le téléphone et l'email du ministère se règlent dans **Paramètres** (rôles Admin / Leader).
+Le nom, l'adresse, la boîte postale, le téléphone et l'email de l'église se règlent dans **Console plateforme → Identité** (ou **Paramètres**).
 Ils alimentent tous les documents officiels (reçus de don, bons de caisse, PV de clôture, rapports, registre de fréquentation).
 
 ### Sauvegarde et Restauration Automatisées

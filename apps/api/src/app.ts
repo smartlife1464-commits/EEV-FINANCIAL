@@ -12,9 +12,12 @@ import { analyticsRoutes } from './routes/analytics.routes.js';
 import { notificationRoutes } from './routes/notifications.routes.js';
 import { settingsRoutes } from './routes/settings.routes.js';
 import { fundRoutes } from './routes/funds.routes.js';
+import { platformRoutes } from './routes/platform.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = fastify({
+    // Derrière le proxy Nginx : adresse IP réelle du client (journal d'audit, limiteur de tentatives)
+    trustProxy: !config.isDevelopment,
     logger: {
       level: config.nodeEnv === 'development' ? 'info' : 'warn',
     },
@@ -31,8 +34,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(swagger, {
     openapi: {
       info: {
-        title: 'Ministère Esprit & Vie — API Gestion Financière & Statistique',
-        description: 'Spécification de l’API backend pour la plateforme EEV-FINANCIAL.',
+        title: 'API Gestion d’église — finances, caisse et fréquentation',
+        description: 'Spécification de l’API backend de la plateforme.',
         version: '1.0.0',
       },
       servers: [
@@ -79,6 +82,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(notificationRoutes);
   await app.register(settingsRoutes);
   await app.register(fundRoutes);
+  await app.register(platformRoutes);
 
   return app;
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
+import { usePlatform } from '../context/PlatformContext';
 import { Badge } from '../components/common/Badge';
 import {
   ShieldCheck,
@@ -24,6 +25,7 @@ import { toast } from 'sonner';
 
 export const UsersManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
+  const { roleLabel } = usePlatform();
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ['users-list'],
     queryFn: () => api.getUsers(),
@@ -63,6 +65,23 @@ export const UsersManagement: React.FC = () => {
     }
   };
 
+  const handleResetPassword = async (userRecord: any) => {
+    const password = window.prompt(
+      `Nouveau mot de passe provisoire pour ${userRecord.name || userRecord.email} (8 caractères minimum). Communiquez-le en main propre.`
+    );
+    if (password === null) return;
+    if (password.length < 8) {
+      toast.error('Le mot de passe doit comporter au moins 8 caractères.');
+      return;
+    }
+    try {
+      await api.resetUserPassword(userRecord.id, password);
+      toast.success('Mot de passe réinitialisé', { description: userRecord.email });
+    } catch (err: any) {
+      toast.error(err.message || 'Réinitialisation impossible.');
+    }
+  };
+
   const handleToggleStatus = async (userRecord: any) => {
     const newStatus = !userRecord.is_active;
     const confirmMsg = newStatus
@@ -86,43 +105,43 @@ export const UsersManagement: React.FC = () => {
       case UserRole.LEAD_PASTOR:
         return (
           <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400/20 text-amber-500 border border-amber-400/35">
-            👑 Leader Principal (Superviseur)
+            {roleLabel(UserRole.LEAD_PASTOR)}
           </span>
         );
       case UserRole.ADMIN:
         return (
           <span className="px-3 py-1 rounded-full text-xs font-black bg-indigo-500/20 text-indigo-400 border border-indigo-500/35">
-            ⚙️ Administrateur Général
+            {roleLabel(UserRole.ADMIN)}
           </span>
         );
       case UserRole.FINANCE_LEAD:
         return (
           <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/35">
-            💰 Responsable Finances
+            {roleLabel(UserRole.FINANCE_LEAD)}
           </span>
         );
       case UserRole.CASHIER:
         return (
           <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-400 border border-amber-500/35">
-            💵 Caissier Principal
+            {roleLabel(UserRole.CASHIER)}
           </span>
         );
       case UserRole.PROTOCOL_LEAD:
         return (
           <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-500/20 text-blue-400 border border-blue-500/35">
-            📋 Responsable Protocole
+            {roleLabel(UserRole.PROTOCOL_LEAD)}
           </span>
         );
       case UserRole.PROTOCOL_AGENT:
         return (
           <span className="px-3 py-1 rounded-full text-xs font-black bg-slate-500/20 text-slate-400 border border-slate-500/35">
-            🙋‍♂️ Agent Protocole
+            {roleLabel(UserRole.PROTOCOL_AGENT)}
           </span>
         );
       case UserRole.AUDITOR:
         return (
           <span className="px-3 py-1 rounded-full text-xs font-black bg-rose-500/20 text-rose-400 border border-rose-500/35">
-            🔍 Auditeur / Contrôleur
+            {roleLabel(UserRole.AUDITOR)}
           </span>
         );
       default:
@@ -169,7 +188,7 @@ export const UsersManagement: React.FC = () => {
             Principe de moindre privilège & Ségrégation des fonctions
           </p>
           <p>
-            Chaque collaborateur du Ministère Esprit & Vie dispose d'un périmètre strictement délimité. Les membres du Protocole n'ont aucun accès aux écritures financières, et le caissier ne peut pas valider ses propres décaissements.
+            Chaque collaborateur dispose d'un périmètre strictement délimité. Les membres du Protocole n'ont aucun accès aux écritures financières, et le caissier ne peut pas valider ses propres décaissements.
           </p>
         </div>
       </div>
@@ -204,13 +223,13 @@ export const UsersManagement: React.FC = () => {
             className="px-4 py-2.5 bg-slate-50 dark:bg-[#060D24] border border-slate-200 dark:border-[#16214A] rounded-2xl text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
           >
             <option value="all">Tous les rôles ({users.length})</option>
-            <option value={UserRole.LEAD_PASTOR}>Leader Principal</option>
-            <option value={UserRole.ADMIN}>Administrateur Général</option>
-            <option value={UserRole.FINANCE_LEAD}>Responsable Finances</option>
-            <option value={UserRole.CASHIER}>Caissier</option>
-            <option value={UserRole.PROTOCOL_LEAD}>Responsable Protocole</option>
-            <option value={UserRole.PROTOCOL_AGENT}>Agent Protocole</option>
-            <option value={UserRole.AUDITOR}>Auditeur</option>
+            <option value={UserRole.LEAD_PASTOR}>{roleLabel(UserRole.LEAD_PASTOR)}</option>
+            <option value={UserRole.ADMIN}>{roleLabel(UserRole.ADMIN)}</option>
+            <option value={UserRole.FINANCE_LEAD}>{roleLabel(UserRole.FINANCE_LEAD)}</option>
+            <option value={UserRole.CASHIER}>{roleLabel(UserRole.CASHIER)}</option>
+            <option value={UserRole.PROTOCOL_LEAD}>{roleLabel(UserRole.PROTOCOL_LEAD)}</option>
+            <option value={UserRole.PROTOCOL_AGENT}>{roleLabel(UserRole.PROTOCOL_AGENT)}</option>
+            <option value={UserRole.AUDITOR}>{roleLabel(UserRole.AUDITOR)}</option>
           </select>
         </div>
       </div>
@@ -282,7 +301,16 @@ export const UsersManagement: React.FC = () => {
                           <span>{isActive ? 'Actif' : 'Suspendu'}</span>
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-right">
+                      <td className="py-4 px-6 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleResetPassword(u)}
+                          className="mr-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 border border-slate-300 dark:border-[#16214A] text-slate-600 dark:text-slate-300 hover:border-amber-400"
+                          title="Définir un mot de passe provisoire"
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                          <span>Mot de passe</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(u)}
@@ -353,7 +381,7 @@ export const UsersManagement: React.FC = () => {
                 <input
                   type="email"
                   required
-                  placeholder="Ex: marc@espritvie.org"
+                  placeholder="Ex : marc@exemple.org"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-400 font-medium"
@@ -383,13 +411,13 @@ export const UsersManagement: React.FC = () => {
                   onChange={(e) => setRole(e.target.value as UserRole)}
                   className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-[#070D22] border border-slate-200 dark:border-[#16214A] text-slate-900 dark:text-white text-sm font-bold outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
                 >
-                  <option value={UserRole.LEAD_PASTOR}>👑 Leader Principal (Superviseur Général)</option>
-                  <option value={UserRole.ADMIN}>⚙️ Administrateur Général (Configuration)</option>
-                  <option value={UserRole.FINANCE_LEAD}>💰 Responsable Finances (Gestion Trésorerie)</option>
-                  <option value={UserRole.CASHIER}>💵 Caissier Principal (Encaissement Caisse)</option>
-                  <option value={UserRole.PROTOCOL_LEAD}>📋 Responsable Protocole (Gestion Fréquentation)</option>
-                  <option value={UserRole.PROTOCOL_AGENT}>🙋‍♂️ Agent Protocole (Saisie des Fiches)</option>
-                  <option value={UserRole.AUDITOR}>🔍 Auditeur / Contrôleur (Lecture Seule & Traçabilité)</option>
+                  <option value={UserRole.LEAD_PASTOR}>{roleLabel(UserRole.LEAD_PASTOR)}</option>
+                  <option value={UserRole.ADMIN}>{roleLabel(UserRole.ADMIN)}</option>
+                  <option value={UserRole.FINANCE_LEAD}>{roleLabel(UserRole.FINANCE_LEAD)}</option>
+                  <option value={UserRole.CASHIER}>{roleLabel(UserRole.CASHIER)}</option>
+                  <option value={UserRole.PROTOCOL_LEAD}>{roleLabel(UserRole.PROTOCOL_LEAD)}</option>
+                  <option value={UserRole.PROTOCOL_AGENT}>{roleLabel(UserRole.PROTOCOL_AGENT)}</option>
+                  <option value={UserRole.AUDITOR}>{roleLabel(UserRole.AUDITOR)}</option>
                 </select>
               </div>
 

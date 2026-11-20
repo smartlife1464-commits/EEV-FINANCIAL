@@ -1,0 +1,357 @@
+{
+  "kind": "eev-church-profile",
+  "version": 1,
+  "exportedAt": "2026-11-17T00:00:00.000Z",
+  "ministry": {
+    "name": "Église (modèle générique)",
+    "headquarters": "",
+    "postalBox": "",
+    "phone": "",
+    "email": "",
+    "website": "",
+    "mainPastor": "",
+    "venueCapacity": 0
+  },
+  "platform": {
+    "branding": {
+      "shortName": "",
+      "tagline": "",
+      "logo": "",
+      "primaryColor": "#FFBC00",
+      "secondaryColor": "#091338"
+    },
+    "locale": {
+      "currencyCode": "XAF",
+      "currencyLabel": "FCFA",
+      "currencyWords": "francs CFA",
+      "country": "",
+      "city": "",
+      "timezone": "Africa/Douala"
+    },
+    "finance": {
+      "split": [
+        {
+          "fundCode": "TITHE_OF_TITHES",
+          "percentage": 10,
+          "label": "Dîme des dîmes"
+        },
+        {
+          "fundCode": "WELFARE_AID",
+          "percentage": 10,
+          "label": "Aide sociale"
+        },
+        {
+          "fundCode": "GENERAL",
+          "percentage": 80,
+          "label": "Fonds général"
+        }
+      ],
+      "remainderFund": "GENERAL"
+    },
+    "modules": {
+      "attendance": true,
+      "finance": true,
+      "campaigns": true,
+      "fixedExpenses": true,
+      "budgets": true,
+      "transfers": true,
+      "cashClosing": true,
+      "analytics": true
+    },
+    "roleLabels": {
+      "admin": "Administrateur général",
+      "lead_pastor": "Pasteur principal",
+      "finance_lead": "Responsable des finances",
+      "cashier": "Caissier",
+      "protocol_lead": "Responsable du protocole",
+      "protocol_agent": "Agent du protocole",
+      "auditor": "Auditeur"
+    }
+  },
+  "funds": [
+    {
+      "code": "GENERAL",
+      "name": "Fonds général",
+      "description": "Fonctionnement et charges courantes",
+      "is_restricted": false,
+      "is_active": true,
+      "color": ""
+    },
+    {
+      "code": "TITHE_OF_TITHES",
+      "name": "Dîme des dîmes",
+      "description": "Prélèvement statutaire sur les recettes ordinaires",
+      "is_restricted": true,
+      "is_active": true,
+      "color": ""
+    },
+    {
+      "code": "WELFARE_AID",
+      "name": "Aide sociale & secours",
+      "description": "Prélèvement statutaire sur les recettes ordinaires",
+      "is_restricted": true,
+      "is_active": true,
+      "color": ""
+    },
+    {
+      "code": "SPECIAL_OFFERING",
+      "name": "Offrandes spéciales & dons désignés",
+      "description": "Dons à destination spéciale (100 %)",
+      "is_restricted": true,
+      "is_active": true,
+      "color": ""
+    },
+    {
+      "code": "BUILDING",
+      "name": "Projet de construction",
+      "description": "Dons affectés à 100 %",
+      "is_restricted": true,
+      "is_active": true,
+      "color": ""
+    },
+    {
+      "code": "MISSIONS",
+      "name": "Missions & évangélisation",
+      "description": "Dons affectés à 100 %",
+      "is_restricted": true,
+      "is_active": true,
+      "color": ""
+    }
+  ],
+  "revenueCategories": [
+    {
+      "code": "tithes",
+      "name": "Dîmes",
+      "allocation_rule": "standard_split_80_10_10",
+      "target_fund_code": "",
+      "description": "Dîmes des fidèles (ventilation standard)",
+      "is_active": true
+    },
+    {
+      "code": "offerings",
+      "name": "Offrandes ordinaires",
+      "allocation_rule": "standard_split_80_10_10",
+      "target_fund_code": "",
+      "description": "Offrandes de culte (ventilation standard)",
+      "is_active": true
+    },
+    {
+      "code": "thanksgiving",
+      "name": "Actions de grâce",
+      "allocation_rule": "standard_split_80_10_10",
+      "target_fund_code": "",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "special_offerings",
+      "name": "Offrande spéciale / don désigné",
+      "allocation_rule": "direct_allocated",
+      "target_fund_code": "SPECIAL_OFFERING",
+      "description": "100 % au compartiment",
+      "is_active": true
+    },
+    {
+      "code": "building_gift",
+      "name": "Don pour la construction",
+      "allocation_rule": "direct_allocated",
+      "target_fund_code": "BUILDING",
+      "description": "100 % au compartiment",
+      "is_active": true
+    },
+    {
+      "code": "missions_gift",
+      "name": "Don pour les missions",
+      "allocation_rule": "direct_allocated",
+      "target_fund_code": "MISSIONS",
+      "description": "100 % au compartiment",
+      "is_active": true
+    }
+  ],
+  "expenseCategories": [
+    {
+      "code": "rent",
+      "name": "Loyer",
+      "type": "fixed",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "water",
+      "name": "Eau",
+      "type": "fixed",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "electricity",
+      "name": "Électricité",
+      "type": "fixed",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "internet",
+      "name": "Internet",
+      "type": "fixed",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "subscriptions",
+      "name": "Abonnements",
+      "type": "fixed",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "maintenance_recurring",
+      "name": "Entretien récurrent",
+      "type": "fixed",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "other_fixed",
+      "name": "Autres charges régulières",
+      "type": "fixed",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "transport",
+      "name": "Transport",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "nutrition",
+      "name": "Nutrition",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "aid",
+      "name": "Aide",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "logistics",
+      "name": "Logistique",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "health",
+      "name": "Santé",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "communication",
+      "name": "Communication",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "equipment",
+      "name": "Matériel",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "exceptional_maintenance",
+      "name": "Entretien exceptionnel",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "evangelism",
+      "name": "Évangélisation",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "mission",
+      "name": "Mission",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "hospitality",
+      "name": "Hébergement",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "training",
+      "name": "Formation",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "events",
+      "name": "Événements",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    },
+    {
+      "code": "other_variable",
+      "name": "Autres dépenses",
+      "type": "variable",
+      "description": "",
+      "is_active": true
+    }
+  ],
+  "serviceTypes": [
+    {
+      "slug": "sunday_service",
+      "name": "Culte du dimanche",
+      "description": "",
+      "display_order": 1,
+      "is_active": true
+    },
+    {
+      "slug": "midweek_service",
+      "name": "Culte de semaine",
+      "description": "",
+      "display_order": 2,
+      "is_active": true
+    },
+    {
+      "slug": "prayer_meeting",
+      "name": "Réunion de prière",
+      "description": "",
+      "display_order": 3,
+      "is_active": true
+    },
+    {
+      "slug": "youth_service",
+      "name": "Culte des jeunes",
+      "description": "",
+      "display_order": 4,
+      "is_active": true
+    },
+    {
+      "slug": "special_programs",
+      "name": "Programmes spéciaux",
+      "description": "",
+      "display_order": 5,
+      "is_active": true
+    }
+  ]
+}

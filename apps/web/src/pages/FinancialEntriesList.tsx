@@ -109,7 +109,7 @@ export const FinancialEntriesList: React.FC = () => {
             <option value="all">Toutes les catégories</option>
             {categories.map((c: any) => (
               <option key={c.id} value={c.id}>
-                {c.name} ({c.allocation_rule === 'standard_split_80_10_10' ? '80/10/10' : '100%'})
+                {c.name} ({c.allocation_rule === 'standard_split_80_10_10' ? 'ventilation' : '100 %'})
               </option>
             ))}
           </select>
@@ -168,7 +168,7 @@ export const FinancialEntriesList: React.FC = () => {
                     </td>
                     <td className="py-4 px-6 text-center">
                       <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-400/15 text-amber-500 border border-amber-400/30">
-                        {entry.category?.allocation_rule === 'standard_split_80_10_10' ? '80/10/10' : '100% Affecté'}
+                        {entry.category?.allocation_rule === 'standard_split_80_10_10' ? 'Ventilation' : '100 % affecté'}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right whitespace-nowrap">

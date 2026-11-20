@@ -33,7 +33,7 @@ migrate((app) => {
   const rec = new Record(collection);
   rec.set('key', 'ministry');
   rec.set('value', {
-    name: 'Ministère Esprit & Vie',
+    name: '',
     headquarters: '',
     postalBox: '',
     phone: '',

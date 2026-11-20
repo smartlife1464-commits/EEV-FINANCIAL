@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_colors.dart';
 import '../kit/kit.dart';
+import 'package:provider/provider.dart';
+import '../../state/platform.dart';
 
-/// Écran de démarrage : logo en apesanteur, halo doré pulsé, signature du ministère.
+/// Écran de démarrage : logo en apesanteur, halo doré pulsé, nom de l'église.
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
@@ -25,9 +27,13 @@ class SplashScreen extends StatelessWidget {
                   .animate(onPlay: (c) => c.repeat(reverse: true))
                   .moveY(begin: 0, end: -8, duration: 1600.ms, curve: Curves.easeInOut),
               const SizedBox(height: 32),
-              const Text(
-                'ESPRIT & VIE',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  context.watch<PlatformState>().config.displayName.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 4),
+                ),
               ).animate().fadeIn(delay: 350.ms, duration: 600.ms).slideY(begin: 0.4, curve: Curves.easeOutCubic),
               const SizedBox(height: 8),
               Text(
