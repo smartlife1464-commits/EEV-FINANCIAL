@@ -1,0 +1,207 @@
+{
+  "project_info": {
+    "project_number": "190010136582",
+    "firebase_url": "https://espritetvie-default-rtdb.firebaseio.com",
+    "project_id": "espritetvie",
+    "storage_bucket": "espritetvie.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190010136582:android:42388646313a6b631b4b87",
+        "android_client_info": {
+          "package_name": "com.eevfinancial.ministry"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSrOthy4S9YvTeJxAgEcxvInChuHLTtwM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "190010136582-2c9t0b9s4s58k8s7640pb2nkktuf6nst.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.eevministry.church"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190010136582:android:2a6be65e79f1a1e21b4b87",
+        "android_client_info": {
+          "package_name": "com.eevministry.learn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190010136582-4fk91u0b09n7ebnvtl8n31f4p22q0l72.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.eevministry.learn",
+            "certificate_hash": "9bbb3186b2189ef16d8f272bdab59362c395cbb4"
+          }
+        },
+        {
+          "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSrOthy4S9YvTeJxAgEcxvInChuHLTtwM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "190010136582-2c9t0b9s4s58k8s7640pb2nkktuf6nst.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.eevministry.church"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190010136582:android:0ceeb4c42da33a7b1b4b87",
+        "android_client_info": {
+          "package_name": "com.eevmisnistry.chruch"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190010136582-5qb2qg6179u1r789kqp6fglekkaom22c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.eevmisnistry.chruch",
+            "certificate_hash": "9bbb3186b2189ef16d8f272bdab59362c395cbb4"
+          }
+        },
+        {
+          "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSrOthy4S9YvTeJxAgEcxvInChuHLTtwM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "190010136582-2c9t0b9s4s58k8s7640pb2nkktuf6nst.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.eevministry.church"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190010136582:android:7ab0eaef26e432821b4b87",
+        "android_client_info": {
+          "package_name": "com.espritetvie.ministry"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSrOthy4S9YvTeJxAgEcxvInChuHLTtwM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "190010136582-2c9t0b9s4s58k8s7640pb2nkktuf6nst.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.eevministry.church"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190010136582:android:dac57dafc101c19b1b4b87",
+        "android_client_info": {
+          "package_name": "learn.espritetvie.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSrOthy4S9YvTeJxAgEcxvInChuHLTtwM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190010136582-ed8l3rsko56rqf2u7gd87ckp7lu72hon.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "190010136582-2c9t0b9s4s58k8s7640pb2nkktuf6nst.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.eevministry.church"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
